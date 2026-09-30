@@ -1,0 +1,11 @@
+{
+  "session_id": "hook-fixture-codex-0001",
+  "transcript_path": "/Users/example/.codex/sessions/2026-05-18T10-10-00.jsonl",
+  "cwd": "/Users/example/palace",
+  "permission_mode": "default",
+  "model": "gpt-5.1-codex",
+  "hook_event_name": "Stop",
+  "turn_id": "turn-0001",
+  "stop_hook_active": false,
+  "last_assistant_message": "Done. The capture daemon picked up the line."
+}

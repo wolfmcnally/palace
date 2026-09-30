@@ -1,0 +1,3 @@
+tests/fixtures/test_governance/**/*.patch whitespace=-trailing-space
+reports/test-governance/*.jsonl whitespace=-trailing-space
+reports/test-governance/*.json whitespace=-trailing-space

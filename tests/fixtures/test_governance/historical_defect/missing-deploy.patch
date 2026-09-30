@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -44,7 +44,7 @@
+     direct_proof: pytest:tests/fact/test_schema.py::test_fact_id_matches_independent_recompute_scalar
+   deploy:
+     state: applicable
+-    direct_proof: pytest:tests/daemons/test_capture_lifecycle.py::test_install_substitutes_placeholders
++    direct_proof: pytest:absent-historical-deploy
+   core-success:
+     state: applicable
+     direct_proof: pytest:tests/test_search.py::test_search_hybrid_fuses_via_rrf

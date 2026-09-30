@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -32,7 +32,7 @@
+     direct_proof: pytest:tests/test_kickoff_config.py::test_invalid_edit_is_atomic
+   corruption:
+     state: applicable
+-    direct_proof: pytest:tests/test_kickoff_evidence.py::test_validate_detects_corrupt_evidence
++    direct_proof: pytest:absent-historical-corruption
+   recovery:
+     state: applicable
+     direct_proof: pytest:tests/test_execution_telemetry.py::test_lifecycle_idempotency_finalization_and_crash_recovery

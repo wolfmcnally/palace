@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# palace-index-build-smoke — end-to-end smoke for the synchronous
+# `palace index build` tool (Phase 3.1).
+#
+# Hermetic. Uses a `mktemp` --store and a `mktemp` watch root so the
+# host's ~/palace-data.noindex/ is never touched. Requires Ollama
+# running at $OLLAMA_HOST (default http://localhost:11434) with
+# `qwen3-embedding:8b` pulled; the smoke probes both up-front and exits
+# non-zero with a clear message if either condition isn't met.
+#
+# Walk:
+#   1) temp store + root with 3 .md, 2 .py, a gitignored build.log
+#      (via *.log), and a .DS_Store dotfile.
+#   2) First build → exit 0, summary `files=5 embedded=5 deleted=0`,
+#      `SELECT COUNT(*) FROM files` == 5.
+#   3) Relative-path assertion: no chunk path is absolute or
+#      home-prefixed (paths are watch-root-relative — 3.2).
+#   4) No-op re-run → `embedded=0`.
+#   5) Append a section to one .md → `embedded=1`.
+#   6) Delete one indexed file → `deleted=1`, that path has 0 chunks.
+#   7) `--full` re-run → `embedded=5`, and no events log was created.
+#   8) Teardown + `index-build-smoke: ok`.
+#
+# When PALACE_INDEX_BUILD_SMOKE_KEEP=1 is set, the cleanup trap leaves
+# the temporary store and root on disk and prints their paths.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
+
+# Resolve through the real filesystem so paths match palace's
+# Path.resolve() output (macOS's mktemp returns /var/folders/... while
+# the resolved form is /private/var/folders/...).
+STORE="$(cd "$(mktemp -d -t palace-index-build-smoke.XXXXXX)" && pwd -P)"
+ROOT="$(cd "$(mktemp -d -t palace-index-build-smoke-root.XXXXXX)" && pwd -P)"
+
+log() {
+    printf '[index-build-smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[index-build-smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [ "${PALACE_INDEX_BUILD_SMOKE_KEEP:-0}" = "1" ]; then
+        log "PALACE_INDEX_BUILD_SMOKE_KEEP=1; leaving store and root on disk:"
+        log "  store=$STORE"
+        log "  root=$ROOT"
+        return
+    fi
+    rm -rf "$STORE" "$ROOT"
+}
+trap cleanup EXIT
+
+# Step 1: probe Ollama up-front. Fail loudly with a clear fix message.
+if ! curl -sSf -o /dev/null -m 2 "$OLLAMA_HOST/api/tags"; then
+    bail "ollama unreachable at $OLLAMA_HOST — run 'ollama serve' and 'ollama pull qwen3-embedding:8b' first"
+fi
+if ! curl -sS "$OLLAMA_HOST/api/tags" | "$REPO_ROOT/bin/python" -c "
+import json, sys
+data = json.load(sys.stdin)
+models = data.get('models', [])
+for m in models:
+    if m.get('name', '').startswith('qwen3-embedding:8b'):
+        sys.exit(0)
+sys.exit(1)
+"; then
+    bail "model qwen3-embedding:8b not pulled — run: ollama pull qwen3-embedding:8b"
+fi
+log "ollama OK at $OLLAMA_HOST"
+
+log "store=$STORE"
+log "root=$ROOT"
+
+# Step 1: populate the watch root.
+echo '*.log' > "$ROOT/.gitignore"
+printf '## A\nbody A\n' > "$ROOT/a.md"
+printf '## B\nbody B\n' > "$ROOT/b.md"
+printf '## C\nbody C\n' > "$ROOT/c.md"
+printf 'def one():\n    return 1\n' > "$ROOT/one.py"
+printf 'def two():\n    return 2\n' > "$ROOT/two.py"
+echo 'noise' > "$ROOT/build.log"
+echo 'ds' > "$ROOT/.DS_Store"
+
+cd "$REPO_ROOT"
+
+DB="$STORE/index/chunks.sqlite"
+
+# The chunks_vec table is a sqlite-vec virtual table; the standalone
+# `sqlite3` CLI cannot load the extension. Query via the uv-managed
+# Python interpreter (which has sqlite-vec on path).
+db_scalar() {
+    local sql="$1"
+    uv run python -c "
+import sqlite3, sqlite_vec
+c = sqlite3.connect('$DB')
+c.enable_load_extension(True); sqlite_vec.load(c)
+row = c.execute(\"$sql\").fetchone()
+print(row[0] if row else '')
+" 2>/dev/null || echo ""
+}
+
+# Step 2: first build.
+OUT1="$STORE/build-1.out"
+uv run palace index build --watch-root "$ROOT" --store "$STORE" >/dev/null 2>"$OUT1" \
+    || bail "first build exited non-zero"
+grep -q 'files=5 embedded=5' "$OUT1" || bail "expected 'files=5 embedded=5' in first build summary"
+grep -q 'deleted=0' "$OUT1" || bail "expected 'deleted=0' in first build summary"
+grep -q 'embed_concurrency=1' "$OUT1" || bail "expected local embed_concurrency=1"
+grep -q 'embed_batching=per-file(max=unbounded)' "$OUT1" \
+    || bail "expected provider-accurate local batching summary"
+log "first build: files=5 embedded=5 deleted=0 embed_concurrency=1 embed_batching=per-file(max=unbounded)"
+
+FILES_N="$(db_scalar 'SELECT COUNT(*) FROM files')"
+[[ "$FILES_N" == "5" ]] || bail "expected 5 rows in files, got $FILES_N"
+log "files table: 5 rows (gitignored + dotfile excluded)"
+
+# Step 3: relative-path assertion (3.2 — no path is absolute or home-prefixed).
+RELN="$(db_scalar "SELECT COUNT(*) FROM chunks WHERE path LIKE '/%' OR path LIKE '~%'")"
+[[ "$RELN" == "0" ]] || bail "expected relative chunk paths, found $RELN absolute/home-prefixed"
+log "paths are watch-root-relative (no '/' or '~' prefix) — 3.2"
+
+# Step 4: no-op re-run.
+OUT2="$STORE/build-2.out"
+uv run palace index build --watch-root "$ROOT" --store "$STORE" >/dev/null 2>"$OUT2" \
+    || bail "no-op re-run exited non-zero"
+grep -q 'embedded=0' "$OUT2" || bail "expected 'embedded=0' on no-op re-run"
+log "no-op re-run: embedded=0"
+
+# Step 5: append a section to one .md → embedded=1.
+printf '\n## A2\nbody A2\n' >> "$ROOT/a.md"
+OUT3="$STORE/build-3.out"
+uv run palace index build --watch-root "$ROOT" --store "$STORE" >/dev/null 2>"$OUT3" \
+    || bail "incremental re-run exited non-zero"
+grep -q 'embedded=1' "$OUT3" || bail "expected 'embedded=1' after appending a section"
+log "incremental: embedded=1"
+
+# Step 6: delete one indexed file → deleted=1 and its chunks gone.
+# The deleted file is $ROOT/b.md → watch-root-relative key 'b.md', scoped
+# by the absolute (already-resolved) $ROOT watch_root.
+rm "$ROOT/b.md"
+OUT4="$STORE/build-4.out"
+uv run palace index build --watch-root "$ROOT" --store "$STORE" >/dev/null 2>"$OUT4" \
+    || bail "deletion re-run exited non-zero"
+grep -q 'deleted=1' "$OUT4" || bail "expected 'deleted=1' after deleting a file"
+GONE="$(db_scalar "SELECT COUNT(*) FROM chunks WHERE watch_root='$ROOT' AND path='b.md'")"
+[[ "$GONE" == "0" ]] || bail "expected 0 chunks for deleted file, got $GONE"
+log "deletion: deleted=1; deleted file's chunks gone"
+
+# Step 7: --full re-run → embedded=5 (b.md is gone, so 4 .md/py remain + a2).
+# After deletion the tree has 4 admitted files (a.md, c.md, one.py, two.py).
+OUT5="$STORE/build-5.out"
+uv run palace index build --watch-root "$ROOT" --store "$STORE" --full >/dev/null 2>"$OUT5" \
+    || bail "--full re-run exited non-zero"
+# Re-create b.md so the full rebuild has the original 5 admitted files.
+printf '## B\nbody B\n' > "$ROOT/b.md"
+OUT6="$STORE/build-6.out"
+uv run palace index build --watch-root "$ROOT" --store "$STORE" --full >/dev/null 2>"$OUT6" \
+    || bail "--full re-run (5 files) exited non-zero"
+grep -q 'embedded=5' "$OUT6" || bail "expected 'embedded=5' on --full re-run"
+log "--full: embedded=5"
+
+# Assert no events log was created (the synchronous tool bypasses it).
+if [[ -d "$STORE/events" ]] && [[ -n "$(ls -A "$STORE/events" 2>/dev/null)" ]]; then
+    bail "events log was written: $STORE/events is non-empty"
+fi
+log "no events log written (synchronous tool bypasses it)"
+
+# Step 8: teardown happens in the trap.
+printf 'index-build-smoke: ok\n'

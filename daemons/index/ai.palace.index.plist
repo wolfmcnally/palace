@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Canonical source: daemons/index/ai.palace.index.plist (palace Phase 2.5). Edit there, then 'palace index install'. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.palace.index</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{UV_BIN}}</string>
+        <string>run</string>
+        <string>palace</string>
+        <string>index</string>
+        <string>serve</string>
+        <string>--store</string>
+        <string>{{HOME}}/palace-data.noindex</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>StandardErrorPath</key>
+    <string>{{HOME}}/palace-data.noindex/logs/palace-index.log</string>
+    <key>StandardOutPath</key>
+    <string>{{HOME}}/palace-data.noindex/logs/palace-index.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>{{HOME}}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>{{HOME}}</string>
+        <key>TZ</key>
+        <string>America/Boise</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>{{REPO}}</string>
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+</dict>
+</plist>

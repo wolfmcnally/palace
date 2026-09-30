@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# palace-status — at-a-glance health of the unified two-root store.
+#
+# Thin wrapper around `palace status`: reports launchd daemon liveness
+# (capture / reindex / index), chunk count + last-indexed timestamp, and
+# the char count of context/working.md. Prints a final GREEN / RED line
+# and exits 0 (GREEN) or 1 (RED). Forwards any flags (e.g. --store,
+# --vault-root) straight through.
+set -uo pipefail
+
+exec uv run palace status "$@"

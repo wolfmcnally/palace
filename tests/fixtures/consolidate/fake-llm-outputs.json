@@ -1,0 +1,114 @@
+{
+  "extract": {
+    "8843b4ba31808583": [
+      {
+        "claim": "The fictional observatory stores sample captures as flat Markdown files with content-addressed ids, a decision its simulated operator made.",
+        "refs": [],
+        "summary": "Fictional observatory stores captures as content-addressed Markdown",
+        "tags": [
+          "decisions"
+        ]
+      }
+    ],
+    "d9a935fc1381bc33": [
+      {
+        "claim": "The fictional observatory's batch engine weights consolidation by sample-backlog size and age.",
+        "refs": [],
+        "summary": "Fictional observatory batch engine weights by backlog size and age",
+        "tags": [
+          "architecture"
+        ]
+      }
+    ],
+    "ccb0ce64b8aa2eac": [
+      {
+        "claim": "The simulated operator switched Juniper Observatory to use main as the default branch going forward.",
+        "refs": [],
+        "summary": "Juniper Observatory switched to main as the default branch",
+        "tags": [
+          "decisions"
+        ]
+      }
+    ],
+    "0e41a36547c2f591": [
+      {
+        "claim": "The fictional observatory stores calibration facts as natural-language Markdown sections with YAML frontmatter rather than graph triples.",
+        "refs": [
+          "[[fact-schema]]"
+        ],
+        "summary": "Observatory calibration schema is prose-first",
+        "tags": [
+          "decisions"
+        ]
+      }
+    ],
+    "0b3134a1793c6759": [
+      {
+        "claim": "The fictional observatory uses a local demonstration model for calibration extraction and signal scoring.",
+        "refs": [
+          "[[consolidation]]"
+        ],
+        "summary": "Observatory extraction uses a local demonstration model",
+        "tags": [
+          "decisions",
+          "infrastructure"
+        ]
+      }
+    ],
+    "c3a32850e45d4cd9": [
+      {
+        "claim": "The reranker might be a cross-encoder, but this is uncertain.",
+        "refs": [],
+        "summary": "Reranker may be a cross-encoder (uncertain)",
+        "tags": [
+          "architecture"
+        ]
+      }
+    ]
+  },
+  "score": {
+    "2cc8945118a84442": {
+      "confidence": 0.9,
+      "importance": 0.8,
+      "novelty": 0.9,
+      "relevance": 0.8
+    },
+    "92b7ac1d1e6b6416": {
+      "confidence": 0.85,
+      "importance": 0.7,
+      "novelty": 0.3,
+      "relevance": 0.7
+    },
+    "46eb884b922975ce": {
+      "confidence": 0.8,
+      "importance": 0.7,
+      "novelty": 0.7,
+      "relevance": 0.7
+    },
+    "3a86e164e8428942": {
+      "confidence": 0.4,
+      "importance": 0.4,
+      "novelty": 0.6,
+      "relevance": 0.6
+    },
+    "52e0cbc3becdc63e": {
+      "confidence": 0.9,
+      "importance": 0.8,
+      "novelty": 0.9,
+      "relevance": 0.8
+    },
+    "d9a935fc1381bc33": {
+      "confidence": 0.9,
+      "importance": 0.8,
+      "novelty": 0.9,
+      "relevance": 0.8
+    }
+  },
+  "contradiction": {
+    "1d5eaf9550f2b1d2": {
+      "contradicts": true,
+      "rationale": "Claim asserts main as default branch; existing fact asserts master system-wide.",
+      "recommended_resolution": "The simulated operator must confirm whether the branch rule changed before superseding the existing fact."
+    }
+  }
+}

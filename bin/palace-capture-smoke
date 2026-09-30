@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# palace-capture-smoke — end-to-end smoke for the capture daemon.
+#
+# Boots `palace capture serve` on an ephemeral loopback port, posts the
+# parent Stop fixture (cold + warm), posts the SubagentStop fixture into the
+# same session_id, validates the JSONL output (three lines, well-formed,
+# interleaved), checks both warm-POST latency gates, recomputes the third
+# line's id, and tears the daemon down. Hermetic: uses a `mktemp` store so
+# the host `~/palace-data.noindex/` is never touched.
+set -euo pipefail
+
+PORT="${PALACE_CAPTURE_SMOKE_PORT:-18765}"
+HOST="127.0.0.1"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+FIXTURE_STOP="$REPO_ROOT/tests/fixtures/capture/claude-code-turn.json"
+FIXTURE_SUBAGENT="$REPO_ROOT/tests/fixtures/capture/claude-code-subagent-stop.json"
+STORE="$(mktemp -d -t palace-capture-smoke.XXXXXX)"
+LATENCY_BUDGET="0.050"
+
+log() {
+    printf '[smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [[ -n "${DAEMON_PID:-}" ]] && kill -0 "$DAEMON_PID" 2>/dev/null; then
+        kill -TERM "$DAEMON_PID" 2>/dev/null || true
+        wait "$DAEMON_PID" 2>/dev/null || true
+    fi
+    rm -rf "$STORE"
+}
+trap cleanup EXIT
+
+for f in "$FIXTURE_STOP" "$FIXTURE_SUBAGENT"; do
+    [[ -f "$f" ]] || bail "fixture not found: $f"
+done
+
+log "store=$STORE port=$PORT"
+
+# --- boot the daemon ---------------------------------------------------------
+cd "$REPO_ROOT"
+uv run palace capture serve --host "$HOST" --port "$PORT" --store "$STORE" \
+    >/dev/null 2>"$STORE/daemon.stderr" &
+DAEMON_PID=$!
+
+# Wait for /health to respond (max ~5s).
+for _ in $(seq 1 50); do
+    if curl -fsS "http://$HOST:$PORT/health" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.1
+done
+if ! curl -fsS "http://$HOST:$PORT/health" >/dev/null; then
+    cat "$STORE/daemon.stderr" >&2 || true
+    bail "daemon did not become healthy on $HOST:$PORT"
+fi
+log "daemon healthy"
+
+# --- POST #1: Stop (cold) ----------------------------------------------------
+RESP1="$(uv run palace capture post "$FIXTURE_STOP" --port "$PORT")"
+log "stop response: $RESP1"
+ID1="$(printf '%s' "$RESP1" | "$REPO_ROOT/bin/python" -c 'import json,sys; print(json.loads(sys.stdin.read())["id"])')"
+[[ -n "$ID1" ]] || bail "no id in stop response"
+log "stop id: $ID1"
+
+# --- POST #2: Stop (warm, latency-gated) ------------------------------------
+T_STOP="$(curl -fsS -o /dev/null -w '%{time_total}' \
+    -X POST -H 'Content-Type: application/json' \
+    -d @"$FIXTURE_STOP" "http://$HOST:$PORT/capture")"
+log "stop warm latency: ${T_STOP}s (budget ${LATENCY_BUDGET}s)"
+if ! awk -v t="$T_STOP" -v b="$LATENCY_BUDGET" 'BEGIN{exit (t<b)?0:1}'; then
+    bail "stop warm POST exceeded ${LATENCY_BUDGET}s budget (measured ${T_STOP}s)"
+fi
+
+# --- POST #3: SubagentStop (warm, latency-gated; curl avoids interpreter cost)
+T_SUB="$(curl -fsS -o /dev/null -w '%{time_total}' \
+    -X POST -H 'Content-Type: application/json' \
+    -d @"$FIXTURE_SUBAGENT" "http://$HOST:$PORT/capture")"
+log "subagent warm latency: ${T_SUB}s (budget ${LATENCY_BUDGET}s)"
+if ! awk -v t="$T_SUB" -v b="$LATENCY_BUDGET" 'BEGIN{exit (t<b)?0:1}'; then
+    bail "subagent warm POST exceeded ${LATENCY_BUDGET}s budget (measured ${T_SUB}s)"
+fi
+
+# --- locate the JSONL --------------------------------------------------------
+DAY="$(TZ=America/Boise date +%F)"
+SESSION_ID="$("$REPO_ROOT/bin/python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["session_id"])' "$FIXTURE_STOP")"
+SUB_SESSION_ID="$("$REPO_ROOT/bin/python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["session_id"])' "$FIXTURE_SUBAGENT")"
+[[ "$SESSION_ID" == "$SUB_SESSION_ID" ]] \
+    || bail "fixtures must share session_id for interleaving (stop=$SESSION_ID sub=$SUB_SESSION_ID)"
+JSONL="$STORE/sessions/$DAY/$SESSION_ID.jsonl"
+
+# Writer is async; poll briefly for three lines (two Stop + one SubagentStop).
+for _ in $(seq 1 50); do
+    if [[ -s "$JSONL" ]] && [[ "$(wc -l <"$JSONL" | tr -d ' ')" -ge 3 ]]; then
+        break
+    fi
+    sleep 0.1
+done
+[[ -f "$JSONL" ]] || bail "JSONL not written: $JSONL"
+
+LINES="$(wc -l <"$JSONL" | tr -d ' ')"
+[[ "$LINES" == "3" ]] || bail "expected 3 lines in $JSONL, got $LINES"
+log "JSONL has $LINES lines: $JSONL"
+
+# --- every line is valid JSON -----------------------------------------------
+"$REPO_ROOT/bin/python" -c '
+import json, sys
+for i, line in enumerate(open(sys.argv[1]), 1):
+    json.loads(line)
+' "$JSONL" || bail "jsonl line is not well-formed"
+
+# --- assert the third line is the SubagentStop with parent linkage ----------
+THIRD_LINE="$(sed -n '3p' "$JSONL")"
+"$REPO_ROOT/bin/python" - "$THIRD_LINE" <<'PY' || bail "third line failed SubagentStop assertions"
+import json, sys
+record = json.loads(sys.argv[1])
+assert record["event_type"] == "subagent_stop", record["event_type"]
+assert record["agent_type"] == "phase-coder", record["agent_type"]
+assert record["agent_id"] == "subagent-phase-coder-7e3a1c4f", record["agent_id"]
+PY
+log "third line carries event_type=subagent_stop agent_type=phase-coder agent_id=subagent-phase-coder-7e3a1c4f"
+
+# --- id recomputes from canonical form on the SubagentStop line -------------
+RECOMPUTED="$(printf '%s' "$THIRD_LINE" | "$REPO_ROOT/bin/python" -c "
+import json, hashlib, sys
+d = json.loads(sys.stdin.read())
+d.pop('id')
+print(hashlib.sha256(json.dumps(d, sort_keys=True, separators=(',', ':')).encode()).hexdigest())
+")"
+RECORDED="$(printf '%s' "$THIRD_LINE" | "$REPO_ROOT/bin/python" -c 'import json,sys; print(json.loads(sys.stdin.read())["id"])')"
+[[ "$RECOMPUTED" == "$RECORDED" ]] \
+    || bail "subagent id mismatch: recomputed=$RECOMPUTED recorded=$RECORDED"
+log "subagent id recomputes: $RECORDED"
+
+# --- success ---------------------------------------------------------------
+printf 'event_type=subagent_stop id=%s\n' "$RECORDED"
+log "OK"

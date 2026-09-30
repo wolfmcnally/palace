@@ -1,0 +1,39 @@
+{
+  "event_type": "stop",
+  "harness": "claude-code",
+  "session_id": "smoke-session-claude-code-0001",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-palace/transcripts/2026-05-17T14-12-00.jsonl",
+  "cwd": "/Users/example/palace",
+  "assistant_message": "Implemented the capture daemon. Note the em — dash and the naïve fixture text exercise the non-ASCII canonical-id path.",
+  "tool_calls": [
+    {
+      "name": "Write",
+      "args_hash": "5d41402abc4b2a76b9719d911017c592",
+      "result_hash": "098f6bcd4621d373cade4e832627b4f6"
+    },
+    {
+      "name": "Bash",
+      "args_hash": "7c4a8d09ca3762af61e59520943dc26494f8941b",
+      "result_hash": "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+    }
+  ],
+  "files_touched": [
+    {
+      "path": "/Users/example/palace/palace/daemons/capture/server.py",
+      "before_hash": null,
+      "after_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "timing": {
+    "started_at": "2026-05-17T14:12:00-06:00",
+    "ended_at": "2026-05-17T14:13:42-06:00",
+    "elapsed_ms": 102000
+  },
+  "token_usage": {
+    "input_tokens": 4321,
+    "output_tokens": 1234,
+    "cache_read_tokens": 1024,
+    "cache_write_tokens": 256
+  }
+}

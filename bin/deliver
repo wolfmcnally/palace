@@ -1,0 +1,309 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
+"""Deliver an already gate-proved repository candidate without widening authority.
+
+The caller supplies the exact changed paths and an ordinary factual commit
+message. This tool performs only the clerical Git surface permitted by
+policies/human-in-the-loop.md: explicit staging, an ordinary commit, and a
+non-force fast-forward push to one existing unambiguous upstream.
+
+Exit 0 means the requested delivery posture was completed and verified.
+Exit 1 means delivery parked safely. Exit 2 is invocation or repository error.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path, PurePosixPath
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class DeliveryPark(RuntimeError):
+    """A fail-closed delivery condition was encountered."""
+
+
+class DeliveryError(RuntimeError):
+    """The invocation or repository cannot satisfy the delivery contract."""
+
+
+def git(
+    root: Path,
+    *arguments: str,
+    check: bool = True,
+    capture: bool = True,
+) -> subprocess.CompletedProcess[bytes]:
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=root,
+        capture_output=capture,
+        check=False,
+    )
+    if check and result.returncode != 0:
+        diagnostic = result.stderr.decode("utf-8", errors="replace").strip()
+        raise DeliveryPark(diagnostic or f"git {' '.join(arguments)} failed")
+    return result
+
+
+def output(root: Path, *arguments: str) -> str:
+    return git(root, *arguments).stdout.decode("utf-8", errors="strict").strip()
+
+
+def nul_paths(result: subprocess.CompletedProcess[bytes]) -> set[str]:
+    return {item.decode("utf-8", errors="strict") for item in result.stdout.split(b"\0") if item}
+
+
+def changed_paths(root: Path) -> set[str]:
+    tracked = nul_paths(git(root, "diff", "HEAD", "--no-renames", "--name-only", "-z"))
+    untracked = nul_paths(git(root, "ls-files", "--others", "--exclude-standard", "-z"))
+    return tracked | untracked
+
+
+def tree_candidate(root: Path, *, delivery: bool = False) -> str:
+    tool = root / "bin" / "kickoff-tree-id"
+    if not tool.is_file():
+        raise DeliveryPark("missing candidate identity tool: bin/kickoff-tree-id")
+    arguments = [str(tool), "--root", str(root)]
+    if delivery:
+        arguments.append("--delivery")
+    result = subprocess.run(
+        arguments,
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        diagnostic = result.stderr.decode("utf-8", errors="replace").strip()
+        raise DeliveryPark(f"candidate identity failed: {diagnostic or result.returncode}")
+    candidate = result.stdout.decode("utf-8", errors="strict").strip()
+    if not candidate:
+        raise DeliveryPark("candidate identity tool returned no identifier")
+    return candidate
+
+
+def normalize_paths(raw_paths: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for raw in raw_paths:
+        candidate = PurePosixPath(raw)
+        if not raw or candidate.is_absolute() or ".." in candidate.parts:
+            raise DeliveryError(f"path must be repository-relative without '..': {raw!r}")
+        value = candidate.as_posix()
+        if value in ("", ".") or value in normalized:
+            raise DeliveryError(f"path must be a unique explicit file: {raw!r}")
+        normalized.append(value)
+    if not normalized:
+        raise DeliveryError("at least one explicit changed path is required")
+    return normalized
+
+
+def require_exact_candidate(root: Path, explicit_paths: list[str]) -> None:
+    actual = changed_paths(root)
+    expected = set(explicit_paths)
+    unexpected = sorted(actual - expected)
+    absent = sorted(expected - actual)
+    if unexpected:
+        raise DeliveryPark(f"unexpected changed paths: {', '.join(unexpected)}")
+    if absent:
+        raise DeliveryPark(f"explicit paths are not changed: {', '.join(absent)}")
+    if not actual:
+        raise DeliveryPark("candidate has no changed paths")
+
+
+def current_branch(root: Path) -> str:
+    result = output(root, "symbolic-ref", "--quiet", "--short", "HEAD")
+    if not result:
+        raise DeliveryPark("detached HEAD has no deliverable branch")
+    return result
+
+
+def resolve_upstream(root: Path, branch: str) -> tuple[str, str, str]:
+    remotes = [
+        line
+        for line in output(root, "config", "--get-all", f"branch.{branch}.remote").splitlines()
+        if line
+    ]
+    merge_refs = [
+        line
+        for line in output(root, "config", "--get-all", f"branch.{branch}.merge").splitlines()
+        if line
+    ]
+    if len(remotes) != 1 or len(merge_refs) != 1:
+        raise DeliveryPark("branch must have exactly one configured upstream")
+    remote = remotes[0]
+    merge_ref = merge_refs[0]
+    if remote == "." or not merge_ref.startswith("refs/heads/"):
+        raise DeliveryPark("upstream must be one existing remote branch")
+    remote_branch = merge_ref.removeprefix("refs/heads/")
+    tracking_ref = f"refs/remotes/{remote}/{remote_branch}"
+    git(root, "remote", "get-url", "--push", remote)
+    return remote, merge_ref, tracking_ref
+
+
+def fetch_and_require_alignment(root: Path, remote: str, merge_ref: str, tracking_ref: str) -> str:
+    git(root, "fetch", "--no-tags", remote, f"{merge_ref}:{tracking_ref}")
+    head = output(root, "rev-parse", "HEAD")
+    upstream = output(root, "rev-parse", tracking_ref)
+    if head != upstream:
+        raise DeliveryPark("local HEAD and fetched upstream are not aligned before delivery")
+    return head
+
+
+def require_clean_after_commit(root: Path) -> None:
+    residual = changed_paths(root)
+    if residual:
+        raise DeliveryPark(f"residual dirt after commit: {', '.join(sorted(residual))}")
+
+
+def remote_tip(root: Path, remote: str, merge_ref: str) -> str:
+    result = git(root, "ls-remote", "--exit-code", remote, merge_ref)
+    lines = result.stdout.decode("utf-8", errors="strict").splitlines()
+    if len(lines) != 1:
+        raise DeliveryPark("remote branch did not resolve to exactly one tip")
+    fields = lines[0].split()
+    if len(fields) != 2 or fields[1] != merge_ref:
+        raise DeliveryPark("remote branch response was ambiguous")
+    return fields[0]
+
+
+def commit_candidate(root: Path, paths: list[str], message: str, expected_candidate: str) -> str:
+    indexed = nul_paths(git(root, "ls-files", "--cached", "-z"))
+    stageable = [path for path in paths if path in indexed or os.path.lexists(root / path)]
+    if stageable:
+        git(root, "add", "-A", "--", *stageable)
+    staged = nul_paths(git(root, "diff", "--cached", "--no-renames", "--name-only", "-z"))
+    if staged != set(paths):
+        raise DeliveryPark(
+            "staged path set differs from explicit paths: " + ", ".join(sorted(staged))
+        )
+    unstaged = nul_paths(git(root, "diff", "--name-only", "-z"))
+    untracked = nul_paths(git(root, "ls-files", "--others", "--exclude-standard", "-z"))
+    if unstaged or untracked:
+        residual = sorted(unstaged | untracked)
+        raise DeliveryPark(f"unstaged candidate residue after staging: {', '.join(residual)}")
+    git(root, "diff", "--cached", "--check")
+    if tree_candidate(root) != expected_candidate:
+        raise DeliveryPark("candidate identity changed during staging")
+    delivery_candidate = tree_candidate(root, delivery=True)
+    result = git(root, "commit", "-m", message, check=False)
+    if result.returncode != 0:
+        diagnostic = result.stderr.decode("utf-8", errors="replace").strip()
+        raise DeliveryPark(f"commit or hook refused: {diagnostic or result.returncode}")
+    require_clean_after_commit(root)
+    committed_head = output(root, "rev-parse", "HEAD")
+    committed_paths = nul_paths(
+        git(
+            root,
+            "diff-tree",
+            "--no-commit-id",
+            "--no-renames",
+            "--name-only",
+            "-r",
+            "-z",
+            committed_head,
+        )
+    )
+    if committed_paths != set(paths):
+        raise DeliveryPark(
+            "committed path set differs from explicit paths: " + ", ".join(sorted(committed_paths))
+        )
+    if tree_candidate(root, delivery=True) != delivery_candidate:
+        raise DeliveryPark("committed tree differs from gate-proved candidate")
+    return committed_head
+
+
+def push_and_verify(
+    root: Path,
+    remote: str,
+    merge_ref: str,
+    tracking_ref: str,
+    committed_head: str,
+) -> None:
+    result = git(root, "push", remote, f"HEAD:{merge_ref}", check=False)
+    if result.returncode != 0:
+        diagnostic = result.stderr.decode("utf-8", errors="replace").strip()
+        raise DeliveryPark(f"push refused: {diagnostic or result.returncode}")
+    git(root, "fetch", "--no-tags", remote, f"{merge_ref}:{tracking_ref}")
+    local_head = output(root, "rev-parse", "HEAD")
+    tracking_head = output(root, "rev-parse", tracking_ref)
+    fetched_remote = remote_tip(root, remote, merge_ref)
+    if len({committed_head, local_head, tracking_head, fetched_remote}) != 1:
+        raise DeliveryPark("HEAD, tracking ref, and remote tip do not agree")
+    if changed_paths(root):
+        raise DeliveryPark("repository is dirty after verified push")
+
+
+def deliver(
+    root: Path,
+    paths: list[str],
+    message: str | None,
+    candidate: str,
+    no_commit: bool,
+    no_push: bool,
+) -> str:
+    git(root, "rev-parse", "--show-toplevel")
+    paths = normalize_paths(paths)
+    require_exact_candidate(root, paths)
+    if tree_candidate(root) != candidate:
+        raise DeliveryPark("current tree does not match the gate-proved candidate")
+
+    if no_commit:
+        return "DELIVERY RESTRICTED uncommitted; candidate left unchanged"
+    if not message or not message.strip():
+        raise DeliveryError("--message is required unless --no-commit is used")
+
+    branch = current_branch(root)
+    upstream: tuple[str, str, str] | None = None
+    if not no_push:
+        upstream = resolve_upstream(root, branch)
+        fetch_and_require_alignment(root, *upstream)
+
+    committed_head = commit_candidate(root, paths, message.strip(), candidate)
+    if no_push:
+        return f"DELIVERY RESTRICTED local-only commit={committed_head}"
+
+    assert upstream is not None
+    push_and_verify(root, *upstream, committed_head)
+    return f"DELIVERY OK commit={committed_head} pushed={upstream[0]}/{branch}"
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument("--root", type=Path, default=ROOT)
+    result.add_argument("--message")
+    result.add_argument("--candidate", required=True)
+    restriction = result.add_mutually_exclusive_group()
+    restriction.add_argument("--no-commit", action="store_true")
+    restriction.add_argument("--no-push", action="store_true")
+    result.add_argument("paths", nargs="*")
+    return result
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    root = arguments.root.resolve()
+    try:
+        result = deliver(
+            root,
+            arguments.paths,
+            arguments.message,
+            arguments.candidate,
+            arguments.no_commit,
+            arguments.no_push,
+        )
+    except DeliveryPark as exc:
+        print(f"DELIVERY PARK {exc}", file=sys.stderr)
+        return 1
+    except (DeliveryError, OSError, UnicodeError) as exc:
+        print(f"DELIVERY ERROR {exc}", file=sys.stderr)
+        return 2
+    print(result)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

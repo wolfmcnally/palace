@@ -1,0 +1,134 @@
+[project]
+name = "palace"
+version = "0.1.0"
+description = "Local-first memory and identity-bound multi-store retrieval."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.14"
+authors = [{ name = "Wolf McNally", email = "wolf@wolfmcnally.com" }]
+dependencies = [
+    "mcp[cli]>=1.0",
+    "sqlite-vec>=0.1.9",
+    "watchdog>=4",
+    "httpx>=0.27",
+    "tomlkit>=0.13,<1.0",
+    "pathspec>=0.12,<2",
+    "PyYAML>=6,<7",
+    "tree-sitter>=0.25,<0.26",
+    "tree-sitter-python>=0.23",
+    "tree-sitter-rust>=0.24",
+    "tree-sitter-javascript>=0.23",
+    "tree-sitter-typescript>=0.23",
+    "onnxruntime>=1.28.0",
+    "tokenizers>=0.23.1",
+    "boto3>=1.39.9",
+]
+
+[project.scripts]
+palace = "palace.cli:main"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pytest>=8",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["palace"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/palace",
+    "/pyproject.toml",
+    "/uv.lock",
+    "/.python-version",
+    "/.gitignore",
+    "/README.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+    "/RELEASE.md",
+    "/CONTRIBUTING.md",
+    "/SECURITY.md",
+    "/PROVENANCE.md",
+    "/docs/metadata.md",
+    "/docs/multi-store.md",
+    "/docs/private-providers.md",
+    "/docs/portability.md",
+    "/docs/runtimes.md",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Methodology machinery absorbed from the starter template is linted at its
+# upstream selection (E, F, I, W, UP); B/SIM apply only to palace's own code.
+"lib/**" = ["B", "SIM"]
+"bin/kickoff-config" = ["B", "SIM"]
+"bin/kickoff-evidence" = ["B", "SIM"]
+"bin/kickoff-tree-id" = ["B", "SIM"]
+"bin/execution-telemetry" = ["B", "SIM"]
+"bin/check-execution-dashboards" = ["B", "SIM"]
+"bin/check-harness-parity" = ["B", "SIM"]
+"bin/check-toolchain-callers" = ["B", "SIM"]
+"bin/lessons" = ["B", "SIM"]
+"bin/check-catalogs" = ["B", "SIM"]
+"bin/check-plan-concreteness" = ["B", "SIM"]
+"bin/check-plan-delivery" = ["B", "SIM"]
+"bin/review-verdicts" = ["B", "SIM"]
+"tests/test_execution_telemetry.py" = ["B", "SIM"]
+"tests/test_execution_dashboard.py" = ["B", "SIM"]
+"tests/test_kickoff_config.py" = ["B", "SIM"]
+"tests/test_kickoff_evidence.py" = ["B", "SIM"]
+"tests/test_kickoff_tree_id.py" = ["B", "SIM"]
+"tests/test_lessons.py" = ["B", "SIM"]
+"tests/test_check_catalogs.py" = ["B", "SIM"]
+"tests/test_check_plan_concreteness.py" = ["B", "SIM"]
+"tests/test_check_plan_delivery.py" = ["B", "SIM"]
+"tests/test_review_verdicts.py" = ["B", "SIM"]
+"tests/render_execution_dashboard_fixture.py" = ["B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["palace", "tests/daemons", "tests/hooks", "tests/watch", "tests/reindex", "tests/index", "tests/fact", "tests/consolidate"]
+
+[[tool.mypy.overrides]]
+module = ["mcp.*", "sqlite_vec", "watchdog.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tree_sitter",
+    "tree_sitter_javascript",
+    "tree_sitter_python",
+    "tree_sitter_rust",
+    "tree_sitter_typescript",
+    "yaml",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["onnxruntime", "onnxruntime.*", "tokenizers", "tokenizers.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true

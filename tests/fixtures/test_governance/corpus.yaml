@@ -1,0 +1,200 @@
+selection_frozen: true
+cases:
+- id: historical-missing-custody
+  class: historical_defect
+  risk_class: custody
+  patch: tests/fixtures/test_governance/historical_defect/missing-custody.patch
+  patch_sha256: 16be65691d6f4906d2a4174e674b2ff2e8e92c5a3609e605d3d027e3cffa0d66
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-security
+  class: historical_defect
+  risk_class: security
+  patch: tests/fixtures/test_governance/historical_defect/missing-security.patch
+  patch_sha256: d5ea61834f4127a2d717eb02e84834660248b7946dbbe9c85ed041cc10a5cbf9
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-authority
+  class: historical_defect
+  risk_class: authority
+  patch: tests/fixtures/test_governance/historical_defect/missing-authority.patch
+  patch_sha256: 81cc914a7c502975ad285035817cd930481f68489051484fad9dc2812d22a9fe
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-concurrency
+  class: historical_defect
+  risk_class: concurrency
+  patch: tests/fixtures/test_governance/historical_defect/missing-concurrency.patch
+  patch_sha256: 4c8eff742427998e4b29ab0701c31e8b99961345979d49c2ea5c526ad7b04e39
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-atomicity
+  class: historical_defect
+  risk_class: atomicity
+  patch: tests/fixtures/test_governance/historical_defect/missing-atomicity.patch
+  patch_sha256: c2ac1609307aab918b457362a29d9df11a01d9f41fecb13ea2865bbe903ff3cd
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-corruption
+  class: historical_defect
+  risk_class: corruption
+  patch: tests/fixtures/test_governance/historical_defect/missing-corruption.patch
+  patch_sha256: 426b4cc66dfc980b47855cd445a2b283b901fbeca681e5620d191eaf3f68664d
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-recovery
+  class: historical_defect
+  risk_class: recovery
+  patch: tests/fixtures/test_governance/historical_defect/missing-recovery.patch
+  patch_sha256: 1da192a138da2b844ba95afa83c94cae4f4c2ac0e66b1adfe74b6a08b3b79346
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-public-contract
+  class: historical_defect
+  risk_class: public-contract
+  patch: tests/fixtures/test_governance/historical_defect/missing-public-contract.patch
+  patch_sha256: d6bd85fc6a8bb170600a44f5f4db6b8b23ab8bc5e3d341d2d63f58701a5be388
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-schema
+  class: historical_defect
+  risk_class: schema
+  patch: tests/fixtures/test_governance/historical_defect/missing-schema.patch
+  patch_sha256: 1539f0832cd0973faa28165b946362f5249229f685d143eb748c11b299e03b22
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-deploy
+  class: historical_defect
+  risk_class: deploy
+  patch: tests/fixtures/test_governance/historical_defect/missing-deploy.patch
+  patch_sha256: 9407d3def7294062d7ae07f21a474916a2000a9aa34215cd2aafee091d4ad1e2
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: historical-missing-core-success
+  class: historical_defect
+  risk_class: core-success
+  patch: tests/fixtures/test_governance/historical_defect/missing-core-success.patch
+  patch_sha256: a2e9f3ae22adec4a1f5c116e66da900549b1dcb95c85d47716ee7ee048a3f9a2
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-custody
+  class: holdout_mutant
+  risk_class: custody
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-custody.patch
+  patch_sha256: 0cc6425dceba3c3374220fe9ed243473210267ff349b3747d00db7acc6ba6c48
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-security
+  class: holdout_mutant
+  risk_class: security
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-security.patch
+  patch_sha256: 5e44634b4b7725e5d46deabcc3fe0fb72a329c517a71e3e962af59c9534932e3
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-authority
+  class: holdout_mutant
+  risk_class: authority
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-authority.patch
+  patch_sha256: 106290f819614dd4977aecc857d90e9928fa8658d7b1425f067db71d5bc7aee1
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-concurrency
+  class: holdout_mutant
+  risk_class: concurrency
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-concurrency.patch
+  patch_sha256: 2f8a763bb5767e0f63f0bd1493d770ac1f06f9f689264b27c01185967389f03b
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-atomicity
+  class: holdout_mutant
+  risk_class: atomicity
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-atomicity.patch
+  patch_sha256: 3f6458b751689791386bc6cb25b324abbb352898c7abaab8c1f611498488ec47
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-corruption
+  class: holdout_mutant
+  risk_class: corruption
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-corruption.patch
+  patch_sha256: 3f1f31f4fe16606c0744c03a11f8f8b096822188204a30333fd4303a70be4b09
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-recovery
+  class: holdout_mutant
+  risk_class: recovery
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-recovery.patch
+  patch_sha256: daada43d39432583838cf97f632d7a5981aa94ae694eeae6ce4337ed5349725d
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-public-contract
+  class: holdout_mutant
+  risk_class: public-contract
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-public-contract.patch
+  patch_sha256: 45397a1abd847e993f4f390fba70cc67da33f9574bc67c38db82934627424d6c
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-schema
+  class: holdout_mutant
+  risk_class: schema
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-schema.patch
+  patch_sha256: 6fa156d787c6501d0cb2f5d2d7a0ecfa236382177ac465697d1edfcc13be6406
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-deploy
+  class: holdout_mutant
+  risk_class: deploy
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-deploy.patch
+  patch_sha256: 22208a16cdd7e93b73a617d55c3eaabe53395d1a2efe442070bab1289bf16d29
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c
+- id: holdout-missing-core-success
+  class: holdout_mutant
+  risk_class: core-success
+  patch: tests/fixtures/test_governance/holdout_mutant/missing-core-success.patch
+  patch_sha256: 1ecdb123847cbc81ea8a8961823ad2f54d07d2ad345190e3a817ffdd0a4c0adc
+  command: ./bin/test-governance validate
+  cwd: .
+  expected: nonzero
+  owner: t-test-governance-py-test-critical-risk-requires-a-retained-direct-proof-6ad40aac1c

@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+.demo/
+.private-demo/
+.DS_Store
+.env
+.env.*
+
+# Local agent state and private operational records
+.kickoff/
+.claude/settings.local.json
+.claude/projects/
+.codex/cache/
+.private-development/

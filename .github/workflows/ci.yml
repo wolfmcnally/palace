@@ -1,0 +1,38 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install uv
+        shell: bash
+        run: |
+          python3 -m pip install --target "$RUNNER_TEMP/uv-bootstrap" uv==0.9.26
+          echo "$RUNNER_TEMP/uv-bootstrap/bin" >> "$GITHUB_PATH"
+      - name: Install Linux prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y curl jq openssl
+      - name: Install macOS prerequisite
+        if: runner.os == 'macOS'
+        run: brew install jq
+      - run: ./bin/setup
+      - run: ./bin/check all
+      - run: uv build --out-dir dist
+      - name: Clean wheel installation and synthetic smoke
+        shell: bash
+        run: |
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/palace-requirements.txt" > /dev/null
+          uv venv --managed-python --python 3.12 "$RUNNER_TEMP/palace-release-venv"
+          uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --require-hashes -r "$RUNNER_TEMP/palace-requirements.txt"
+          uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --no-deps dist/palace-0.1.0-py3-none-any.whl
+          cp .github/package-smoke.py "$RUNNER_TEMP/palace-package-smoke.py"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/palace-release-venv/bin/python" palace-package-smoke.py

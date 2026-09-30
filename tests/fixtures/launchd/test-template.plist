@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Synthetic template for tests/daemons/test_launchd_helpers.py. Carries all three placeholders so render_plist substitutions can be verified end-to-end. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.palace.test</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{UV_BIN}}</string>
+        <string>run</string>
+        <string>palace</string>
+        <string>--version</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>{{REPO}}</string>
+    <key>StandardErrorPath</key>
+    <string>{{HOME}}/palace-data.noindex/logs/test.log</string>
+</dict>
+</plist>

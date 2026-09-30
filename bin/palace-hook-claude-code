@@ -1,0 +1,116 @@
+#!/bin/sh
+# palace-hook-claude-code — Claude Code Stop / SubagentStop hook.
+#
+# Reads the Claude Code hook event as JSON on stdin, maps the hook_event_name
+# to the Phase 1.2 event_type discriminator, forwards the upstream fields
+# verbatim plus harness="claude-code", and POSTs the resulting payload to the
+# loopback capture daemon at ${PALACE_CAPTURE_URL:-http://127.0.0.1:8765/capture}.
+#
+# Hot-path posture: every failure path exits 0, the agent transcript never
+# sees a hook traceback, and the warmest invocation completes well under the
+# 50ms budget. Errors land as a single LF-terminated line in
+# ${PALACE_HOOK_LOG:-${HOME}/palace-data.noindex/logs/palace-capture-hook.log}.
+#
+# `set -e` is intentionally NOT used — every error branch is explicit.
+# `set -u` is NOT used so absent optional fields ($PALACE_HOOK_LOG_ACCEPTS,
+# the upstream session_id on a malformed payload) do not abort the script.
+
+URL="${PALACE_CAPTURE_URL:-http://127.0.0.1:8765/capture}"
+LOG_PATH="${PALACE_HOOK_LOG:-${HOME}/palace-data.noindex/logs/palace-capture-hook.log}"
+
+log_line() {
+    # log_line <event_type-or-unknown> <session_id-or-unknown> <diagnostic>
+    # The shared hook log is multiplexed across harnesses; the literal
+    # `claude-code` segment disambiguates this script's lines from
+    # palace-hook-codex's. Phase 1.5 contract.
+    _evt="$1"
+    _sid="$2"
+    _msg="$3"
+    _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    _dir="$(dirname "$LOG_PATH")"
+    mkdir -p "$_dir" 2>/dev/null
+    printf '%s hook: claude-code %s session=%s %s\n' "$_ts" "$_evt" "$_sid" "$_msg" >>"$LOG_PATH"
+}
+
+# --- read stdin --------------------------------------------------------------
+STDIN="$(cat)"
+
+# --- validate JSON -----------------------------------------------------------
+if ! printf '%s' "$STDIN" | jq -e . >/dev/null 2>&1; then
+    log_line "unknown" "unknown" "malformed stdin (not JSON)"
+    exit 0
+fi
+
+# --- short-circuit on stop_hook_active --------------------------------------
+ACTIVE="$(printf '%s' "$STDIN" | jq -r '.stop_hook_active // false')"
+if [ "$ACTIVE" = "true" ]; then
+    # Claude Code's documented re-entry guard. No log, no POST.
+    exit 0
+fi
+
+# --- map hook_event_name -> event_type --------------------------------------
+HOOK_EVENT="$(printf '%s' "$STDIN" | jq -r '.hook_event_name // ""')"
+case "$HOOK_EVENT" in
+    Stop)
+        EVENT_TYPE="stop"
+        ;;
+    SubagentStop)
+        EVENT_TYPE="subagent_stop"
+        ;;
+    "")
+        log_line "unknown" "unknown" "missing hook_event_name"
+        exit 0
+        ;;
+    *)
+        log_line "unknown" "unknown" "unsupported hook_event_name=$HOOK_EVENT"
+        exit 0
+        ;;
+esac
+
+# --- session_id is required --------------------------------------------------
+SESSION_ID="$(printf '%s' "$STDIN" | jq -r '.session_id // ""')"
+if [ -z "$SESSION_ID" ]; then
+    log_line "$EVENT_TYPE" "unknown" "missing session_id"
+    exit 0
+fi
+
+# --- assemble the outbound payload ------------------------------------------
+# Drop hook_event_name (event_type supersedes it) and stop_hook_active (we
+# short-circuited above). For SubagentStop, mirror transcript_path into
+# parent_transcript_path — Claude Code's live hook spec does not currently
+# expose a distinct parent field; this matches Phase 1.2's CaptureRecord slot.
+PAYLOAD="$(printf '%s' "$STDIN" | jq -c \
+    --arg event_type "$EVENT_TYPE" \
+    --arg harness "claude-code" \
+    '
+    . as $in
+    | del(.hook_event_name, .stop_hook_active)
+    | . + {event_type: $event_type, harness: $harness}
+    | if $event_type == "subagent_stop"
+      then . + {parent_transcript_path: $in.transcript_path}
+      else .
+      end
+    ')"
+
+if [ -z "$PAYLOAD" ]; then
+    log_line "$EVENT_TYPE" "$SESSION_ID" "jq payload assembly failed"
+    exit 0
+fi
+
+# --- POST fire-and-forget ----------------------------------------------------
+if ! printf '%s' "$PAYLOAD" | curl \
+        --silent --show-error --fail \
+        --max-time 0.5 \
+        --header 'Content-Type: application/json' \
+        --data-binary @- \
+        "$URL" >/dev/null 2>&1; then
+    log_line "$EVENT_TYPE" "$SESSION_ID" "POST $URL failed"
+    exit 0
+fi
+
+# --- optional accept logging -------------------------------------------------
+if [ "${PALACE_HOOK_LOG_ACCEPTS:-0}" = "1" ]; then
+    log_line "$EVENT_TYPE" "$SESSION_ID" "accept"
+fi
+
+exit 0

@@ -1,0 +1,18 @@
+{
+  "admissions": 30,
+  "baseline": {
+    "families": 1355,
+    "leaves": 1574
+  },
+  "dispositions": {
+    "consolidate": 538,
+    "delete": 776,
+    "retain": 290
+  },
+  "family_reduction": 0.8,
+  "leaf_reduction": 0.8157560355781448,
+  "retained": {
+    "families": 271,
+    "leaves": 290
+  }
+}

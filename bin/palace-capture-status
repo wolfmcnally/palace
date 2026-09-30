@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# palace-capture-status — at-a-glance inspection of the launchd-managed
+# capture daemon. Exits 0 always; this is a report, not a check.
+#
+# Honors PALACE_CAPTURE_URL for hermetic tests that need to point the probe
+# at an unreachable loopback port; defaults to the daemon's documented URL.
+set -uo pipefail
+
+LOG_PATH="${HOME}/palace-data.noindex/logs/palace-capture.log"
+HEALTH_URL_DEFAULT="http://127.0.0.1:8765/health"
+CAPTURE_URL="${PALACE_CAPTURE_URL:-}"
+case "$CAPTURE_URL" in
+    "")
+        HEALTH_URL="$HEALTH_URL_DEFAULT"
+        ;;
+    */capture)
+        HEALTH_URL="${CAPTURE_URL%/capture}/health"
+        ;;
+    *)
+        HEALTH_URL="$CAPTURE_URL"
+        ;;
+esac
+
+echo "-- launchctl --"
+if line=$(launchctl list 2>/dev/null | grep palace.capture); then
+    echo "$line"
+else
+    echo "(no running service)"
+fi
+
+echo
+echo "-- log tail --"
+if [ -f "$LOG_PATH" ]; then
+    tail -20 "$LOG_PATH"
+else
+    echo "(no log yet)"
+fi
+
+echo
+echo "-- /health --"
+if resp=$(curl -fsS --max-time 2 "$HEALTH_URL" 2>/dev/null); then
+    echo "$resp"
+else
+    echo "(unreachable)"
+fi
+
+exit 0

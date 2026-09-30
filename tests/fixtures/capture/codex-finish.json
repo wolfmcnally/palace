@@ -1,0 +1,26 @@
+{
+  "event_type": "stop",
+  "harness": "codex",
+  "session_id": "smoke-session-codex-0001",
+  "transcript_path": "/Users/example/.codex/sessions/2026-05-17T15-00-00.jsonl",
+  "cwd": "/Users/example/palace",
+  "assistant_message": "Finished the requested refactor; ran the gate clean.",
+  "tool_calls": [
+    {
+      "name": "shell",
+      "args_hash": "9e107d9d372bb6826bd81d3542a419d6",
+      "result_hash": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "files_touched": [],
+  "stop_reason": "finish",
+  "timing": {
+    "started_at": "2026-05-17T15:00:00-06:00",
+    "ended_at": "2026-05-17T15:01:11-06:00",
+    "elapsed_ms": 71000
+  },
+  "token_usage": {
+    "input_tokens": 2200,
+    "output_tokens": 880
+  }
+}

@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -38,7 +38,7 @@
+     direct_proof: pytest:tests/test_execution_telemetry.py::test_lifecycle_idempotency_finalization_and_crash_recovery
+   public-contract:
+     state: applicable
+-    direct_proof: pytest:tests/test_smoke.py::test_palace_cli_version
++    direct_proof: pytest:absent-holdout-public-contract
+   schema:
+     state: applicable
+     direct_proof: pytest:tests/fact/test_schema.py::test_fact_id_matches_independent_recompute_scalar

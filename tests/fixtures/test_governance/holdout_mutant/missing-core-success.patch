@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -47,7 +47,7 @@
+     direct_proof: pytest:tests/daemons/test_capture_lifecycle.py::test_install_substitutes_placeholders
+   core-success:
+     state: applicable
+-    direct_proof: pytest:tests/test_search.py::test_search_hybrid_fuses_via_rrf
++    direct_proof: pytest:absent-holdout-core-success
+ families:
+ - id: gate-format-fb04641e44
+   kind: gate

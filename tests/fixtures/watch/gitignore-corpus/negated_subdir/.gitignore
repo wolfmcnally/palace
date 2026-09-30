@@ -1,0 +1,2 @@
+nested_only_ignored.txt
+!unignored_by_child.log

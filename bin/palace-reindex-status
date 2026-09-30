@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# palace-reindex-status — at-a-glance inspection of the launchd-managed
+# FSEvents reindex daemon. Exits 0 always; this is a report, not a check.
+set -uo pipefail
+
+LOG_PATH="${HOME}/palace-data.noindex/logs/palace-reindex.log"
+
+echo "-- launchctl --"
+if line=$(launchctl list 2>/dev/null | grep palace.reindex); then
+    echo "$line"
+else
+    echo "(no running service)"
+fi
+
+echo
+echo "-- log tail --"
+if [ -f "$LOG_PATH" ]; then
+    tail -20 "$LOG_PATH"
+else
+    echo "(no log yet)"
+fi
+
+echo
+echo "-- watch roots --"
+if roots=$(uv run palace watch list 2>/dev/null); then
+    if [ -n "$roots" ]; then
+        echo "$roots"
+    else
+        echo "(no roots configured)"
+    fi
+else
+    echo "(no roots configured)"
+fi
+
+exit 0

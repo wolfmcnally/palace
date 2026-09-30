@@ -1,0 +1,15 @@
+{
+  "event_type": "subagent_stop",
+  "harness": "claude-code",
+  "session_id": "smoke-session-claude-code-0001",
+  "agent_type": "phase-coder",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-palace/transcripts/2026-05-17T14-22-30.subagent-7e3a1c4f.jsonl",
+  "parent_transcript_path": null,
+  "cwd": "/Users/example/palace",
+  "assistant_message": "This subagent payload is missing agent_id and must be rejected with HTTP 400.",
+  "tool_calls": [],
+  "files_touched": [],
+  "stop_reason": "end_turn",
+  "timing": {},
+  "token_usage": {}
+}

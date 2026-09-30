@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -23,7 +23,7 @@
+     direct_proof: pytest:tests/test_hermeticity.py::test_outbound_embedding_request_fails_loudly
+   authority:
+     state: applicable
+-    direct_proof: pytest:tests/test_kickoff_evidence.py::test_change_manifest_is_candidate_bound_and_detects_authority_drift
++    direct_proof: pytest:absent-holdout-authority
+   concurrency:
+     state: applicable
+     direct_proof: pytest:tests/daemons/test_capture_core.py::test_concurrent_posts_same_session_serialize

@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# palace-reindex-smoke — end-to-end smoke for the reindex daemon.
+#
+# Hermetic. Uses a `mktemp` --store and a `mktemp` watch root so the
+# host's ~/palace-data.noindex/ is never touched. Boots
+# `palace reindex serve`, touches an indexed file (notes.md), a gitignored
+# file (*.log), and a dotfile (.DS_Store), then asserts exactly one
+# events-log line was written and its id recomputes byte-for-byte.
+#
+# When PALACE_REINDEX_SMOKE_KEEP=1 is set, the cleanup trap leaves the
+# temporary store and root on disk and prints their paths.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Resolve through the real filesystem so paths match palace's
+# Path.resolve() output (macOS's mktemp returns /var/folders/... while the
+# resolved form is /private/var/folders/...).
+STORE="$(cd "$(mktemp -d -t palace-reindex-smoke.XXXXXX)" && pwd -P)"
+ROOT="$(cd "$(mktemp -d -t palace-reindex-smoke-root.XXXXXX)" && pwd -P)"
+
+log() {
+    printf '[reindex-smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[reindex-smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [[ -n "${DAEMON_PID:-}" ]] && kill -0 "$DAEMON_PID" 2>/dev/null; then
+        kill -TERM "$DAEMON_PID" 2>/dev/null || true
+        wait "$DAEMON_PID" 2>/dev/null || true
+    fi
+    if [ "${PALACE_REINDEX_SMOKE_KEEP:-0}" = "1" ]; then
+        log "PALACE_REINDEX_SMOKE_KEEP=1; leaving store and root on disk:"
+        log "  store=$STORE"
+        log "  root=$ROOT"
+        return
+    fi
+    rm -rf "$STORE" "$ROOT"
+}
+trap cleanup EXIT
+
+log "store=$STORE"
+log "root=$ROOT"
+
+echo '*.log' > "$ROOT/.gitignore"
+
+cd "$REPO_ROOT"
+
+# Populate the watch-roots config so the daemon has something to observe.
+uv run palace watch add "$ROOT" --store "$STORE" >/dev/null
+
+# Boot the daemon in the background.
+uv run palace reindex serve --store "$STORE" >/dev/null 2>"$STORE/daemon.stderr" &
+DAEMON_PID=$!
+
+# Wait for the daemon's "observing N roots" line (max 5 s).
+for _ in $(seq 1 50); do
+    if grep -q 'observing 1 roots' "$STORE/daemon.stderr" 2>/dev/null; then
+        break
+    fi
+    sleep 0.1
+done
+if ! grep -q 'observing 1 roots' "$STORE/daemon.stderr"; then
+    cat "$STORE/daemon.stderr" >&2 || true
+    bail "daemon did not announce observing-roots within 5 s"
+fi
+log "daemon observing 1 root"
+
+# Resolve the events file for today (America/Boise).
+DAY="$(TZ=America/Boise date +%F)"
+EVENTS="$STORE/events/$DAY.jsonl"
+
+# Touch an indexed file; expect exactly one line.
+touch "$ROOT/notes.md"
+sleep 0.5
+[[ -f "$EVENTS" ]] || bail "events file not created: $EVENTS"
+LINES="$(wc -l <"$EVENTS" | tr -d ' ')"
+[[ "$LINES" == "1" ]] || bail "expected 1 events-log line after notes.md, got $LINES"
+KIND="$(jq -r '.change_kind' "$EVENTS")"
+[[ "$KIND" == "created" ]] || bail "expected change_kind=created, got $KIND"
+TOUCHED_PATH="$(jq -r '.path' "$EVENTS")"
+[[ "$TOUCHED_PATH" == */notes.md ]] || bail "expected path ending in /notes.md, got $TOUCHED_PATH"
+log "indexed file produced one line with change_kind=created"
+
+# Touch a gitignored file; expect still one line.
+touch "$ROOT/foo.log"
+sleep 0.5
+LINES="$(wc -l <"$EVENTS" | tr -d ' ')"
+[[ "$LINES" == "1" ]] || bail "gitignored file produced an events-log line (have $LINES lines)"
+log "gitignored file produced no new line"
+
+# Touch a dotfile; expect still one line.
+touch "$ROOT/.DS_Store"
+sleep 0.5
+LINES="$(wc -l <"$EVENTS" | tr -d ' ')"
+[[ "$LINES" == "1" ]] || bail "dotfile produced an events-log line (have $LINES lines)"
+log "dotfile produced no new line"
+
+# Recompute id and assert it matches the recorded id.
+RECORDED="$(jq -r '.id' "$EVENTS")"
+RECOMPUTED="$("$REPO_ROOT/bin/python" -c "
+import json, hashlib, sys
+d = json.loads(sys.stdin.read())
+d.pop('id')
+print(hashlib.sha256(json.dumps(d, sort_keys=True, separators=(',', ':')).encode()).hexdigest())
+" < "$EVENTS")"
+[[ "$RECORDED" == "$RECOMPUTED" ]] \
+    || bail "id mismatch: recorded=$RECORDED recomputed=$RECOMPUTED"
+log "id recomputes byte-for-byte: $RECORDED"
+
+# Send SIGTERM; expect clean exit code 0.
+kill -TERM "$DAEMON_PID"
+wait "$DAEMON_PID"
+RC=$?
+[[ "$RC" == "0" ]] || bail "daemon exit code $RC (expected 0)"
+DAEMON_PID=""
+log "daemon exited cleanly (rc=0)"
+
+printf 'reindex-smoke: ok\n'

@@ -1,0 +1,21 @@
+# palace watch-roots config.
+# Reference shape: this is what `palace watch add` writes to
+# `~/palace-data.noindex/meta/watch-roots.toml` in Phase 2.* and onward.
+#
+# The active TOML for the running reindexer is the file at the canonical
+# location above; this committed example is a documentation artifact only.
+#
+# Placeholder convention: every value inside a commented `[[root]]` block is
+# enclosed in angle brackets (`<like-this>`) and is intended to be replaced
+# verbatim by the operator (or by the `palace watch add` writer). The file is
+# valid TOML — both `[[root]]` blocks below are commented out — so a TOML
+# parser will read it as an empty config. Uncomment a block (and substitute
+# real values) only when hand-editing.
+
+# [[root]]
+# path = "<absolute-path-to-obsidian-vault>"
+# added_at = "<ISO-8601-timestamp-with-offset>" # e.g. 2026-05-18T10:30:00-06:00
+
+# [[root]]
+# path = "<absolute-path-to-a-dev-project>"
+# added_at = "<ISO-8601-timestamp-with-offset>" # e.g. 2026-05-18T10:31:12-06:00

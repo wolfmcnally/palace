@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -41,7 +41,7 @@
+     direct_proof: pytest:tests/test_smoke.py::test_palace_cli_version
+   schema:
+     state: applicable
+-    direct_proof: pytest:tests/fact/test_schema.py::test_fact_id_matches_independent_recompute_scalar
++    direct_proof: pytest:absent-holdout-schema
+   deploy:
+     state: applicable
+     direct_proof: pytest:tests/daemons/test_capture_lifecycle.py::test_install_substitutes_placeholders

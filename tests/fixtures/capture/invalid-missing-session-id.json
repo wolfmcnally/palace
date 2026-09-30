@@ -1,0 +1,12 @@
+{
+  "event_type": "stop",
+  "harness": "claude-code",
+  "transcript_path": "/tmp/transcript.jsonl",
+  "cwd": "/Users/example/palace",
+  "assistant_message": "This payload is missing session_id and must be rejected with HTTP 400.",
+  "tool_calls": [],
+  "files_touched": [],
+  "stop_reason": "end_turn",
+  "timing": {},
+  "token_usage": {}
+}

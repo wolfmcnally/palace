@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -29,7 +29,7 @@
+     direct_proof: pytest:tests/daemons/test_capture_core.py::test_concurrent_posts_same_session_serialize
+   atomicity:
+     state: applicable
+-    direct_proof: pytest:tests/test_kickoff_config.py::test_invalid_edit_is_atomic
++    direct_proof: pytest:absent-historical-atomicity
+   corruption:
+     state: applicable
+     direct_proof: pytest:tests/test_kickoff_evidence.py::test_validate_detects_corrupt_evidence

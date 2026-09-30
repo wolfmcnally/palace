@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+# palace-hook-smoke — end-to-end smoke for both harnesses' hook scripts.
+#
+# Boots `palace capture serve` on an ephemeral loopback port, exports
+# PALACE_CAPTURE_URL, pipes Claude Code's Stop + SubagentStop fixtures into
+# bin/palace-hook-claude-code, pipes Codex's Stop fixture into
+# bin/palace-hook-codex, polls for the resulting JSONL lines under their
+# respective session files, asserts ordering and field round-trips,
+# recomputes the canonical ids, tears the daemon down, and exits 0.
+#
+# Final line shape (split for harness disambiguation):
+#   event_type=subagent_stop id=<sha-cc> | codex stop id=<sha-codex>
+# The pipe separator is safe because SHA-256 hex is [0-9a-f] only — never a
+# pipe character — and is the operator-friendly form Phase 1.5 settled on.
+#
+# Hermetic: uses a `mktemp` store + a private hook log so the host
+# `~/palace-data.noindex/` is never touched.
+set -euo pipefail
+
+PORT="${PALACE_HOOK_SMOKE_PORT:-18766}"
+HOST="127.0.0.1"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HOOK_CC="$REPO_ROOT/bin/palace-hook-claude-code"
+HOOK_CODEX="$REPO_ROOT/bin/palace-hook-codex"
+FIXTURE_STOP="$REPO_ROOT/tests/fixtures/capture/claude-code-stop-hook-input.json"
+FIXTURE_SUB="$REPO_ROOT/tests/fixtures/capture/claude-code-subagent-stop-hook-input.json"
+FIXTURE_CODEX="$REPO_ROOT/tests/fixtures/capture/codex-stop-hook-input.json"
+STORE="$(mktemp -d -t palace-hook-smoke.XXXXXX)"
+HOOK_LOG="$STORE/palace-capture-hook.log"
+
+export PALACE_CAPTURE_URL="http://$HOST:$PORT/capture"
+export PALACE_HOOK_LOG="$HOOK_LOG"
+
+log() {
+    printf '[hook-smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[hook-smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [[ -n "${DAEMON_PID:-}" ]] && kill -0 "$DAEMON_PID" 2>/dev/null; then
+        kill -TERM "$DAEMON_PID" 2>/dev/null || true
+        wait "$DAEMON_PID" 2>/dev/null || true
+    fi
+    rm -rf "$STORE"
+}
+trap cleanup EXIT
+
+for f in "$HOOK_CC" "$HOOK_CODEX" "$FIXTURE_STOP" "$FIXTURE_SUB" "$FIXTURE_CODEX"; do
+    [[ -e "$f" ]] || bail "missing artifact: $f"
+done
+[[ -x "$HOOK_CC" ]] || bail "hook script not executable: $HOOK_CC"
+[[ -x "$HOOK_CODEX" ]] || bail "hook script not executable: $HOOK_CODEX"
+
+log "store=$STORE port=$PORT url=$PALACE_CAPTURE_URL"
+
+# --- boot the daemon ---------------------------------------------------------
+cd "$REPO_ROOT"
+uv run palace capture serve --host "$HOST" --port "$PORT" --store "$STORE" \
+    >/dev/null 2>"$STORE/daemon.stderr" &
+DAEMON_PID=$!
+
+# Wait for /health (max ~5s).
+for _ in $(seq 1 50); do
+    if curl -fsS "http://$HOST:$PORT/health" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.1
+done
+if ! curl -fsS "http://$HOST:$PORT/health" >/dev/null; then
+    cat "$STORE/daemon.stderr" >&2 || true
+    bail "daemon did not become healthy on $HOST:$PORT"
+fi
+log "daemon healthy"
+
+# --- Claude Code: fire the Stop hook ---------------------------------------
+"$HOOK_CC" <"$FIXTURE_STOP"
+log "claude-code Stop hook fired"
+
+CC_SESSION_ID="$("$REPO_ROOT/bin/python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["session_id"])' "$FIXTURE_STOP")"
+SUB_SESSION_ID="$("$REPO_ROOT/bin/python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["session_id"])' "$FIXTURE_SUB")"
+[[ "$CC_SESSION_ID" == "$SUB_SESSION_ID" ]] \
+    || bail "claude-code fixtures must share session_id (stop=$CC_SESSION_ID sub=$SUB_SESSION_ID)"
+
+DAY="$(TZ=America/Boise date +%F)"
+CC_JSONL="$STORE/sessions/$DAY/$CC_SESSION_ID.jsonl"
+
+# Poll for the first line.
+for _ in $(seq 1 50); do
+    if [[ -s "$CC_JSONL" ]] && [[ "$(wc -l <"$CC_JSONL" | tr -d ' ')" -ge 1 ]]; then
+        break
+    fi
+    sleep 0.1
+done
+[[ -f "$CC_JSONL" ]] || bail "claude-code JSONL not written after Stop: $CC_JSONL"
+L1="$(wc -l <"$CC_JSONL" | tr -d ' ')"
+[[ "$L1" == "1" ]] || bail "expected 1 line after claude-code Stop, got $L1"
+log "claude-code Stop landed: $CC_JSONL"
+
+# --- Claude Code: fire the SubagentStop hook -------------------------------
+"$HOOK_CC" <"$FIXTURE_SUB"
+log "claude-code SubagentStop hook fired"
+
+# Poll for the second line.
+for _ in $(seq 1 50); do
+    if [[ "$(wc -l <"$CC_JSONL" | tr -d ' ')" -ge 2 ]]; then
+        break
+    fi
+    sleep 0.1
+done
+L2="$(wc -l <"$CC_JSONL" | tr -d ' ')"
+[[ "$L2" == "2" ]] || bail "expected 2 lines after claude-code SubagentStop, got $L2"
+
+FIRST_TYPE="$(sed -n '1p' "$CC_JSONL" | "$REPO_ROOT/bin/python" -c 'import json,sys; print(json.loads(sys.stdin.read())["event_type"])')"
+SECOND_LINE="$(sed -n '2p' "$CC_JSONL")"
+[[ "$FIRST_TYPE" == "stop" ]] || bail "expected first event_type=stop, got $FIRST_TYPE"
+
+"$REPO_ROOT/bin/python" -c '
+import json, sys
+record = json.loads(sys.argv[1])
+assert record["event_type"] == "subagent_stop", record["event_type"]
+assert record["harness"] == "claude-code", record["harness"]
+assert record["agent_type"] == "phase-coder", record["agent_type"]
+assert record["agent_id"] == "subagent-phase-coder-9f2b1d0a", record["agent_id"]
+assert record["parent_transcript_path"] == record["transcript_path"], (
+    record["parent_transcript_path"], record["transcript_path"]
+)
+' "$SECOND_LINE" || bail "second line failed SubagentStop assertions"
+log "claude-code second line carries event_type=subagent_stop with parent_transcript_path mirror"
+
+CC_RECOMPUTED="$(printf '%s' "$SECOND_LINE" | "$REPO_ROOT/bin/python" -c "
+import json, hashlib, sys
+d = json.loads(sys.stdin.read())
+d.pop('id')
+print(hashlib.sha256(json.dumps(d, sort_keys=True, separators=(',', ':')).encode()).hexdigest())
+")"
+CC_RECORDED="$(printf '%s' "$SECOND_LINE" | "$REPO_ROOT/bin/python" -c 'import json,sys; print(json.loads(sys.stdin.read())["id"])')"
+[[ "$CC_RECOMPUTED" == "$CC_RECORDED" ]] \
+    || bail "claude-code subagent id mismatch: recomputed=$CC_RECOMPUTED recorded=$CC_RECORDED"
+log "claude-code subagent id recomputes: $CC_RECORDED"
+
+# --- Codex: fire the Stop hook ---------------------------------------------
+"$HOOK_CODEX" <"$FIXTURE_CODEX"
+log "codex Stop hook fired"
+
+CODEX_SESSION_ID="$("$REPO_ROOT/bin/python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["session_id"])' "$FIXTURE_CODEX")"
+CODEX_JSONL="$STORE/sessions/$DAY/$CODEX_SESSION_ID.jsonl"
+
+for _ in $(seq 1 50); do
+    if [[ -s "$CODEX_JSONL" ]] && [[ "$(wc -l <"$CODEX_JSONL" | tr -d ' ')" -ge 1 ]]; then
+        break
+    fi
+    sleep 0.1
+done
+[[ -f "$CODEX_JSONL" ]] || bail "codex JSONL not written after Stop: $CODEX_JSONL"
+CODEX_LINE_COUNT="$(wc -l <"$CODEX_JSONL" | tr -d ' ')"
+[[ "$CODEX_LINE_COUNT" == "1" ]] \
+    || bail "expected 1 line after codex Stop, got $CODEX_LINE_COUNT"
+
+CODEX_LINE="$(sed -n '1p' "$CODEX_JSONL")"
+"$REPO_ROOT/bin/python" -c '
+import json, sys
+record = json.loads(sys.argv[1])
+assert record["event_type"] == "stop", record["event_type"]
+assert record["harness"] == "codex", record["harness"]
+assert record["session_id"] == "hook-fixture-codex-0001", record["session_id"]
+assert record["assistant_message"] == "Done. The capture daemon picked up the line.", (
+    record["assistant_message"]
+)
+# Subagent-only fields are null on Stop records.
+assert record["agent_id"] is None, record["agent_id"]
+assert record["agent_type"] is None, record["agent_type"]
+assert record["parent_transcript_path"] is None, record["parent_transcript_path"]
+' "$CODEX_LINE" || bail "codex line failed Stop assertions"
+log "codex line carries event_type=stop harness=codex"
+
+CODEX_RECOMPUTED="$(printf '%s' "$CODEX_LINE" | "$REPO_ROOT/bin/python" -c "
+import json, hashlib, sys
+d = json.loads(sys.stdin.read())
+d.pop('id')
+print(hashlib.sha256(json.dumps(d, sort_keys=True, separators=(',', ':')).encode()).hexdigest())
+")"
+CODEX_RECORDED="$(printf '%s' "$CODEX_LINE" | "$REPO_ROOT/bin/python" -c 'import json,sys; print(json.loads(sys.stdin.read())["id"])')"
+[[ "$CODEX_RECOMPUTED" == "$CODEX_RECORDED" ]] \
+    || bail "codex id mismatch: recomputed=$CODEX_RECOMPUTED recorded=$CODEX_RECORDED"
+log "codex id recomputes: $CODEX_RECORDED"
+
+# Final-line shape: pipe-separated, both segments required. The pipe is safe
+# because SHA-256 hex is [0-9a-f] only.
+printf 'event_type=subagent_stop id=%s | codex stop id=%s\n' "$CC_RECORDED" "$CODEX_RECORDED"
+log "OK"

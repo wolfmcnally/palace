@@ -1,0 +1,120 @@
+#!/bin/sh
+# palace-hook-codex — Codex Stop hook.
+#
+# Reads the Codex hook event as JSON on stdin, maps the hook_event_name to
+# the Phase 1.2 event_type discriminator, forwards the upstream fields
+# verbatim plus harness="codex", and POSTs the resulting payload to the
+# loopback capture daemon at ${PALACE_CAPTURE_URL:-http://127.0.0.1:8765/capture}.
+#
+# Hot-path posture: every failure path exits 0, the agent transcript never
+# sees a hook traceback, and the warmest invocation completes well under the
+# 50ms budget. Errors land as a single LF-terminated line in
+# ${PALACE_HOOK_LOG:-${HOME}/palace-data.noindex/logs/palace-capture-hook.log}, with
+# a literal `codex` segment so operators can grep by harness.
+#
+# Codex has no SubagentStop event today; any other hook_event_name is logged
+# and exits 0. The daemon's `build_record` already ignores unknown payload
+# fields by name; we drop `turn_id` outbound because the daemon doesn't
+# surface it today. Promoting `turn_id` into the Phase 1.2 schema is a
+# follow-up sub-phase.
+#
+# `set -e` is intentionally NOT used — every error branch is explicit.
+# `set -u` is NOT used so absent optional fields ($PALACE_HOOK_LOG_ACCEPTS,
+# the upstream session_id on a malformed payload) do not abort the script.
+
+URL="${PALACE_CAPTURE_URL:-http://127.0.0.1:8765/capture}"
+LOG_PATH="${PALACE_HOOK_LOG:-${HOME}/palace-data.noindex/logs/palace-capture-hook.log}"
+
+log_line() {
+    # log_line <event_type-or-unknown> <session_id-or-unknown> <diagnostic>
+    # The shared hook log is multiplexed across harnesses; the literal
+    # `codex` segment disambiguates this script's lines from
+    # palace-hook-claude-code's. Phase 1.5 contract.
+    _evt="$1"
+    _sid="$2"
+    _msg="$3"
+    _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    _dir="$(dirname "$LOG_PATH")"
+    mkdir -p "$_dir" 2>/dev/null
+    printf '%s hook: codex %s session=%s %s\n' "$_ts" "$_evt" "$_sid" "$_msg" >>"$LOG_PATH"
+}
+
+# --- read stdin --------------------------------------------------------------
+STDIN="$(cat)"
+
+# --- validate JSON -----------------------------------------------------------
+if ! printf '%s' "$STDIN" | jq -e . >/dev/null 2>&1; then
+    log_line "unknown" "unknown" "malformed stdin (not JSON)"
+    exit 0
+fi
+
+# --- short-circuit on stop_hook_active --------------------------------------
+ACTIVE="$(printf '%s' "$STDIN" | jq -r '.stop_hook_active // false')"
+if [ "$ACTIVE" = "true" ]; then
+    # Documented re-entry guard against hook loops. No log, no POST.
+    exit 0
+fi
+
+# --- map hook_event_name -> event_type --------------------------------------
+HOOK_EVENT="$(printf '%s' "$STDIN" | jq -r '.hook_event_name // ""')"
+case "$HOOK_EVENT" in
+    Stop)
+        EVENT_TYPE="stop"
+        ;;
+    "")
+        log_line "unknown" "unknown" "missing hook_event_name"
+        exit 0
+        ;;
+    *)
+        log_line "unknown" "unknown" "unsupported hook_event_name=$HOOK_EVENT"
+        exit 0
+        ;;
+esac
+
+# --- session_id is required --------------------------------------------------
+SESSION_ID="$(printf '%s' "$STDIN" | jq -r '.session_id // ""')"
+if [ -z "$SESSION_ID" ]; then
+    log_line "$EVENT_TYPE" "unknown" "missing session_id"
+    exit 0
+fi
+
+# --- assemble the outbound payload ------------------------------------------
+# Drop hook_event_name (event_type supersedes it), stop_hook_active (we
+# short-circuited above), and turn_id (the daemon doesn't surface it today;
+# promoting it is a follow-up sub-phase). Remap last_assistant_message ->
+# assistant_message because Phase 1.2's CaptureRecord names the field
+# assistant_message and the daemon canonicalizes on that name.
+PAYLOAD="$(printf '%s' "$STDIN" | jq -c \
+    --arg event_type "$EVENT_TYPE" \
+    --arg harness "codex" \
+    '
+    del(.hook_event_name, .stop_hook_active, .turn_id)
+    | if has("last_assistant_message")
+      then . + {assistant_message: .last_assistant_message} | del(.last_assistant_message)
+      else .
+      end
+    | . + {event_type: $event_type, harness: $harness}
+    ')"
+
+if [ -z "$PAYLOAD" ]; then
+    log_line "$EVENT_TYPE" "$SESSION_ID" "jq payload assembly failed"
+    exit 0
+fi
+
+# --- POST fire-and-forget ----------------------------------------------------
+if ! printf '%s' "$PAYLOAD" | curl \
+        --silent --show-error --fail \
+        --max-time 0.5 \
+        --header 'Content-Type: application/json' \
+        --data-binary @- \
+        "$URL" >/dev/null 2>&1; then
+    log_line "$EVENT_TYPE" "$SESSION_ID" "POST $URL failed"
+    exit 0
+fi
+
+# --- optional accept logging -------------------------------------------------
+if [ "${PALACE_HOOK_LOG_ACCEPTS:-0}" = "1" ]; then
+    log_line "$EVENT_TYPE" "$SESSION_ID" "accept"
+fi
+
+exit 0

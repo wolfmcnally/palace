@@ -1,0 +1,7 @@
+{
+  "session_id": "hook-fixture-claude-code-0001",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-palace/transcripts/2026-05-18T10-00-00.jsonl",
+  "cwd": "/Users/example/palace",
+  "permission_mode": "default",
+  "hook_event_name": "Stop"
+}

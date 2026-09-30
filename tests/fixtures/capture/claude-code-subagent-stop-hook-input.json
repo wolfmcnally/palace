@@ -1,0 +1,10 @@
+{
+  "session_id": "hook-fixture-claude-code-0001",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-palace/transcripts/2026-05-18T10-05-00.subagent.jsonl",
+  "cwd": "/Users/example/palace",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStop",
+  "agent_id": "subagent-phase-coder-9f2b1d0a",
+  "agent_type": "phase-coder",
+  "effort": { "level": "medium" }
+}

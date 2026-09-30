@@ -1,0 +1,2 @@
+same name as the anchored root file; should NOT be ignored at this depth
+because /anchored_root_only.txt is anchored to the root.

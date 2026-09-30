@@ -1,0 +1,9 @@
+{
+  "capture_date": "2026-08-08",
+  "local_model": "qwen3-embedding:8b",
+  "local_vs_openrouter_one_minus_cos": 0.021509898721391196,
+  "openrouter_repeat_one_minus_cos": 3.795599275946415e-05,
+  "pinned_upstream": "DeepInfra",
+  "remote_model": "Qwen/Qwen3-Embedding-8B",
+  "text": "Palace embedding venue identity fixture, captured for Phase 3.3."
+}

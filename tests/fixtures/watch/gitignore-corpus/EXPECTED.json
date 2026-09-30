@@ -1,0 +1,50 @@
+[
+  {
+    "path": ".gitignore",
+    "ignored": false
+  },
+  {
+    "path": "anchored_root_only.txt",
+    "ignored": true
+  },
+  {
+    "path": "build/contained.txt",
+    "ignored": true
+  },
+  {
+    "path": "double_star_match.txt",
+    "ignored": true
+  },
+  {
+    "path": "excluded_dir/anchored_root_only.txt",
+    "ignored": false
+  },
+  {
+    "path": "excluded_dir/contained.txt",
+    "ignored": false
+  },
+  {
+    "path": "excluded_dir/double_star_match.txt",
+    "ignored": true
+  },
+  {
+    "path": "foo.log",
+    "ignored": true
+  },
+  {
+    "path": "keep.log",
+    "ignored": false
+  },
+  {
+    "path": "negated_subdir/.gitignore",
+    "ignored": false
+  },
+  {
+    "path": "negated_subdir/nested_only_ignored.txt",
+    "ignored": true
+  },
+  {
+    "path": "negated_subdir/unignored_by_child.log",
+    "ignored": false
+  }
+]

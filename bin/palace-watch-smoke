@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# palace-watch-smoke — end-to-end smoke for the `palace watch` CLI.
+#
+# Hermetic. Uses a `mktemp` --store so the host's
+# ~/palace-data.noindex/meta/watch-roots.toml is never touched. Builds two
+# temp watch roots (one with a *.log .gitignore, one with a .git/ subdir),
+# adds them, lists them, runs four classification probes against shaped
+# inputs (indexed file / dotfile / gitignored file / outside any root),
+# removes both, lists empty, and exits 0 with `watch-smoke: ok`.
+#
+# When PALACE_WATCH_SMOKE_KEEP=1 is set, the cleanup trap leaves the
+# temporary store on disk and prints its path so the operator can inspect
+# the produced watch-roots.toml.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Resolve through the real filesystem so the paths match palace's
+# Path.resolve() output (macOS's mktemp returns /var/folders/... while the
+# resolved form is /private/var/folders/...).
+STORE="$(cd "$(mktemp -d -t palace-watch-smoke.XXXXXX)" && pwd -P)"
+ROOT_A="$(cd "$(mktemp -d -t palace-watch-smoke-a.XXXXXX)" && pwd -P)"
+ROOT_B="$(cd "$(mktemp -d -t palace-watch-smoke-b.XXXXXX)" && pwd -P)"
+
+log() {
+    printf '[watch-smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[watch-smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [ "${PALACE_WATCH_SMOKE_KEEP:-0}" = "1" ]; then
+        log "PALACE_WATCH_SMOKE_KEEP=1; leaving store and roots on disk:"
+        log "  store=$STORE"
+        log "  root_a=$ROOT_A"
+        log "  root_b=$ROOT_B"
+        return
+    fi
+    rm -rf "$STORE" "$ROOT_A" "$ROOT_B"
+}
+trap cleanup EXIT
+
+log "store=$STORE"
+log "root_a=$ROOT_A"
+log "root_b=$ROOT_B"
+
+# Build the two roots.
+echo '*.log' > "$ROOT_A/.gitignore"
+echo "# notes" > "$ROOT_A/notes.md"
+echo "log line" > "$ROOT_A/build.log"
+
+mkdir -p "$ROOT_B/.git"
+echo 'ref: refs/heads/main' > "$ROOT_B/.git/HEAD"
+echo "# code" > "$ROOT_B/main.py"
+
+cd "$REPO_ROOT"
+
+# Initial list: empty.
+out="$(uv run palace watch list --store "$STORE")"
+[ "$out" = "(no watch roots configured)" ] \
+    || bail "expected empty list, got: $out"
+log "initial list empty"
+
+# Add both roots.
+out="$(uv run palace watch add "$ROOT_A" --store "$STORE")"
+[ "$out" = "watch: added $ROOT_A" ] \
+    || bail "unexpected add output for root_a: $out"
+out="$(uv run palace watch add "$ROOT_B" --store "$STORE")"
+[ "$out" = "watch: added $ROOT_B" ] \
+    || bail "unexpected add output for root_b: $out"
+log "added both roots"
+
+# List shows both, in insertion order.
+out="$(uv run palace watch list --store "$STORE")"
+line1="$(printf '%s\n' "$out" | sed -n '1p')"
+line2="$(printf '%s\n' "$out" | sed -n '2p')"
+[ "$line1" = "$ROOT_A" ] || bail "list line 1 mismatch: $line1"
+[ "$line2" = "$ROOT_B" ] || bail "list line 2 mismatch: $line2"
+log "list contains both roots in insertion order"
+
+# Probe: indexed file (notes.md under root_a).
+out="$(uv run palace watch check "$ROOT_A/notes.md" --store "$STORE")"
+case "$out" in
+    "indexed: $ROOT_A/notes.md (root: $ROOT_A)") ;;
+    *) bail "expected indexed line for notes.md, got: $out" ;;
+esac
+
+# Probe: dotfile under root_b (.git/HEAD).
+out="$(uv run palace watch check "$ROOT_B/.git/HEAD" --store "$STORE")"
+case "$out" in
+    "ignored: $ROOT_B/.git/HEAD (root: $ROOT_B, reason: dotfile)") ;;
+    *) bail "expected dotfile-ignored line for .git/HEAD, got: $out" ;;
+esac
+
+# Probe: gitignored file under root_a (build.log).
+out="$(uv run palace watch check "$ROOT_A/build.log" --store "$STORE")"
+case "$out" in
+    "ignored: $ROOT_A/build.log (root: $ROOT_A, reason: gitignore)") ;;
+    *) bail "expected gitignore-ignored line for build.log, got: $out" ;;
+esac
+
+# Probe: outside every watch root. Use an absolute path under /tmp that does
+# NOT live under either temp root; resolve through pwd -P so symlinked /tmp
+# (which is /private/tmp on macOS) round-trips.
+OUTSIDE_DIR="$(cd "$(mktemp -d -t palace-watch-smoke-out.XXXXXX)" && pwd -P)"
+OUTSIDE="$OUTSIDE_DIR/file.txt"
+echo "outside any watch root" > "$OUTSIDE"
+out="$(uv run palace watch check "$OUTSIDE" --store "$STORE")"
+case "$out" in
+    "not-watched: $OUTSIDE") ;;
+    *) bail "expected not-watched line for $OUTSIDE, got: $out" ;;
+esac
+rm -rf "$OUTSIDE_DIR"
+log "check probes classified correctly"
+
+# Verify the on-disk TOML is stdlib-tomllib readable.
+config_path="$STORE/meta/watch-roots.toml"
+[ -f "$config_path" ] || bail "expected $config_path to exist"
+uv run python -c "import tomllib, sys; d = tomllib.loads(open(sys.argv[1]).read()); assert len(d.get('root', [])) == 2, d" "$config_path" \
+    || bail "TOML not parseable by stdlib tomllib"
+log "on-disk TOML round-trips through stdlib tomllib"
+
+# Remove both.
+out="$(uv run palace watch remove "$ROOT_A" --store "$STORE")"
+[ "$out" = "watch: removed $ROOT_A" ] \
+    || bail "unexpected remove output for root_a: $out"
+out="$(uv run palace watch remove "$ROOT_B" --store "$STORE")"
+[ "$out" = "watch: removed $ROOT_B" ] \
+    || bail "unexpected remove output for root_b: $out"
+
+# Final list: empty again.
+out="$(uv run palace watch list --store "$STORE")"
+[ "$out" = "(no watch roots configured)" ] \
+    || bail "final list not empty: $out"
+log "final list empty"
+
+printf 'watch-smoke: ok\n'

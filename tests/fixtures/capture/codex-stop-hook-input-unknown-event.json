@@ -1,0 +1,8 @@
+{
+  "session_id": "hook-fixture-codex-unknown-0001",
+  "transcript_path": "/Users/example/.codex/sessions/2026-05-18T10-12-00.jsonl",
+  "cwd": "/Users/example/palace",
+  "permission_mode": "default",
+  "model": "gpt-5.1-codex",
+  "hook_event_name": "SessionStart"
+}

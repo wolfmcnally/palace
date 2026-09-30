@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -20,7 +20,7 @@
+     direct_proof: pytest:tests/test_deliver.py::test_exact_candidate_is_committed_pushed_and_verified
+   security:
+     state: applicable
+-    direct_proof: pytest:tests/test_hermeticity.py::test_outbound_embedding_request_fails_loudly
++    direct_proof: pytest:absent-holdout-security
+   authority:
+     state: applicable
+     direct_proof: pytest:tests/test_kickoff_evidence.py::test_change_manifest_is_candidate_bound_and_detects_authority_drift

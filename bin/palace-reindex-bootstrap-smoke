@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# palace-reindex-bootstrap-smoke — end-to-end smoke for the first-run
+# full-index bootstrap walk.
+#
+# Hermetic. Uses a `mktemp` --store and a `mktemp` watch root so the
+# host's ~/palace-data.noindex/ is never touched. Walks the bootstrap
+# through:
+#
+#   1) `palace watch add` populates the config.
+#   2) First `palace reindex bootstrap` emits one created event per
+#      admitted file (skipping `build.log` via *.log and `.DS_Store`
+#      via dotfile rule); asserts the day file carries exactly 5 lines,
+#      every line parses, the first line's id recomputes, and the
+#      per-root summary names `emitted=5 skipped=2 resumed=0`.
+#   3) Second bootstrap without --force is a no-op (cursor's
+#      `completed_at` short-circuits); asserts the day file is unchanged
+#      and stderr carries `already bootstrapped`.
+#   4) Third bootstrap with --force re-emits; day file now has 10 lines.
+#   5) A `--store /no/such/path` invocation exits 1 with `error:`.
+#
+# When PALACE_REINDEX_BOOTSTRAP_SMOKE_KEEP=1 is set, the cleanup trap
+# leaves the temporary store and root on disk and prints their paths.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Resolve through the real filesystem so paths match palace's
+# Path.resolve() output (macOS's mktemp returns /var/folders/... while
+# the resolved form is /private/var/folders/...).
+STORE="$(cd "$(mktemp -d -t palace-reindex-bootstrap-smoke.XXXXXX)" && pwd -P)"
+ROOT="$(cd "$(mktemp -d -t palace-reindex-bootstrap-smoke-root.XXXXXX)" && pwd -P)"
+
+log() {
+    printf '[bootstrap-smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[bootstrap-smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [ "${PALACE_REINDEX_BOOTSTRAP_SMOKE_KEEP:-0}" = "1" ]; then
+        log "PALACE_REINDEX_BOOTSTRAP_SMOKE_KEEP=1; leaving store and root on disk:"
+        log "  store=$STORE"
+        log "  root=$ROOT"
+        return
+    fi
+    rm -rf "$STORE" "$ROOT"
+}
+trap cleanup EXIT
+
+log "store=$STORE"
+log "root=$ROOT"
+
+# Populate the watch root with 5 admitted files plus 1 gitignored plus
+# 1 dotfile.
+echo '*.log' > "$ROOT/.gitignore"
+echo 'a' > "$ROOT/a.md"
+echo 'b' > "$ROOT/b.md"
+echo 'c' > "$ROOT/c.md"
+mkdir -p "$ROOT/sub"
+echo 'd' > "$ROOT/sub/d.md"
+echo 'e' > "$ROOT/sub/e.md"
+echo 'noise' > "$ROOT/build.log"
+echo 'ds' > "$ROOT/.DS_Store"
+
+cd "$REPO_ROOT"
+
+# Step 1: populate the watch-roots config.
+uv run palace watch add "$ROOT" --store "$STORE" >/dev/null
+
+# Step 2: first bootstrap run.
+STDERR_FILE="$STORE/bootstrap-1.stderr"
+uv run palace reindex bootstrap --store "$STORE" 2>"$STDERR_FILE"
+log "first bootstrap exited 0"
+
+DAY="$(TZ=America/Boise date +%F)"
+EVENTS="$STORE/events/$DAY.jsonl"
+[[ -f "$EVENTS" ]] || bail "events file not created: $EVENTS"
+LINES="$(wc -l <"$EVENTS" | tr -d ' ')"
+[[ "$LINES" == "5" ]] || bail "expected 5 events-log lines after first bootstrap, got $LINES"
+
+# Every line parses + carries the right discriminator.
+jq -c . "$EVENTS" >/dev/null || bail "events file contains non-JSON line(s)"
+KINDS="$(jq -r '.change_kind, .event_type' "$EVENTS" | sort -u)"
+echo "$KINDS" | grep -q '^created$' || bail "expected change_kind=created on every line"
+echo "$KINDS" | grep -q '^fs_change$' || bail "expected event_type=fs_change on every line"
+
+# First line's id recomputes via the canonical-JSON sha256 idiom.
+RECORDED="$(head -1 "$EVENTS" | jq -r '.id')"
+RECOMPUTED="$(head -1 "$EVENTS" | "$REPO_ROOT/bin/python" -c "
+import json, hashlib, sys
+d = json.loads(sys.stdin.read())
+d.pop('id')
+print(hashlib.sha256(json.dumps(d, sort_keys=True, separators=(',', ':')).encode()).hexdigest())
+")"
+[[ "$RECORDED" == "$RECOMPUTED" ]] \
+    || bail "id mismatch on first line: recorded=$RECORDED recomputed=$RECOMPUTED"
+log "first line id recomputes: $RECORDED"
+
+# Per-root summary line carries the right counts. ``files`` is
+# emitted+skipped+resumed (i.e. the total files the walk touched);
+# 5 admitted + 2 ignored + 0 resumed = 7.
+grep -q 'files=7' "$STDERR_FILE" || bail "expected files=7 in stderr"
+grep -q 'emitted=5' "$STDERR_FILE" || bail "expected emitted=5 in stderr"
+grep -q 'skipped=2' "$STDERR_FILE" || bail "expected skipped=2 in stderr"
+grep -q 'resumed=0' "$STDERR_FILE" || bail "expected resumed=0 in stderr"
+log "first bootstrap summary: files=7 emitted=5 skipped=2 resumed=0"
+
+# Cursor file shows completed_at non-null.
+CURSOR_FILE="$STORE/meta/bootstrap-cursor.json"
+[[ -f "$CURSOR_FILE" ]] || bail "cursor file not created: $CURSOR_FILE"
+COMPLETED_AT="$(jq -r 'to_entries[0].value.completed_at' "$CURSOR_FILE")"
+[[ "$COMPLETED_AT" != "null" ]] || bail "cursor completed_at is null after first run"
+
+# Step 3: second bootstrap with no --force.
+STDERR_FILE2="$STORE/bootstrap-2.stderr"
+uv run palace reindex bootstrap --store "$STORE" 2>"$STDERR_FILE2"
+log "second bootstrap (no --force) exited 0"
+LINES="$(wc -l <"$EVENTS" | tr -d ' ')"
+[[ "$LINES" == "5" ]] || bail "events file changed without --force; got $LINES lines"
+grep -q 'already bootstrapped' "$STDERR_FILE2" \
+    || bail "expected 'already bootstrapped' in stderr"
+log "second bootstrap was a no-op (5 lines unchanged; already bootstrapped logged)"
+
+# Step 4: --force re-emits.
+STDERR_FILE3="$STORE/bootstrap-3.stderr"
+uv run palace reindex bootstrap --store "$STORE" --force 2>"$STDERR_FILE3"
+log "third bootstrap (--force) exited 0"
+LINES="$(wc -l <"$EVENTS" | tr -d ' ')"
+[[ "$LINES" == "10" ]] || bail "expected 10 events-log lines after --force, got $LINES"
+log "after --force: 10 lines (5 prior + 5 fresh)"
+
+# Step 5: negative path — missing --store parent exits 1 with error:.
+set +e
+uv run palace reindex bootstrap --store /no/such/path 2>"$STORE/bootstrap-err.stderr"
+RC=$?
+set -e
+[[ "$RC" == "1" ]] || bail "expected exit 1 from missing --store parent, got $RC"
+FIRST_LINE="$(head -1 "$STORE/bootstrap-err.stderr")"
+case "$FIRST_LINE" in
+    error:*) log "missing --store parent: exit 1 + first stderr line starts with 'error:'" ;;
+    *) bail "expected first stderr line to begin with 'error:', got: $FIRST_LINE" ;;
+esac
+
+printf 'bootstrap-smoke: ok\n'

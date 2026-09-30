@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# palace-index-status — at-a-glance inspection of the launchd-managed
+# events-log-consuming index daemon. Exits 0 always; this is a report,
+# not a check.
+set -uo pipefail
+
+LOG_PATH="${HOME}/palace-data.noindex/logs/palace-index.log"
+
+echo "-- launchctl --"
+if line=$(launchctl list 2>/dev/null | grep palace.index); then
+    echo "$line"
+else
+    echo "(no running service)"
+fi
+
+echo
+echo "-- log tail --"
+if [ -f "$LOG_PATH" ]; then
+    tail -20 "$LOG_PATH"
+else
+    echo "(no log yet)"
+fi
+
+echo
+echo "-- index status --"
+if status=$(uv run palace index status 2>/dev/null); then
+    echo "$status"
+else
+    echo "(daemon report unavailable)"
+fi
+
+exit 0

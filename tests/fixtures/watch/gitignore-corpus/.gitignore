@@ -1,0 +1,5 @@
+*.log
+!keep.log
+/anchored_root_only.txt
+build/
+**/double_star_match.txt

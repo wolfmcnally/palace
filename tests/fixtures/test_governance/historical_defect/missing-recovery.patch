@@ -1,0 +1,11 @@
+--- a/tests/proof-estate.yaml
++++ b/tests/proof-estate.yaml
+@@ -35,7 +35,7 @@
+     direct_proof: pytest:tests/test_kickoff_evidence.py::test_validate_detects_corrupt_evidence
+   recovery:
+     state: applicable
+-    direct_proof: pytest:tests/test_execution_telemetry.py::test_lifecycle_idempotency_finalization_and_crash_recovery
++    direct_proof: pytest:absent-historical-recovery
+   public-contract:
+     state: applicable
+     direct_proof: pytest:tests/test_smoke.py::test_palace_cli_version

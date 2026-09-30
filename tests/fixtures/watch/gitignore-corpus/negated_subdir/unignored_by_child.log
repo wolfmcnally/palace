@@ -1,0 +1,1 @@
+parent's *.log ignores; child's !unignored_by_child.log re-includes

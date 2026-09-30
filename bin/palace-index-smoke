@@ -1,0 +1,358 @@
+#!/usr/bin/env bash
+# palace-index-smoke — end-to-end smoke for the index daemon.
+#
+# Hermetic. Uses a `mktemp` --store and a `mktemp` watch root so the
+# host's ~/palace-data.noindex/ is never touched. Requires Ollama
+# running at $OLLAMA_HOST (default http://localhost:11434) with
+# `qwen3-embedding:8b` pulled; the smoke probes both up-front and exits
+# non-zero with a clear message if either condition isn't met.
+#
+# Boots `palace reindex serve` (the events producer) and `palace index
+# serve` (the consumer), then walks: create → assert two rows → append
+# section → assert three rows → modify section → assert id replacement →
+# delete file → assert zero rows → `palace index check` → not-indexed.
+#
+# When PALACE_INDEX_SMOKE_KEEP=1 is set, the cleanup trap leaves the
+# temporary store and root on disk and prints their paths.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
+
+# Resolve through the real filesystem so paths match palace's
+# Path.resolve() output (macOS's mktemp returns /var/folders/... while
+# the resolved form is /private/var/folders/...).
+STORE="$(cd "$(mktemp -d -t palace-index-smoke.XXXXXX)" && pwd -P)"
+ROOT="$(cd "$(mktemp -d -t palace-index-smoke-root.XXXXXX)" && pwd -P)"
+
+REINDEX_PID=""
+INDEX_PID=""
+
+log() {
+    printf '[index-smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[index-smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [[ -n "${INDEX_PID:-}" ]] && kill -0 "$INDEX_PID" 2>/dev/null; then
+        kill -TERM "$INDEX_PID" 2>/dev/null || true
+        wait "$INDEX_PID" 2>/dev/null || true
+    fi
+    if [[ -n "${REINDEX_PID:-}" ]] && kill -0 "$REINDEX_PID" 2>/dev/null; then
+        kill -TERM "$REINDEX_PID" 2>/dev/null || true
+        wait "$REINDEX_PID" 2>/dev/null || true
+    fi
+    if [ "${PALACE_INDEX_SMOKE_KEEP:-0}" = "1" ]; then
+        log "PALACE_INDEX_SMOKE_KEEP=1; leaving store and root on disk:"
+        log "  store=$STORE"
+        log "  root=$ROOT"
+        return
+    fi
+    rm -rf "$STORE" "$ROOT"
+}
+trap cleanup EXIT
+
+# Step 1: probe Ollama up-front. Fail loudly with a clear fix message.
+if ! curl -sSf -o /dev/null -m 2 "$OLLAMA_HOST/api/tags"; then
+    bail "ollama unreachable at $OLLAMA_HOST — run 'ollama serve' and 'ollama pull qwen3-embedding:8b' first"
+fi
+if ! curl -sS "$OLLAMA_HOST/api/tags" | "$REPO_ROOT/bin/python" -c "
+import json, sys
+data = json.load(sys.stdin)
+models = data.get('models', [])
+for m in models:
+    if m.get('name', '').startswith('qwen3-embedding:8b'):
+        sys.exit(0)
+sys.exit(1)
+"; then
+    bail "model qwen3-embedding:8b not pulled — run: ollama pull qwen3-embedding:8b"
+fi
+log "ollama OK at $OLLAMA_HOST"
+
+log "store=$STORE"
+log "root=$ROOT"
+
+cd "$REPO_ROOT"
+
+# Step 2/3: populate the watch-roots config.
+uv run palace watch add "$ROOT" --store "$STORE" >/dev/null
+
+# Step 4: boot the reindex daemon (PID1).
+uv run palace reindex serve --store "$STORE" >/dev/null 2>"$STORE/reindex.stderr" &
+REINDEX_PID=$!
+
+for _ in $(seq 1 50); do
+    if grep -q 'observing 1 roots' "$STORE/reindex.stderr" 2>/dev/null; then
+        break
+    fi
+    sleep 0.1
+done
+if ! grep -q 'observing 1 roots' "$STORE/reindex.stderr"; then
+    cat "$STORE/reindex.stderr" >&2 || true
+    bail "palace reindex did not announce observing-roots within 5 s"
+fi
+log "reindex daemon observing 1 root"
+
+# Step 5: boot the index daemon (PID2).
+uv run palace index serve --store "$STORE" >/dev/null 2>"$STORE/index.stderr" &
+INDEX_PID=$!
+
+for _ in $(seq 1 100); do
+    if grep -q 'palace index: tailing' "$STORE/index.stderr" 2>/dev/null; then
+        break
+    fi
+    sleep 0.1
+done
+if ! grep -q 'palace index: tailing' "$STORE/index.stderr"; then
+    cat "$STORE/index.stderr" >&2 || true
+    bail "palace index did not announce tailing within 10 s"
+fi
+log "index daemon tailing"
+
+DB="$STORE/index/chunks.sqlite"
+
+# The chunks_vec table is a sqlite-vec virtual table; the system
+# `sqlite3` CLI does not load the extension by default. We query via
+# the uv-managed Python interpreter (which has sqlite-vec on path).
+count_chunks() {
+    local table="$1"
+    uv run python -c "
+import sqlite3, sqlite_vec
+c = sqlite3.connect('$DB')
+c.enable_load_extension(True); sqlite_vec.load(c)
+print(c.execute('SELECT COUNT(*) FROM $table').fetchone()[0])
+" 2>/dev/null || echo 0
+}
+
+# Reading a single column value (e.g. chunk_id by section_index).
+column_value() {
+    local sql="$1"
+    uv run python -c "
+import sqlite3, sqlite_vec
+c = sqlite3.connect('$DB')
+c.enable_load_extension(True); sqlite_vec.load(c)
+row = c.execute(\"$sql\").fetchone()
+print(row[0] if row else '')
+" 2>/dev/null || echo ""
+}
+
+# Step 6: write a two-section Markdown file.
+cat > "$ROOT/notes.md" <<'EOF'
+## Section A
+
+body A
+
+## Section B
+
+body B
+EOF
+
+sleep 2
+
+# Step 7: assert 2 rows in each of chunks / chunks_vec / chunks_fts.
+for table in chunks chunks_vec chunks_fts; do
+    n="$(count_chunks "$table")"
+    [[ "$n" == "2" ]] || bail "expected 2 rows in $table after create, got $n"
+done
+log "create: 2 rows in chunks/chunks_vec/chunks_fts"
+
+# Snapshot section 0 / 1 chunk ids.
+SECTION0_ID="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=0")"
+SECTION1_ID="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=1")"
+
+# Step 8: append a third section; assert 3 rows; sections 0/1 ids unchanged.
+# Note: prepend a blank line so the parser sees a clean H2 boundary; the
+# original file ended with "body B\n", and an H2 immediately after produces
+# the same section-B body as the modify step below.
+cat >> "$ROOT/notes.md" <<'EOF'
+
+## Section C
+
+body C
+EOF
+
+sleep 2
+
+n="$(count_chunks chunks)"
+[[ "$n" == "3" ]] || bail "expected 3 rows in chunks after append, got $n"
+NEW_S0="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=0")"
+NEW_S1="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=1")"
+[[ "$NEW_S0" == "$SECTION0_ID" ]] || bail "section 0 chunk_id changed on append"
+[[ "$NEW_S1" == "$SECTION1_ID" ]] || bail "section 1 chunk_id changed on append"
+log "append: 3 rows; section 0/1 ids preserved"
+
+# Step 9: modify section A; assert section A's chunk id changes, B/C unchanged.
+SECTION2_ID="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=2")"
+cat > "$ROOT/notes.md" <<'EOF'
+## Section A
+
+body A CHANGED
+
+## Section B
+
+body B
+
+## Section C
+
+body C
+EOF
+
+sleep 2
+
+NEW_S0="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=0")"
+NEW_S1="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=1")"
+NEW_S2="$(column_value "SELECT chunk_id FROM chunks WHERE section_index=2")"
+[[ "$NEW_S0" != "$SECTION0_ID" ]] || bail "section 0 chunk_id did not change on modify"
+[[ "$NEW_S1" == "$SECTION1_ID" ]] || bail "section 1 chunk_id changed on unrelated modify"
+[[ "$NEW_S2" == "$SECTION2_ID" ]] || bail "section 2 chunk_id changed on unrelated modify"
+log "modify: section 0 id replaced; sections 1/2 ids preserved"
+
+# Step 10: delete the file; assert 0 rows in all three tables.
+rm "$ROOT/notes.md"
+sleep 2
+for table in chunks chunks_vec chunks_fts; do
+    n="$(count_chunks "$table")"
+    [[ "$n" == "0" ]] || bail "expected 0 rows in $table after delete, got $n"
+done
+log "delete: 0 rows in chunks/chunks_vec/chunks_fts"
+
+# Step 11: palace index check → not-indexed:.
+OUT="$(uv run palace index check "$ROOT/notes.md" --store "$STORE")"
+case "$OUT" in
+    "not-indexed:"*) log "check: not-indexed (expected)" ;;
+    *) bail "expected 'not-indexed:' from palace index check, got: $OUT" ;;
+esac
+
+# --- Phase 2.4 per-kind smoke steps ---------------------------------------
+
+# count_by_kind — count rows in ``chunks`` matching kind=<arg>.
+count_by_kind() {
+    local kind="$1"
+    uv run python -c "
+import sqlite3, sqlite_vec
+c = sqlite3.connect('$DB')
+c.enable_load_extension(True); sqlite_vec.load(c)
+print(c.execute('SELECT COUNT(*) FROM chunks WHERE kind = ?', ('$kind',)).fetchone()[0])
+" 2>/dev/null || echo 0
+}
+
+# chunk_id_by_kind_pos — fetch a single chunk_id ordered by section_index.
+chunk_id_by_kind_pos() {
+    local kind="$1"
+    local offset="$2"
+    uv run python -c "
+import sqlite3, sqlite_vec
+c = sqlite3.connect('$DB')
+c.enable_load_extension(True); sqlite_vec.load(c)
+row = c.execute(
+    'SELECT chunk_id FROM chunks WHERE kind = ? ORDER BY section_index LIMIT 1 OFFSET ?',
+    ('$kind', $offset),
+).fetchone()
+print(row[0] if row else '')
+" 2>/dev/null || echo ""
+}
+
+# heading_by_kind_pos — fetch a single heading column ordered by section_index.
+heading_by_kind_pos() {
+    local kind="$1"
+    local offset="$2"
+    uv run python -c "
+import sqlite3, sqlite_vec
+c = sqlite3.connect('$DB')
+c.enable_load_extension(True); sqlite_vec.load(c)
+row = c.execute(
+    'SELECT heading FROM chunks WHERE kind = ? ORDER BY section_index LIMIT 1 OFFSET ?',
+    ('$kind', $offset),
+).fetchone()
+print(row[0] if row else '')
+" 2>/dev/null || echo ""
+}
+
+# count_by_path — count rows in ``chunks`` matching path=<arg>. The
+# stored path is watch-root-relative (3.2), so <arg> is the relative key.
+count_by_path() {
+    local path="$1"
+    uv run python -c "
+import sqlite3, sqlite_vec
+c = sqlite3.connect('$DB')
+c.enable_load_extension(True); sqlite_vec.load(c)
+print(c.execute('SELECT COUNT(*) FROM chunks WHERE path = ?', ('$path',)).fetchone()[0])
+" 2>/dev/null || echo 0
+}
+
+# Step 11a: JSONL append-only — two lines, then a third; assert the first
+# two chunk ids are preserved.
+cat > "$ROOT/log.jsonl" <<'EOF'
+{"event":"first","ts":1}
+{"event":"second","ts":2}
+EOF
+sleep 2
+JN="$(count_by_kind "jsonl")"
+[[ "$JN" == "2" ]] || bail "expected 2 jsonl chunks after create, got $JN"
+JS0="$(chunk_id_by_kind_pos "jsonl" 0)"
+JS1="$(chunk_id_by_kind_pos "jsonl" 1)"
+echo '{"event":"third","ts":3}' >> "$ROOT/log.jsonl"
+sleep 2
+JN="$(count_by_kind "jsonl")"
+[[ "$JN" == "3" ]] || bail "expected 3 jsonl chunks after append, got $JN"
+NEW_J0="$(chunk_id_by_kind_pos "jsonl" 0)"
+NEW_J1="$(chunk_id_by_kind_pos "jsonl" 1)"
+[[ "$NEW_J0" == "$JS0" ]] || bail "jsonl record 0 chunk_id changed on append"
+[[ "$NEW_J1" == "$JS1" ]] || bail "jsonl record 1 chunk_id changed on append"
+log "jsonl: append-only invariant preserved"
+
+# Step 11b: Code AST — one .py file with two top-level functions; assert
+# 2 chunks with kind=code and the expected heading symbols.
+cat > "$ROOT/script.py" <<'EOF'
+def alpha():
+    return 1
+
+
+def beta():
+    return 2
+EOF
+sleep 2
+CN="$(count_by_kind "code")"
+[[ "$CN" == "2" ]] || bail "expected 2 code chunks, got $CN"
+CH0="$(heading_by_kind_pos "code" 0)"
+CH1="$(heading_by_kind_pos "code" 1)"
+[[ "$CH0" == "alpha" ]] || bail "expected first code chunk heading=alpha, got $CH0"
+[[ "$CH1" == "beta" ]] || bail "expected second code chunk heading=beta, got $CH1"
+log "code: 2 chunks (alpha, beta) indexed"
+
+# Step 11c: Opaque text — one .txt file; assert 1 chunk with kind=text.
+echo "a quick captured note" > "$ROOT/random.txt"
+sleep 2
+TN="$(count_by_kind "text")"
+[[ "$TN" == "1" ]] || bail "expected 1 text chunk, got $TN"
+log "text: 1 chunk indexed"
+
+# Step 11d: Binary refusal — drop a .zip; assert no new chunks land for
+# that path and the daemon's stderr carries a kind=binary line.
+dd if=/dev/zero of="$ROOT/big.zip" bs=1024 count=5 status=none
+sleep 2
+# chunks.path is watch-root-relative (3.2), so the lookup key is 'big.zip'.
+ZN="$(count_by_path "big.zip")"
+[[ "$ZN" == "0" ]] || bail "expected 0 chunks for big.zip, got $ZN"
+grep -q "kind=binary" "$STORE/index.stderr" || bail "expected 'kind=binary' line in index stderr"
+log "binary: zip refused (0 chunks; kind=binary in stderr)"
+
+# Step 12: SIGTERM both daemons; expect clean exits.
+kill -TERM "$INDEX_PID"
+wait "$INDEX_PID"
+INDEX_RC=$?
+INDEX_PID=""
+[[ "$INDEX_RC" == "0" ]] || bail "index daemon exit code $INDEX_RC"
+
+kill -TERM "$REINDEX_PID"
+wait "$REINDEX_PID"
+REINDEX_RC=$?
+REINDEX_PID=""
+[[ "$REINDEX_RC" == "0" ]] || bail "reindex daemon exit code $REINDEX_RC"
+log "both daemons exited cleanly (rc=0)"
+
+printf 'index-smoke: ok\n'

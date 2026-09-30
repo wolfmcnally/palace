@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# palace-scaffold-vault-smoke — end-to-end smoke for `palace vault scaffold`.
+#
+# Hermetic. Scaffolds into an ISOLATED `mktemp` vault root via
+# PALACE_VAULT_ROOT so Wolf's real ~/Obsidian/Palace/ is never touched.
+# Mirrors the isolation pattern in bin/palace-watch-smoke. Asserts the
+# canonical structure (facts/, dreams/, context/working.md) exists, then
+# exits 0 with `scaffold-vault-smoke: ok`.
+#
+# When PALACE_SCAFFOLD_VAULT_SMOKE_KEEP=1 is set, the cleanup trap leaves
+# the temporary vault on disk and prints its path for inspection.
+set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Resolve through the real filesystem so paths match palace's
+# Path.expanduser() output (macOS mktemp returns /var/folders/... while
+# the resolved form is /private/var/folders/...).
+VAULT_ROOT="$(cd "$(mktemp -d -t palace-scaffold-vault-smoke.XXXXXX)" && pwd -P)"
+
+log() {
+    printf '[scaffold-vault-smoke] %s\n' "$*" >&2
+}
+
+bail() {
+    printf '[scaffold-vault-smoke] FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [ "${PALACE_SCAFFOLD_VAULT_SMOKE_KEEP:-0}" = "1" ]; then
+        log "PALACE_SCAFFOLD_VAULT_SMOKE_KEEP=1; leaving vault on disk:"
+        log "  vault_root=$VAULT_ROOT"
+        return
+    fi
+    rm -rf "$VAULT_ROOT"
+}
+trap cleanup EXIT
+
+log "vault_root=$VAULT_ROOT"
+
+cd "$REPO_ROOT"
+
+PALACE_VAULT_ROOT="$VAULT_ROOT" uv run palace vault scaffold \
+    || bail "palace vault scaffold returned non-zero"
+
+[ -d "$VAULT_ROOT/facts" ] || bail "expected $VAULT_ROOT/facts to exist"
+[ -d "$VAULT_ROOT/dreams" ] || bail "expected $VAULT_ROOT/dreams to exist"
+[ -f "$VAULT_ROOT/context/working.md" ] \
+    || bail "expected $VAULT_ROOT/context/working.md to exist"
+log "structure present: facts/ dreams/ context/working.md"
+
+# Idempotent re-run: must not fail, must not create MEMORY.md / DREAMS.md.
+PALACE_VAULT_ROOT="$VAULT_ROOT" uv run palace vault scaffold \
+    || bail "second scaffold returned non-zero"
+[ ! -f "$VAULT_ROOT/facts/MEMORY.md" ] \
+    || bail "scaffold must not create facts/MEMORY.md"
+[ ! -f "$VAULT_ROOT/dreams/DREAMS.md" ] \
+    || bail "scaffold must not create dreams/DREAMS.md"
+log "idempotent re-run clean; no MEMORY.md / DREAMS.md created"
+
+printf 'scaffold-vault-smoke: ok\n'
