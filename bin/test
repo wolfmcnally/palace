@@ -51,7 +51,8 @@ if [[ $# -eq 0 ]]; then
 fi
 
 run_governed_lane() {
-  local -a selection
+  local -a selection=()
+  local selection_line
   local selection_mode
   local selection_reason
   local -a selectors
@@ -60,7 +61,9 @@ run_governed_lane() {
     echo "TEST ERROR missing required executable: bin/test-governance" >&2
     return 1
   fi
-  mapfile -t selection < <("$repo_root/bin/test-governance" select "$@" --format lines)
+  while IFS= read -r selection_line || [[ -n "$selection_line" ]]; do
+    selection+=("$selection_line")
+  done < <("$repo_root/bin/test-governance" select "$@" --format lines)
   if [[ ${#selection[@]} -lt 2 ]]; then
     echo "TEST ERROR governance selection returned an incomplete response" >&2
     return 1
