@@ -2643,7 +2643,7 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve with real sigterm.
+  contract: Native stream registration, observed file delivery and clean shutdown-event exit; historical selector does not assert process-signal coverage.
   risk_class: watching
   oracle: Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.

@@ -15,3 +15,10 @@ Scope: Complete first public release qualification.
 Finding: Hosted macOS CI used Apple Bash 3.2, which lacks mapfile; four governed-lane tests refused. The local environment had hidden this prerequisite.
 Remedy: Replace mapfile with a portable line-preserving array loop; retain fail-closed selector validation. Both hosted platforms now finish independently.
 Verification: All19 existing check/toolchain tests passed under /bin/bash. Final full gate and hosted CI remain required for this new candidate.
+
+## 2026-09-30 01:48 — METHODOLOGY — Observable watcher proof
+
+Scope: Complete release verification without bypassing a refusing gate.
+Finding: Tagpush gate exposed a watcher proof that stopped after0.3seconds before native file notification arrived. Its historical name claimed a process signal that it never sent.
+Remedy: Synchronize genuine native registration and exact synthetic event delivery; always stop/join, assert daemon return0. Retain selector/family and accurately qualify its contract. Runtime and live stores unchanged.
+Verification: Existing10integration tests passed, independent targeted runs passed; unchanged frozen22case assay detected11/11historical and11/11mutants. Finalfullgate and exactcommit hostedCI remain required.

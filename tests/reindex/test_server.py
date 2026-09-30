@@ -3,16 +3,14 @@
 Each test starts ``serve()`` on a background thread against a real
 :class:`watchdog.observers.fsevents.FSEventsObserver`, manipulates files
 under a temp watch root, then polls the events log up to a 2 s budget
-before tearing the daemon down via the ``_shutdown_event`` test seam
-(or, for the SIGTERM-drain test, via ``os.kill`` on the test process).
+before tearing the daemon down via the ``_shutdown_event`` test seam.
+These witnesses do not send a process signal.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import platform
-import signal
 import threading
 import time
 from pathlib import Path
@@ -334,35 +332,44 @@ def test_serve_and_bootstrap_can_share_events_log(tmp_store: Path, tmp_watch_roo
     assert result.get("rc") == 0
 
 
-def test_serve_with_real_sigterm(tmp_store: Path, tmp_watch_root: Path) -> None:
-    """End-to-end real-signal test: SIGTERM through ``os.kill`` exits 0."""
+def test_serve_with_real_sigterm(
+    tmp_store: Path, tmp_watch_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Observe a real file event, then exit cleanly through the shutdown seam.
+
+    The historical selector is retained for proof lineage; this is not a
+    process-signal witness. Synchronize on actual native stream registration
+    and delivery rather than assuming the kernel delivers within 0.3 seconds.
+    """
+    from watchdog.observers import fsevents
+
     _add_watch_root(tmp_store, tmp_watch_root)
+    ready = threading.Event()
+    # The native extension is intentionally outside watchdog's typed exports.
+    native_api: Any = vars(fsevents)["_fsevents"]
+    native_add_watch = native_api.add_watch
 
-    # The real-signal path installs handlers on the test process; only
-    # the main thread can install signal handlers in Python, so this
-    # test runs the daemon on the main thread via a child subprocess
-    # would be ideal — but pytest already runs us on the main thread, so
-    # we install our own SIGTERM handler in a side thread that flips a
-    # shared event, then call os.kill to fire it. We use the
-    # ``_shutdown_event`` seam to avoid mutating the live process signal
-    # handlers (which would break pytest's own signal management).
-    shutdown = threading.Event()
+    def register_watch(*arguments: Any, **keywords: Any) -> Any:
+        result = native_add_watch(*arguments, **keywords)
+        ready.set()
+        return result
 
-    def _run() -> int:
-        rc = serve(store=tmp_store, verbose=False, _shutdown_event=shutdown)
-        return rc
-
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
-    _wait_for_observer(_today_events_path(tmp_store))
-    (tmp_watch_root / "ok.md").write_text("ok\n")
-    time.sleep(0.3)
-    shutdown.set()
-    thread.join(timeout=5.0)
-    assert not thread.is_alive()
-    # Sanity check: shutdown was clean.
-    lines = _poll_for_lines(_today_events_path(tmp_store), count=1, timeout=1.0)
-    assert any("ok.md" in line for line in lines)
-    # Reference signal-module imports so the linter sees them used.
-    _ = signal.SIGTERM
-    _ = os.getpid
+    monkeypatch.setattr(native_api, "add_watch", register_watch)
+    thread, shutdown, result = _start_serve(store=tmp_store)
+    try:
+        assert ready.wait(timeout=5.0), "native observer did not register"
+        (tmp_watch_root / "ok.md").write_text("ok\n")
+        deadline = time.monotonic() + 5.0
+        observed = False
+        while time.monotonic() < deadline:
+            lines = _poll_for_lines(_today_events_path(tmp_store), count=1, timeout=0.1)
+            if any(json.loads(line)["relative_path"] == "ok.md" for line in lines):
+                observed = True
+                break
+            time.sleep(0.05)
+        assert observed, "native file event did not arrive before shutdown"
+    finally:
+        shutdown.set()
+        thread.join(timeout=5.0)
+    assert not thread.is_alive(), "daemon did not stop after shutdown request"
+    assert result.get("rc") == 0, result

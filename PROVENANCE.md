@@ -8,3 +8,12 @@ The frozen proof baseline and reset ledger remain sourced technical records.
 The effectiveness corpus was executed afresh against the public candidate on
 2026-09-30 (11/11 historical defects and 11/11 held-out mutants detected); no
 mutation patches, selectors or corpus were repaired to obtain those results.
+
+A release-gate run exposed a fixed-delay watcher witness that stopped before
+FSEvents delivered its synthetic file event. Its historical selector is
+retained, while its current contract and docstring now accurately describe
+native registration, observed delivery and clean shutdown through the injected
+event seam. It does not establish process-signal delivery. Runtime code is
+unchanged; historical admission metadata is not a new statistical flake-rate
+measurement. The same frozen 22-case effectiveness corpus was rerun after the
+proof correction, detecting all cases without patch or selector repair.
