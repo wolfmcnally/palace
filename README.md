@@ -1,6 +1,10 @@
 # Palace
 
-Palace is a local-first memory and retrieval substrate created by Wolf McNally. Markdown and structured event files hold the canonical content; SQLite, FTS5 and sqlite-vec provide rebuildable search indexes. Applications can use an explicit store without adopting a particular user interface.
+Palace is a local-first retrieval-augmented generation (RAG) system for AI agents and applications, created by Wolf McNally. It makes documents and structured events available as relevant, traceable context for language models, combining keyword and semantic search with optional query expansion and reranking.
+
+Applications can search a single knowledge store or combine results across multiple stores while preserving their origins. Authoritative content stays in inspectable files, and search indexes can be rebuilt. Local embedding and reranking models are the defaults, with explicitly configured alternatives.
+
+Palace provides library and command-line interfaces for building agent memory, personal knowledge tools, and other RAG applications, with explicit control over storage, provenance, and inference boundaries.
 
 Version 0.1.0 is the first tagged MIT release. Package registry publication is separate. APIs and storage contracts remain experimental; review the changelog before upgrading.
 
