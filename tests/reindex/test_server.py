@@ -26,16 +26,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _poll_for_lines(path: Path, *, count: int, timeout: float = 2.0) -> list[str]:
-    """Poll ``path`` until it has at least ``count`` lines or the budget expires."""
-    deadline = time.monotonic() + timeout
+def _poll_for_event(path: Path, *, relative_path: str, deadline: float) -> dict[str, Any]:
+    """Require the exact target within one deadline; root replay cannot satisfy it."""
+    records: list[dict[str, Any]] = []
     while time.monotonic() < deadline:
         if path.is_file():
-            lines = path.read_text(encoding="utf-8").splitlines()
-            if len(lines) >= count:
-                return lines
-        time.sleep(0.05)
-    return path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+            records = [json.loads(line) for line in path.read_text().splitlines()]
+            for record in records:
+                if record["relative_path"] == relative_path and time.monotonic() <= deadline:
+                    return record
+        time.sleep(min(0.025, max(0.0, deadline - time.monotonic())))
+    raise AssertionError(f"no {relative_path} event before deadline; records={records}")
 
 
 def _today_events_path(store: Path) -> Path:
@@ -88,28 +89,11 @@ def test_serve_emits_jsonl_line_within_two_seconds_of_touch(
     thread, shutdown, result = _start_serve(store=tmp_store)
     try:
         _wait_for_observer(_today_events_path(tmp_store))
+        deadline = time.monotonic() + 2.0
         (tmp_watch_root / "notes.md").write_text("hello\n")
-        # FSEvents may replay historic events for the watch root itself
-        # before our file event lands; scan all yielded lines for the
-        # notes.md record rather than assuming it is line 0.
-        lines = _poll_for_lines(_today_events_path(tmp_store), count=1, timeout=2.0)
-        assert len(lines) >= 1
-        records = [json.loads(line) for line in lines]
-        notes_records = [r for r in records if r["path"].endswith("notes.md")]
-        if not notes_records:
-            # Give the daemon a moment to drain a second event if the
-            # first was the watch-root replay.
-            import time as _time
-
-            for _ in range(20):
-                _time.sleep(0.1)
-                lines = _poll_for_lines(_today_events_path(tmp_store), count=2, timeout=0.5)
-                records = [json.loads(line) for line in lines]
-                notes_records = [r for r in records if r["path"].endswith("notes.md")]
-                if notes_records:
-                    break
-        assert notes_records, f"no notes.md event in: {records}"
-        record = notes_records[0]
+        record = _poll_for_event(
+            _today_events_path(tmp_store), relative_path="notes.md", deadline=deadline
+        )
         assert record["event_type"] == "fs_change"
         assert record["change_kind"] in {"created", "modified"}
         # Recompute id.
@@ -217,9 +201,9 @@ def test_serve_skips_missing_on_disk_root(
     try:
         _wait_for_observer(_today_events_path(tmp_store))
         # The live root still emits.
+        deadline = time.monotonic() + 2.0
         (tmp_watch_root / "alive.md").write_text("alive\n")
-        lines = _poll_for_lines(_today_events_path(tmp_store), count=1, timeout=2.0)
-        assert any("alive.md" in line for line in lines)
+        _poll_for_event(_today_events_path(tmp_store), relative_path="alive.md", deadline=deadline)
     finally:
         shutdown.set()
         thread.join(timeout=5.0)
@@ -259,8 +243,11 @@ def test_serve_recovers_from_one_observer_callback_exception(
             # FSEvents has up-to-1-second latency by default on macOS; give
             # the second write plenty of room before polling.
             time.sleep(0.5)
-            lines = _poll_for_lines(_today_events_path(tmp_store), count=2, timeout=5.0)
-            assert any("second.md" in line for line in lines)
+            _poll_for_event(
+                _today_events_path(tmp_store),
+                relative_path="second.md",
+                deadline=time.monotonic() + 5.0,
+            )
         finally:
             shutdown.set()
             thread.join(timeout=5.0)
@@ -269,25 +256,55 @@ def test_serve_recovers_from_one_observer_callback_exception(
     assert result.get("rc") == 0
 
 
-def test_serve_sigterm_drains_inflight_debouncer(tmp_store: Path, tmp_watch_root: Path) -> None:
-    """SIGTERM mid-burst flushes whatever has reached steady state."""
+def test_serve_sigterm_drains_inflight_debouncer(
+    tmp_store: Path, tmp_watch_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The shutdown seam flushes a genuinely observed, still-pending file event.
+
+    The historical selector remains for proof lineage; this sends no signal.
+    A fixed test clock prevents ordinary polling from satisfying the witness.
+    """
+    from palace.reindex import server as server_mod
+    from palace.reindex.debounce import PathDebouncer
+
+    received, flushed = (threading.Event() for _ in range(2))
+
+    class PendingDebouncer(PathDebouncer):
+        def __init__(self, **keywords: Any) -> None:
+            super().__init__(**keywords, clock=lambda: 0.0)
+
+        def submit(self, **keywords: Any) -> None:
+            super().submit(**keywords)
+            if keywords["relative_path"].as_posix() == "burst.md":
+                received.set()
+
+        def shutdown_flush(self) -> None:
+            with self._lock:
+                assert any(a.relative_path.as_posix() == "burst.md" for a in self._table.values())
+            super().shutdown_flush()
+            flushed.set()
+
+    monkeypatch.setattr(server_mod, "PathDebouncer", PendingDebouncer)
     _add_watch_root(tmp_store, tmp_watch_root)
-    # We exercise the same shutdown discipline via the ``_shutdown_event``
-    # seam; the real SIGTERM path is identical and is covered by the smoke.
     thread, shutdown, result = _start_serve(store=tmp_store)
+    events_file = _today_events_path(tmp_store)
     try:
-        _wait_for_observer(_today_events_path(tmp_store))
+        _wait_for_observer(events_file)
+        deadline = time.monotonic() + 2.0
         (tmp_watch_root / "burst.md").write_text("a\n")
-        # Wait long enough for the FSEvents callback + debouncer poll to
-        # land the accumulator, then trigger shutdown; ``shutdown_flush``
-        # should emit the steady-state record.
-        time.sleep(0.3)
+        assert received.wait(timeout=max(0.0, deadline - time.monotonic())), (
+            "native burst event did not enter debouncer within two seconds"
+        )
+        assert not events_file.exists() or "burst.md" not in events_file.read_text()
     finally:
         shutdown.set()
         thread.join(timeout=5.0)
-    lines = _poll_for_lines(_today_events_path(tmp_store), count=1, timeout=1.0)
-    assert any("burst.md" in line for line in lines)
-    assert result.get("rc") == 0
+    assert not thread.is_alive(), "daemon did not stop after shutdown request"
+    assert result.get("rc") == 0, result
+    assert flushed.is_set(), "shutdown did not flush the pending accumulator"
+    assert events_file.is_file(), "shutdown did not persist the pending record"
+    records = [json.loads(line) for line in events_file.read_text().splitlines()]
+    assert any(record["relative_path"] == "burst.md" for record in records)
 
 
 def test_serve_and_bootstrap_can_share_events_log(tmp_store: Path, tmp_watch_root: Path) -> None:
@@ -359,15 +376,9 @@ def test_serve_with_real_sigterm(
     try:
         assert ready.wait(timeout=5.0), "native observer did not register"
         (tmp_watch_root / "ok.md").write_text("ok\n")
-        deadline = time.monotonic() + 5.0
-        observed = False
-        while time.monotonic() < deadline:
-            lines = _poll_for_lines(_today_events_path(tmp_store), count=1, timeout=0.1)
-            if any(json.loads(line)["relative_path"] == "ok.md" for line in lines):
-                observed = True
-                break
-            time.sleep(0.05)
-        assert observed, "native file event did not arrive before shutdown"
+        _poll_for_event(
+            _today_events_path(tmp_store), relative_path="ok.md", deadline=time.monotonic() + 5.0
+        )
     finally:
         shutdown.set()
         thread.join(timeout=5.0)

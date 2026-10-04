@@ -799,6 +799,18 @@ def test_statement_delete_and_transactional_delete_drop_the_same_rows(tmp_path: 
     finally:
         conn.close()
 
+    # Exercise failed commits as part of the same transaction-atomicity proof.
+    # Each case owns its database so a failed rollback cannot contaminate another.
+    for operation in ("index", "delete"):
+        for failure_mode in ("automatic_rollback", "active", "rollback_failure"):
+            case = tmp_path / f"{operation}-{failure_mode}"
+            store, watch = case / "store", case / "watch"
+            store.mkdir(parents=True)
+            watch.mkdir()
+            _assert_transaction_failure_preserves_primary_error(
+                store, watch, operation, failure_mode
+            )
+
 
 def test_package_exports_match_core_surface() -> None:
     import palace.index as index_package
@@ -818,3 +830,84 @@ def _isolate_store_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep these tests off the operator's real store."""
     monkeypatch.delenv("PALACE_STORE", raising=False)
     return None
+
+
+def _assert_transaction_failure_preserves_primary_error(
+    tmp_store: Path, tmp_watch_root: Path, operation: str, failure_mode: str
+) -> None:
+    primary = sqlite3.OperationalError("database or disk is full")
+
+    class FailingConnection(sqlite3.Connection):
+        armed = False
+        rollback_calls = 0
+
+        def execute(self, sql: str, parameters: Any = (), /) -> sqlite3.Cursor:
+            if self.armed and sql == "COMMIT":
+                if failure_mode == "automatic_rollback":
+                    super().execute("ROLLBACK")
+                raise primary
+            if self.armed and sql == "ROLLBACK":
+                self.rollback_calls += 1
+                if failure_mode == "rollback_failure":
+                    raise sqlite3.OperationalError("rollback I/O failure")
+            return super().execute(sql, parameters)
+
+    conn = sqlite3.connect(
+        str(prepare_chunks_db_path(tmp_store)), isolation_level=None, factory=FailingConnection
+    )
+    try:
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
+        init_db(conn, store=tmp_store)
+        note = tmp_watch_root / "failure.md"
+        note.write_text("## A\noriginal\n", encoding="utf-8")
+        original_plan = plan_one(
+            conn=conn,
+            file_kind="markdown",
+            change_kind="created",
+            path=note,
+            watch_root=tmp_watch_root,
+            log=_noop_log,
+        )
+        commit_plan(
+            conn=conn,
+            plan=original_plan,
+            embeddings=[[0.0] * EMBED_DIM],
+            identity=resolve_identity(tmp_store),
+            log=_noop_log,
+        )
+        original_hash = conn.execute("SELECT file_hash FROM files").fetchone()[0]
+        note.write_text("## A\nreplacement\n", encoding="utf-8")
+        plan = plan_one(
+            conn=conn,
+            file_kind="markdown",
+            change_kind="modified",
+            path=note,
+            watch_root=tmp_watch_root,
+            log=_noop_log,
+        )
+        conn.armed = True
+        with pytest.raises(sqlite3.OperationalError) as caught:
+            if operation == "index":
+                commit_plan(
+                    conn=conn,
+                    plan=plan,
+                    embeddings=[[1.0] * EMBED_DIM],
+                    identity=resolve_identity(tmp_store),
+                    log=_noop_log,
+                )
+            else:
+                delete_path(conn=conn, watch_root=str(tmp_watch_root), path_str="failure.md")
+        assert caught.value is primary
+        assert conn.rollback_calls == (0 if failure_mode == "automatic_rollback" else 1)
+        assert conn.in_transaction == (failure_mode == "rollback_failure")
+        if failure_mode == "rollback_failure":
+            assert primary.__notes__ == ["Rollback failed: rollback I/O failure"]
+            conn.armed = False
+            conn.execute("ROLLBACK")
+        assert conn.execute("SELECT file_hash FROM files").fetchone()[0] == original_hash
+        assert conn.execute("SELECT COUNT(*) FROM chunks_vec").fetchone()[0] == 1
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    finally:
+        conn.close()

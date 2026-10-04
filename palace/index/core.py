@@ -868,8 +868,12 @@ def commit_plan(
                     (plan.watch_root, plan.stored, plan.jsonl_offset, ingest_time),
                 )
         conn.execute("COMMIT")
-    except Exception:
-        conn.execute("ROLLBACK")
+    except Exception as error:
+        if conn.in_transaction:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error as rollback_error:
+                error.add_note(f"Rollback failed: {rollback_error}")
         raise
     if plan.kind == "deleted":
         log(f"palace index: dropped path={plan.rel} chunks={removed_by_delete}")
@@ -1030,8 +1034,12 @@ def delete_path(*, conn: sqlite3.Connection, watch_root: str, path_str: str) -> 
     try:
         removed = _delete_rows(conn=conn, watch_root=watch_root, path_str=path_str)
         conn.execute("COMMIT")
-    except Exception:
-        conn.execute("ROLLBACK")
+    except Exception as error:
+        if conn.in_transaction:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error as rollback_error:
+                error.add_note(f"Rollback failed: {rollback_error}")
         raise
     return IndexOutcome(kind="deleted", removed=removed)
 

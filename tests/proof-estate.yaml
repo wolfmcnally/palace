@@ -2283,9 +2283,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test statement delete and transactional delete drop the same rows.
+  contract: Index and delete transactions preserve committed rows on failure and delete identical rows on success; primary errors survive automatic abort and rollback failure.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Independent SQL row/hash and integrity reads, primary exception object identity, transaction state, rollback call counts and secondary exception notes across six failure permutations.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2483,7 +2483,7 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve emits jsonl line within two seconds of touch.
+  contract: Exact target is fsynced within one two-second deadline measured before the write; historical watch-root replay cannot satisfy or extend it.
   risk_class: watching
   oracle: Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
@@ -2563,7 +2563,7 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve sigterm drains inflight debouncer.
+  contract: Exact native target enters the accumulator within two seconds; held test clock prevents ordinary polling, and shutdown persists the pending event. Historical selector uses the shutdown-event seam, not a process signal.
   risk_class: watching
   oracle: Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
@@ -2583,7 +2583,7 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve skips missing on disk root.
+  contract: Missing root is refused and the exact live-root target is observed within two seconds; unrelated log lines cannot satisfy the witness.
   risk_class: watching
   oracle: Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
