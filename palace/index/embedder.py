@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import threading
 import time
+import unicodedata
 from collections.abc import Callable, Sequence
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -39,6 +40,7 @@ from palace.index.config import (
     REMOTE_EMBED_MAX_ATTEMPTS,
     REMOTE_EMBED_MAX_BATCH,
     REMOTE_EMBED_MAX_CONCURRENCY,
+    REMOTE_EMBED_MAX_TOKEN_BUDGET,
     REMOTE_EMBED_RETRY_STATUS_MIN,
 )
 from palace.index.egress import append_record, build_record, current_usage, egress_batch_slice
@@ -258,28 +260,47 @@ class OpenRouterEmbedder:
         self._sleep = _sleep
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        """Embed ``texts`` serially, splitting at the upstream's input cap.
+        """Embed unchanged inputs in order within count and aggregate token budgets.
 
-        The cap is a provider limit (see
-        :data:`palace.index.config.REMOTE_EMBED_MAX_BATCH`), so the split
-        happens here rather than at each call site: every caller gets it, and
-        each batch remains exactly one request and one audit record. Vectors
-        are concatenated in input order, so the return value is
-        indistinguishable from an unsplit call apart from batch-composition
-        float jitter, which the identical-output invariant already tolerates.
+        The token bound is conservative for the pinned Qwen byte-level BPE:
+        reserve the larger raw/NFC UTF-8 size plus eight units per input for
+        framing. It is not a provider-reported token count. Validate all inputs
+        before egress; one oversized input cannot be split without changing its
+        vector, so refuse it rather than truncate or silently alter identity.
         """
         if not texts:
             return []
         inputs = list(texts)
-        if len(inputs) <= self._max_batch:
-            return self._embed_one_batch(inputs)
+        bounds = [
+            max(len(text.encode("utf-8")), len(unicodedata.normalize("NFC", text).encode("utf-8")))
+            + 8
+            for text in inputs
+        ]
+        for index, bound in enumerate(bounds):
+            if bound > REMOTE_EMBED_MAX_TOKEN_BUDGET:
+                raise IndexError(
+                    f"openrouter input #{index} exceeds the conservative request token budget "
+                    f"({bound} > {REMOTE_EMBED_MAX_TOKEN_BUDGET}); shorten the input upstream"
+                )
         vectors: list[list[float]] = []
         total = len(inputs)
-        for start in range(0, total, self._max_batch):
-            batch = inputs[start : start + self._max_batch]
+        start = 0
+        while start < total:
+            # Prevalidation guarantees the first input fits; advance locally.
+            end = start + 1
+            budget = bounds[start]
+            while (
+                end < total
+                and end - start < self._max_batch
+                and budget + bounds[end] <= REMOTE_EMBED_MAX_TOKEN_BUDGET
+            ):
+                budget += bounds[end]
+                end += 1
+            batch = inputs[start:end]
             # Each request's audit record names only the chunks it carried.
             with egress_batch_slice(start=start, count=len(batch), total=total):
                 vectors.extend(self._embed_one_batch(batch))
+            start = end
         return vectors
 
     def _embed_one_batch(

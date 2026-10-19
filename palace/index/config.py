@@ -49,6 +49,7 @@ __all__ = [
     "PARK_RECHECK_SECONDS",
     "POLL_INTERVAL_SECONDS",
     "REMOTE_EMBED_MAX_BATCH",
+    "REMOTE_EMBED_MAX_TOKEN_BUDGET",
     "REMOTE_EMBED_MAX_CONCURRENCY",
     "REMOTE_EMBED_MAX_ATTEMPTS",
     "REMOTE_EMBED_BACKOFF_BASE_SECONDS",
@@ -115,6 +116,16 @@ EMBED_COSINE_TOLERANCE: float = 1e-3
 # batched. Lower this if a future upstream caps inputs more tightly; raising it
 # above an upstream's own limit only moves the 422 back to where it was.
 REMOTE_EMBED_MAX_BATCH: int = 1024
+
+# Conservative aggregate request budget below the observed Qwen routing limit.
+# As of 2026-10-19, relayed pinned DeepInfra probes: 16 x 8000-character
+# inputs succeeded (29422 prompt tokens); 18 and 20 such inputs returned 404,
+# "No endpoints found for qwen/qwen3-embedding-8b." See the index README.
+# This is routing evidence, not a measured exact threshold. Count UTF-8 bytes
+# before/after NFC plus eight units per input,
+# not the English-only chars/4 heuristic. Qwen's byte-level BPE, NFC normalizer,
+# no prefix space and one end token make this conservative; see the index README.
+REMOTE_EMBED_MAX_TOKEN_BUDGET: int = 30_000
 
 # Highest concurrency level backed by a sustained measurement. N=8 held
 # 25,768 tokens/s for two hours on 2026-08-16 without degradation; N=16 was

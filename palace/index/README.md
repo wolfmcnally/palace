@@ -286,12 +286,11 @@ requests are in flight; it changes neither their contents nor their audit
 records. `palace index serve` refuses remote-configured stores because remote
 embedding remains synchronous-build-only.
 
-Remote requests are split at `REMOTE_EMBED_MAX_BATCH` (1024) inputs, because
-DeepInfra rejects a larger input list with HTTP 422. The split lives in
-`OpenRouterEmbedder`, so every call site inherits it; batches are concatenated
-in input order and each is its own request, its own audit record, and its own
-slice of the chunk-id provenance. Local Ollama documents no such limit and is
-not batched.
+Remote requests obey both the `REMOTE_EMBED_MAX_BATCH` (1024) input cap and the `REMOTE_EMBED_MAX_TOKEN_BUDGET` (30,000) aggregate budget. The latter conservatively counts each input's larger raw or NFC-normalized UTF-8 byte length plus eight framing units, leaving room below Qwen's 32K context window and the observed aggregate routing refusal. This is a sizing bound, not measured usage: actual token and cost totals still come from the provider. Qwen's [tokenizer definition](https://huggingface.co/Qwen/Qwen3-Embedding-8B/blob/main/tokenizer.json), inspected October 19, 2026, uses NFC normalization, byte-level BPE without a prefix space, and one end token. Normalization can expand some Unicode inputs, so raw byte length alone is insufficient. The raw-byte term also stays conservative for provider-side estimators that do not normalize. This budget applies to every OpenRouter model. Other models retain their own provider refusals; this bound does not certify arbitrary model limits.
+
+As of October 19, 2026, operator-relayed diagnostic probes pinned to `qwen/qwen3-embedding-8b`, DeepInfra and no fallback returned 200 for 400 tiny inputs (13,090 characters, 3,890 prompt tokens), ten 8,000-character inputs (18,605 prompt tokens), and sixteen 8,000-character inputs (29,422 prompt tokens). Eighteen and twenty 8,000-character inputs returned HTTP 404, `No endpoints found for qwen/qwen3-embedding-8b.` The latter diagnostics were truncated, so they do not establish the complete routing funnel or an exact threshold. Separate two-input oversized probes showed three initial endpoints, one after the context-length filter, and zero after the fallback filter. These dated observations support bounding aggregate requests; the synthetic regression checks that bound and does not independently establish provider behavior. More requests can reduce per-file throughput; earlier item-only throughput measurements do not qualify the new batching behavior.
+
+The split lives in `OpenRouterEmbedder`, so every caller inherits it. Inputs are sent byte-for-byte unchanged; vectors are concatenated in input order and each actual request has its own audit record and chunk-id provenance slice. An individual input exceeding the conservative budget is refused before any request in that call; it is never truncated or split into a different vector. Highly compressible long text may therefore be refused even when its true token count would fit. Local Ollama is not batched.
 
 Remote transport errors, HTTP 429, and every 5xx response receive at most four
 attempts with bounded exponential backoff. Non-429 4xx responses, provider
@@ -505,7 +504,7 @@ sweep.
 
 `embed_concurrency` is the effective value after provider capability
 resolution. `embed_batching` is provider-accurate:
-`per-file(max=1024)` for OpenRouter and `per-file(max=unbounded)` for
+`per-file(max=1024)` for OpenRouter (the input-count ceiling; the aggregate budget also applies) and `per-file(max=unbounded)` for
 Ollama.
 
 **Paths are watch-root-relative (Phase 3.2).** `chunks.path` /

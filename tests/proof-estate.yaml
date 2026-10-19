@@ -5834,6 +5834,7 @@ families:
   - palace/index/build.py
   - palace/index/egress.py
   - palace/index/embedder.py
+  - palace/index/config.py
   covers:
   - palace/index/update.py
   - palace/index/cli.py
@@ -5842,13 +5843,15 @@ families:
   - palace/index/build.py
   - palace/index/egress.py
   - palace/index/embedder.py
-  contract: The update refuses paths outside or ignored by the root and unstamped or mismatched stores without writing, removes deleted files, makes no embed request for unchanged files, and exits 0, 1 or 2 per its contract; each build and update reports the embedding requests it made (failed attempts counted, their cost never summed, a success without cost making the total unknown, a build's probe in its invocation total), in its result, on its exception and as one --json stdout object, never mixing concurrent invocations and agreeing with the audit records.
+  - palace/index/config.py
+  contract: The update refuses paths outside or ignored by the root and unstamped or mismatched stores without writing, removes deleted files, makes no embed request for unchanged files, and exits 0, 1 or 2 per its contract; each build and update reports the embedding requests it made (failed attempts counted, their cost never summed, a success without cost making the total unknown, a build's probe in its invocation total), in its result, on its exception and as one --json stdout object, never mixing concurrent invocations and agreeing with the audit records. Remote requests preserve exact input/vector order and per-request provenance within both item and conservative aggregate token budgets, refuse oversized individual inputs before egress, and retain provider, dimension and status refusals.
   risk_class: public-contract
-  oracle: Row counts before and after every refusal, independent SQL reads of the affected paths, the embedder call count, and real CLI subprocess exit codes and stderr.
+  oracle: Row counts before and after every refusal, independent SQL reads of the affected paths, the embedder call count, and real CLI subprocess exit codes and stderr. A synthetic 167-section production file plan and Unicode inputs exercise a transport oracle bounded by NFC byte symbols plus one end token, reversed indexed vectors, exact payload digests and chunk-id slices. A decomposed-accent case pins the raw-byte reserve when NFC shrinks text; boundary cases pin the conservative implementation budget, not an exact provider threshold.
   admission: Two smoke help families consolidated into the smoke help family with all assertions retained; one retirement funds this family.
   nearest_overlap: The retained CLI smoke proofs cover help output; none exercises update refusals or exit codes.
   historical_evidence: []
   mutation_evidence:
+  - '2026-10-19 request-budget correction: unchanged item-only splitter sent 448175 NFC byte symbols for a synthetic 167-section page and failed the independent transport capacity assertion; the bounded splitter passes without changing proof families or leaves.'
   - '2026-09-27 Phase 19: dropping the build workers'' usage re-entry, counting only successful attempts as requests, reading a refused response''s usage, or dropping the failure''s usage each fails the usage helper. Each restored byte for byte.'
   - '2026-09-27 Phase 19, after code review: counting a request only after its audit record is written, attaching usage before the final summary line, dropping the --json failure object for a missing store, or dropping a failed build''s usage each fails the usage helper. Each restored byte for byte.'
   tier: vital

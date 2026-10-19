@@ -1141,3 +1141,121 @@ def test_update_refuses_and_removes_per_contract(
         )
         assert shown.returncode == 0 and "--lock-timeout" in shown.stdout
     _check_usage_is_reported_per_invocation(tmp_path, monkeypatch, capsys)
+    _check_remote_request_budget(tmp_store, tmp_watch_root)
+
+
+def _check_remote_request_budget(store: Path, root: Path) -> None:
+    """The retained remote-usage witness also proves request shape and provenance."""
+    import unicodedata
+
+    import httpx
+
+    from palace.index.egress import egress_context, input_digest
+    from palace.index.embedder import OpenRouterEmbedder
+
+    page = root / "release-notes.md"
+    page.write_text(
+        "".join(
+            f"## Change {i}\n" + ("A synthetic release adds a verified capability. " * 55) + "\n"
+            for i in range(167)
+        ),
+        encoding="utf-8",
+    )
+    with _open(store) as conn:
+        plan = plan_one(
+            conn=conn,
+            file_kind="markdown",
+            change_kind="created",
+            path=page,
+            watch_root=root,
+            full=True,
+            log=lambda _line: None,
+        )
+    assert len(plan.embed_inputs) == 167
+    batches: list[list[str]] = []
+    failure: str | None = None
+    originals: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        inputs = payload["input"]
+        assert payload["model"] == "qwen/qwen3-embedding-8b"
+        assert payload["provider"] == {
+            "order": ["DeepInfra"],
+            "allow_fallbacks": False,
+            "zdr": True,
+            "data_collection": "deny",
+        }
+        assert len(inputs) <= 1024
+        # Independent capacity oracle: byte-level symbols after NFC plus one end token.
+        assert sum(len(unicodedata.normalize("NFC", text).encode()) + 1 for text in inputs) < 32768
+        batches.append(inputs)
+        if failure == "status" and len(batches) == 2:
+            return httpx.Response(404, json={"error": "context filter refusal"})
+        vectors = [
+            {"index": i, "embedding": [float(originals.index(text)), 1.0, 2.0, 3.0]}
+            for i, text in enumerate(inputs)
+        ]
+        provider = "Elsewhere" if failure == "provider" else "DeepInfra"
+        if failure == "dimension":
+            vectors[0]["embedding"] = [1.0]
+        return httpx.Response(200, json={"provider": provider, "data": list(reversed(vectors))})
+
+    remote = OpenRouterEmbedder(
+        store=store,
+        model="qwen/qwen3-embedding-8b",
+        upstream="DeepInfra",
+        api_key="synthetic",
+        dim=4,
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        cases = [
+            list(plan.embed_inputs),
+            [f"{i}:" + "漢字🙂" * 700 for i in range(7)],
+            ["\u0344" * 5000, "\u0344" * 5000 + "x"],
+            ["e\u0301" * 5500, "e\u0301" * 5500 + "x"],
+            ["x" * 29992, ""],
+            [str(i) for i in range(1025)],
+            ["one", "two"],
+            [],
+        ]
+        for originals in cases:
+            batches.clear()
+            before = len(_egress_records(store))
+            ids = tuple(f"chunk-{i}" for i in range(len(originals)))
+            with egress_context(watch_root=str(root), chunk_ids=ids):
+                got = remote.embed(originals)
+            assert got == [[float(i), 1.0, 2.0, 3.0] for i in range(len(originals))]
+            assert [text for batch in batches for text in batch] == originals
+            records = _egress_records(store)[before:]
+            assert len(records) == len(batches)
+            offset = 0
+            for batch, record in zip(batches, records, strict=True):
+                assert record["input_digest"] == input_digest(batch)
+                assert record["chunk_ids"] == list(ids[offset : offset + len(batch)])
+                offset += len(batch)
+            if len(originals) in (167, 7, 1025) or (originals and len(originals[0]) >= 5000):
+                assert len(batches) > 1
+            else:
+                assert len(batches) == bool(originals)
+        # Refuse even a late oversized input before making the first request.
+        before = len(_egress_records(store))
+        batches.clear()
+        with pytest.raises(PalaceIndexError, match="input #1 exceeds.*budget"):
+            remote.embed(["valid", "x" * 29993])
+        assert not batches and len(_egress_records(store)) == before
+        for failure, match in (
+            ("status", "returned 404"),
+            ("provider", "upstream divergence"),
+            ("dimension", "has dim 1"),
+        ):
+            batches.clear()
+            originals = ["a" * 16000, "b" * 16000, "c" * 16000]
+            before = len(_egress_records(store))
+            with pytest.raises(PalaceIndexError, match=match):
+                remote.embed(originals)
+            assert len(batches) == (2 if failure == "status" else 1)
+            assert len(_egress_records(store)) - before == len(batches)
+    finally:
+        remote.close()
