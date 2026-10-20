@@ -253,3 +253,157 @@ The owner classifies the repaired defect as a drift regression after a previousl
 This clarification arrived while the prior unchanged handoff gate was running. That gate subsequently passed all checks, including 268 tests, on complete-tree candidate 462f4cac72ecd1c5429812620261e8591f07bacf658f0ddf139f2d66a9d771d5. Its successful receipt is preserved. This newly authorized bookkeeping append reopens the handoff tree, so delivery requires a fresh unchanged bare full gate after this entry. Product candidate remains 06f97b35615462d56882ed9ec90b98391b73bee99c83ba5150b26ae224fd4932; independent advice, primary dispositions and implementation gate remain unchanged. No code, test, policy, report machinery or plan was modified.
 
 Delivery remains pending the fresh full handoff receipt and the existing exact-path bin/deliver guard. No tracked writes are planned after that final success. Earlier rejected-path evidence and valid history are preserved.
+
+## 2026-10-20 15:13 — START
+Bounded indexing and recovery
+
+Execution trace: 9d9837630034446ead8d2f9fc9e80743
+Baseline: 6c244dc6498ad101fa3a245802635c7c4588256d — preserve chunk, embedding input and provenance semantics
+
+Planned work:
+- A bounded fair chunk scheduler for synchronous builds, with deterministic folding and completed-document publication across selected roots.
+- Private durable receipts bound to source snapshots, exact embedding inputs and complete embedding identity, with bounded validated recovery.
+- Declared admission/resource limits, visible oversized-source refusal and structured progress without changing chunk, embedding or provenance semantics.
+- A separate prompt daemon first-error stop/park with safe shutdown and a checkpoint before the failed event.
+- Fake/mocked-provider qualification within the existing proof inventory, updated operations documentation and attributable guarded delivery.
+
+## 2026-10-20 15:24 — PARK
+Bounded indexing and recovery — named identity preparation
+
+Execution trace: 9d9837630034446ead8d2f9fc9e80743
+
+The initial named phase reached plan capture but no independent review process launched: native approval review denied two prelaunch requests. Public-source visibility was verified between them; the second denial specifically required authority for the private derived plan/prompt and Claude destination. Both original requests, captured plan and refusal observations remain preserved. The numeric-only operator-park recorder also refused this admitted named phase; awaiting-input duration is unavailable, never zero. Product source, tests and policy remain unchanged.
+
+The operator has now explicitly approved the exact plan/prompts/change-summary/diff egress through their Claude subscription, excluding secrets, personal data, production documents and unrelated runtime state; attributable relay is Folded request `0c818a29ccbe4a359e05b14a608fe39d`. That relay also authorizes a new unused valid numeric phase identity with an explicit correction mapping. A fresh trace/capture/review will use that identity; this run remains parked, never retroactively successful. The failure-record park identifier identifies this diagnostic close, not a fabricated operator-wait interval.
+
+Lessons:
+- Existing `caped-bonobo` already records named-phase admission versus downstream numeric-only lifecycle refusal. This occurrence confirms the gap; no checker or policy change is authorized. Preserve the old run and use the operator-approved explicit phase mapping with fresh capture.
+- The live-Ollama smoke was incorrectly described as fake-only; a separate scratch correction removes it without changing the original captured plan. No live inference occurred.
+
+Remaining:
+- Fresh numeric phase, corrected plan capture, independent plan/code advice, implementation, fake-only qualification, both full gates and guarded delivery. Manual product/demo judgments remain open.
+
+## 2026-10-20 15:26 — START (resumed)
+Phase 20 — Bounded indexing and recovery
+
+Execution trace: cd78761fae9b422f9a10210816d0e7fd
+Baseline: 6c244dc6498ad101fa3a245802635c7c4588256d — preserve chunk, embedding input and provenance semantics
+
+Identity correction: the initial `bounded-indexing` trace closed parked, preserving its captures and two unlaunched native review denials. Attributable operator relay `0c818a29ccbe4a359e05b14a608fe39d` authorizes Phase 20 as the next unused numeric identity and one reviewed resubmission under the new exact derived-material/Claude-subscription approval. This run has fresh authority capture and no carried successful review or reset consumed review budget. The corrected fake-only plan excludes live Ollama; full-gate smoke is the CLI version check only.
+
+Planned work:
+- A bounded fair chunk scheduler for synchronous builds, with deterministic folding and completed-document publication across selected roots.
+- Private durable receipts bound to source snapshots, exact embedding inputs and complete embedding identity, with bounded validated recovery.
+- Declared admission/resource limits, visible oversized-source refusal and structured progress without changing chunk, embedding or provenance semantics.
+- A separate prompt daemon first-error stop/park with safe shutdown and a checkpoint before the failed event.
+- Fake/mocked-provider qualification within the existing proof inventory, updated operations documentation and attributable guarded delivery.
+
+## 2026-10-20 15:27 — PARK
+Bounded indexing and recovery — numeric identity correction
+
+Execution trace: cd78761fae9b422f9a10210816d0e7fd
+
+The explicit derived-material/Claude-subscription approval passed native review, but the watcher stopped before creating a Claude process: Phase 20 already had historical advisory-budget state. The initial unused-ID check covered retained phase files and run metadata but omitted the phase-hashed budget filenames. No prior budget was reset, no review ran, and this task has no successful advice to carry. The original Phase 20 sketch and captured fake-only plan remain unchanged as evidence of this mistaken selection.
+
+Reading the authoritative budget-key definition and enumerating the existing metadata/hashed keys establishes numeric IDs 16 through 20 as used; Phase 21 is the next unused identity. The existing operator instruction to select the next unused valid numeric ID covers that correction. A fresh Phase 21 capture will preserve the complete named-entry → Phase 20 → Phase 21 mapping. The watcher already recorded its rejected dispatch and error intelligence span without a wait span; no provider pass was consumed for this task.
+
+Lessons:
+- Check the actual phase-budget key function and all independent identity inventories before declaring an identifier unused. File/run listings alone are incomplete when budgets are hashed independently. This is a provisional local observation; no machinery or policy is changed.
+- All earlier denials and original artifacts remain preserved. No provider switch, live inference, product mutation, budget reset or fabricated review history occurred.
+
+Remaining:
+- Fresh Phase 21 capture and the bounded prelaunch-corrected review submission, then approved implementation, qualification, both gates and guarded delivery. Manual product/demo judgment remains open.
+
+## 2026-10-20 15:29 — START (resumed)
+Phase 21 — Bounded indexing and recovery
+
+Execution trace: 2dea893118ec463bada791eac2ff5704
+Baseline: 6c244dc6498ad101fa3a245802635c7c4588256d — preserve chunk, embedding input and provenance semantics
+
+Identity correction: named capture and mistaken Phase 20 capture remain truthfully parked and immutable. Source-defined hashed budget inventory proves IDs 16–20 used; Phase 21 is unused. Operator relay 0c818a29ccbe4a359e05b14a608fe39d authorizes this mapping and exact Claude subscription review egress. Historical budgets are unchanged; no reviewer has run for this task. The new submission is the bounded correction of the prelaunch ID collision, not another provider pass.
+
+Planned work:
+- A bounded fair chunk scheduler for synchronous builds, with deterministic folding and completed-document publication across selected roots.
+- Private durable receipts bound to source snapshots, exact embedding inputs and complete embedding identity, with bounded validated recovery.
+- Declared admission/resource limits, visible oversized-source refusal and structured progress without changing chunk, embedding or provenance semantics.
+- A separate prompt daemon first-error stop/park with safe shutdown and a checkpoint before the failed event.
+- Fake/mocked-provider qualification within the existing proof inventory, updated operations documentation and attributable guarded delivery.
+
+## 2026-10-20 16:34 — END
+Phase 21: Bounded indexing and recovery
+
+Small documents now publish before earlier giants finish, complete embedding turns survive interruption, and the daemon stops at its first failed event. The independently reviewed implementation passed the complete candidate-bound gate. Status, lesson/action filing and the tracked report are pending below; the final handoff gate and guarded delivery have not yet run.
+
+Files changed:
+- palace/index/scheduler.py and staging.py — finite multi-root turns, private source/identity-bound receipts, hard admission limits, honest progress and atomic whole-document publication.
+- palace/index/build.py, core.py, config.py, embedder.py and __init__.py — integrate scheduling while preserving parser/enrichment, exact provider inputs, provenance, usage ownership and existing public build surfaces; remove the obsolete soft bound.
+- palace/index/_errors.py, schema.py, writer.py, server.py, tail.py, daemon_state.py and cli.py — typed identity failures and separate terminal work-failure parking, queue/tail wake and cursor custody.
+- palace/reindex/bootstrap.py — bounded collection before manifest admission.
+- tests/index/test_core.py, test_scheduler.py and test_index_server.py — retain original reconstruction fixtures/assertions through four compensations and qualify four independent bounded-indexing failure families.
+- tests/proof-estate.yaml and reports/test-governance/palace-reset.jsonl — compensated admissions, unchanged frozen counts and corpus.
+- palace/index/README.md and bin/README.md — supported envelope, durable resume, refusal/stale-row effects and truthful manual recovery.
+- plan/INDEX.md and the preserved named/20/21 sketches — explicit commissioned identity correction, preserving the separate release phase and original records.
+- LOG.md and EXECUTION_LOG.jsonl — append-only history and current execution evidence. Lessons, manual review action and reports/execution output remain pending bookkeeping.
+
+Build status:
+- Focused qualification: 48 fake/mocked-provider tests pass; lint, format and type checking pass.
+- Managed implementation sequence: focused 48 tests, proof-estate validation, then ./bin/check all — all pass on unchanged product/full-tree identities. Full gate: 268 tests plus CLI version smoke and every policy check pass.
+- Final frozen assay: all 22 historical/held-out cases detected by parsing every row of proof-assay-final.jsonl; frozen corpus/patches unchanged.
+- Four intended negative controls failed at their property assertions, and exact original source bytes were restored; metadata and diagnostics retained outside the checkout.
+- Diagnostics: two wrapper notices in each focused/governance gate, nine in the full managed invocation (eight in its complete captured log plus one parent notice). Each is the same uv temporary VIRTUAL_ENV mismatch; canonical wrappers ignored it and selected the locked repository environment. No product/test warning or error remained. No interpreter/cache/global-tooling switch was used.
+- Handoff gate: pending a second bare ./bin/check all after all tracked close writes. Completion and delivery remain contingent on its ignored receipt.
+
+Review lane: full, primary advisory authority. Evidence lane: full. Follow-up route: initial commissioned implementation, with bounded primary corrections after code advice; no delegated writer.
+
+Role model/venue — orchestrated by codex:
+- Planner and coder: inline primary, requested astra; harness/model/effort observations unavailable from a separately qualified invocation, not copied from requested values. No provider fallback.
+- reviewer: requested model=opus effort=high venue=claude; harness_version=2.1.305, observed_model=claude-opus-5-5, observed_effort=unreported; observation_errors=[]; duration=323.969498583 s, first event=0.616 s, longest idle=67.99 s; success.
+- critic: requested model=opus effort=high venue=claude; harness_version=2.1.305, observed_model=claude-opus-5-5, observed_effort=unreported; observation_errors=[]; duration=386.838737833 s, first event=0.583 s, longest idle=46.341 s; success.
+- The earlier named phase and mistaken Phase 20 runs remain truthfully parked. Both native egress denials preceded process launch. Explicit attributable operator permission subsequently covered the plan, prompts, summaries and code diff through the existing Claude subscription; the first admitted Phase 20 watcher then refused before provider creation on its historical budget. Phase 21 was verified unused through the source-defined hashed budget key. No history, authority hash or budget was reset.
+
+Execution timing:
+Execution trace: 2dea893118ec463bada791eac2ff5704
+- Current numeric run makespan: 3810.153170250 s; intelligence union: 710.808236416 s; gate union: 210.220401749 s; orchestration union: 3802.398793376 s; wait union: 709.922724375 s; unattributed: 7.754376874 s. Category unions can overlap and are not summed as elapsed time.
+- Managed failed/retry span time: 0.000000000 s/0.000000000 s. This does not relabel raw iteration/static failures or historical parked attempts as successful measured work. Their evidence is preserved separately; historical operator-wait duration remains unavailable.
+- Current Phase 21 operator-input summary has no intervals and no open park. Earlier identities are separate preserved histories, not zero-duration waits on this trace.
+- Timing validation: finalized exact monotonic spans and role/gate joins pass; no telemetry_incomplete entries. Exclusive work/peak concurrency not supplied by this primary summary and are not invented.
+
+Candidate-bound evidence:
+- Product implementation: fa6dbcf2bc3a99d8902e9a9d322b6ca5b0e5984111b6c6fa882bb57ac7a9be64; full implementation tree: 9f65b1a9fc5f1d69202cfcd40a2928733b8c519968708a0cad92e2e0d798ce26. Each matched its own before/after capture.
+- Independent reports: plan-1 has 13 findings, code-1 has 10; all 23 have explicit primary dispositions (21 adopt, 2 decline). Declines retain fixed invocation source snapshots and visible corrupt-receipt inspection. Partial suggestions outside the selected contract are explained in the primary decision. One advisory pass per stage, no synthetic approval verdict.
+- Three final managed gates, all diagnostics reviewed. Immutable gate manifest: 2d65ea6cf6be996187c08afbb9ed9cae2d92a8cec9a089266281894ba11a2d14. Acceptance evidence validation and timing summaries pass.
+
+Wall-clock observations:
+- Independent code advice exposed a per-publication full staging rescan. Incremental byte accounting removes that quadratic filesystem cost while preserving reservations, receipt validation and both gates. Focused proofs preceded the full suite; no assurance was skipped.
+
+Acceptance:
+- Objective: bounded fair finite service, reserved small-file admission, source/full-identity receipt binding, interruption/process-death recovery, atomic searchable publication, exact provider/usage/provenance slices, explicit unsupported input/resource refusal, truthful progress, and daemon last-success cursor/failure parking are independently reviewed and candidate-gate proved. Existing chunk/enrichment/search/copy semantics remain owned by their established implementation/tests.
+- Parked for the user: product/readability judgments and the User Demo. A disposable protocol was mechanically qualified with fakes; that is not human acceptance. Logical staging/source limits are engineering defaults, not measured RSS, physical allocation, WAL or monetary bounds. Source edits can refuse even before deferred admission; a rerun replans and reuses compatible receipts. No automatic corruption repair, daemon retry or online identity swap is claimed.
+
+Delivery:
+- Default guarded commit and fast-forward push only after the final handoff gate. Public source publication through the existing upstream was disclosed; no release/tag/package deployment or production mutation is included. No paid inference, production documents/stores, grants, credentials or service restart were used. The original proposal-only restriction was superseded only for the explicitly approved implementation scope.
+
+Ripple:
+- AUTO: none required; separate public release preparation and its existing next marker remain unchanged. No subsequent product phase is commissioned by this run. Its named identity is not rewritten for report rendering.
+- DECIDE: none blocking this bounded scope; no policy or broader product change is inferred from advice.
+
+Lessons:
+- Pending occurrence: caped-bonobo — named identity admitted by initialization but refused by later lifecycle surfaces; append one Phase 21 observation while preserving the prior diagnosis/history.
+- Pending filing: real-dog — inspect the actual persistent key/occupancy before selecting a fresh phase; methodology candidate, one observation.
+- Existing graduation recommendation: esoteric-hawk has three occurrences and remains a human decision; no graduation or policy edit is performed by this phase.
+- Recalibration: recommend-timeouts reports no target with the required 30 successful samples; legacy incomplete/malformed records are excluded with preserved diagnostics. No timeout configuration changes.
+
+User demo:
+User Demo: With disposable sources and a fake provider, inspect progress showing a later small document committed while an earlier large one remains pending; interrupt and resume to see validated receipt reuse. Inspect oversized-source refusal and the daemon's failed-event park. Product/readability judgment remains with the operator; do not use production stores or paid providers for this demo.
+
+The concrete disposable fake-provider commands will be filed in user-actions/pygmy-quoll.md after this accepted close. The protocol shows durable reuse, small-before-large publication and oversized refusal; the actual daemon witness checks idle/full queue parking and the exact successful-prefix checkpoint. No production restart is requested.
+
+Remaining:
+- Apply the prepared ledger transition, file/validate lessons and manual action, generate the sanitized offline report, run the second bare full gate, then use the guarded explicit-path delivery. These are pending at this append-only accepted-close boundary.
+- Human product/readability review remains open after delivery; separate release work is unchanged and outside this task.
+
+## 2026-10-20 16:35 — Phase 21 close bookkeeping
+
+Phase 21 accepted-close bookkeeping landed: the exact prospective ledger was applied and verified; the separate release row and all original sketches/history remain unchanged. Filed lessons/real-dog.md with one methodology observation, added one distinct caped-bonobo occurrence (two total), and filed user-actions/pygmy-quoll.md for human product/readability review with mechanically qualified disposable fake-provider commands. Lessons validation and append-only log checks pass. Existing esoteric-hawk remains a three-occurrence human graduation recommendation; no policy change was made.
+
+Ripple requires no downstream edit. The sanitized offline dashboard is the next and final tracked close write; report generation and the second bare full handoff gate are still pending at this append. No source or test changes followed candidate acceptance. Guarded explicit-path delivery follows only after the handoff receipt; product/readability acceptance remains with the user.

@@ -58,6 +58,13 @@ def _build_client(*, timeout: float, transport: httpx.BaseTransport | None) -> h
     return httpx.Client(timeout=timeout, transport=transport)
 
 
+def request_units(text: str) -> int:
+    """Conservative normalized/raw request sizing, shared with the build scheduler."""
+    return (
+        max(len(text.encode("utf-8")), len(unicodedata.normalize("NFC", text).encode("utf-8"))) + 8
+    )
+
+
 class Embedder(Protocol):
     """The minimal embedder contract palace.index depends on.
 
@@ -271,11 +278,7 @@ class OpenRouterEmbedder:
         if not texts:
             return []
         inputs = list(texts)
-        bounds = [
-            max(len(text.encode("utf-8")), len(unicodedata.normalize("NFC", text).encode("utf-8")))
-            + 8
-            for text in inputs
-        ]
+        bounds = [request_units(text) for text in inputs]
         for index, bound in enumerate(bounds):
             if bound > REMOTE_EMBED_MAX_TOKEN_BUDGET:
                 raise IndexError(

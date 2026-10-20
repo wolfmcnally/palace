@@ -18,7 +18,8 @@ Two facts shape this module:
   :func:`palace.index.core.plan_one` and :func:`palace.index.core.commit_plan`
   around a bounded embed stage; the daemon calls the same composition through
   :func:`palace.index.core.index_one`. The calling thread remains the only
-  SQLite reader/writer, and commits stay in deterministic walk order.
+  SQLite reader/writer. Bounded turns rotate in manifest order and completed
+  documents publish at deterministic fold points, before earlier giants finish.
 
 Path representation is **watch-root-relative** (Phase 3.2): the chunks DB
 stores each file's POSIX path relative to its watch root, with the
@@ -33,12 +34,8 @@ import contextlib
 import math
 import sqlite3
 import sys
-import threading
-import time
-from collections import deque
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 import sqlite_vec
@@ -46,7 +43,6 @@ import sqlite_vec
 from palace.index._errors import IndexError
 from palace.index.config import (
     EMBED_CONCURRENCY_DEFAULT,
-    EMBED_INFLIGHT_MAX_CHUNKS,
     OLLAMA_BASE_URL,
     OPENROUTER_BASE_URL,
     REMOTE_EMBED_MAX_CONCURRENCY,
@@ -55,19 +51,9 @@ from palace.index.config import (
     EmbeddingIdentity,
     prepare_chunks_db_path,
 )
-from palace.index.core import (
-    FilePlan,
-    IndexOutcome,
-    commit_plan,
-    delete_path,
-    egress_context_for,
-    plan_one,
-)
 from palace.index.egress import (
     EmbeddingUsage,
     EmbeddingUsageSummary,
-    current_usage,
-    egress_context,
     usage_scope,
 )
 from palace.index.embedder import Embedder
@@ -80,14 +66,13 @@ from palace.index.embedder_config import (
     resolve_embedder,
     resolve_identity,
 )
-from palace.index.pipeline import classify_kind
+from palace.index.scheduler import BuildLimits, BuildProgress, RootStats, schedule
 from palace.index.schema import (
     assert_identity,
     init_db,
     read_data_version,
     stamp_identity,
 )
-from palace.reindex.bootstrap import enumerate_root
 from palace.watch.config import WatchRootsConfig, default_config_path
 from palace.watch.ignore import IgnoreEngine
 from palace.writer_lock import writer_lock
@@ -132,61 +117,6 @@ def _stderr_log(line: str) -> None:
     print(line, file=sys.stderr, flush=True)
 
 
-@dataclass(frozen=True)
-class _QueuedPlan:
-    plan: FilePlan
-    future: Future[list[list[float]]]
-    chunks: int
-
-
-class _EmbedStage:
-    """Embed plans inline at one or through a bounded worker pool above one."""
-
-    def __init__(self, *, embedder: Embedder, concurrency: int) -> None:
-        self._embedder = embedder
-        # Workers do not inherit context: each re-enters the invocation's running total.
-        self._usage = current_usage()
-        self._executor = None if concurrency == 1 else ThreadPoolExecutor(max_workers=concurrency)
-        self._failure = threading.Event()
-
-    @property
-    def failed(self) -> bool:
-        return self._failure.is_set()
-
-    def submit(self, plan: FilePlan) -> Future[list[list[float]]]:
-        if self._executor is None:
-            future: Future[list[list[float]]] = Future()
-            try:
-                future.set_result(self._embed(plan))
-            except BaseException as exc:
-                # Match Executor/Future capture semantics so both modes are
-                # observed and attributed by the same ordered drain path.
-                future.set_exception(exc)
-                self._failure.set()
-            return future
-        future = self._executor.submit(self._embed, plan)
-        future.add_done_callback(self._record_failure)
-        return future
-
-    def shutdown(self, *, cancel: bool) -> None:
-        if self._executor is not None:
-            self._executor.shutdown(wait=True, cancel_futures=cancel)
-
-    def _embed(self, plan: FilePlan) -> list[list[float]]:
-        if not plan.embed_inputs:
-            return []
-        context = egress_context_for(plan)
-        with (
-            usage_scope(self._usage),
-            egress_context(watch_root=context.watch_root, chunk_ids=context.chunk_ids),
-        ):
-            return self._embedder.embed(plan.embed_inputs)
-
-    def _record_failure(self, future: Future[list[list[float]]]) -> None:
-        if not future.cancelled() and future.exception() is not None:
-            self._failure.set()
-
-
 def _resolve_concurrency(*, requested: int | None, embedder: Embedder, provider: str) -> int:
     capability = embedder.max_concurrency
     if capability < 1:
@@ -211,9 +141,25 @@ def _resolve_concurrency(*, requested: int | None, embedder: Embedder, provider:
 
 
 def _render_batching(provider: str) -> str:
-    if provider == PROVIDER_ENDPOINT:
-        return "per-file(max=128)"
-    return "per-file(max=1024)" if provider == PROVIDER_OPENROUTER else "per-file(max=unbounded)"
+    return (
+        "per-turn(max=1024,budget=30000)"
+        if provider == PROVIDER_OPENROUTER
+        else "per-turn(max=32,bytes=131072)"
+    )
+
+
+def _root_result(state: RootStats, concurrency: int, batching: str) -> BuildResult:
+    return BuildResult(
+        watch_root=state.root,
+        files=state.files,
+        embedded=state.embedded,
+        unchanged=state.unchanged,
+        deleted=state.deleted,
+        embed_concurrency=concurrency,
+        embed_batching=batching,
+        seconds=state.seconds,
+        embedding=state.usage.summary(),
+    )
 
 
 def build_root(
@@ -227,161 +173,37 @@ def build_root(
     verbose: bool,
     log: Callable[[str], None],
     embed_concurrency: int = 1,
-    embed_batching: str = "per-file(max=unbounded)",
+    embed_batching: str = "per-turn(max=32,bytes=131072)",
+    limits: BuildLimits | None = None,
+    progress: Callable[[BuildProgress], None] | None = None,
 ) -> BuildResult:
-    """Walk one root end-to-end (see :func:`_build_root`), with its own embedding usage: the
-    result's ``embedding`` counts this root's requests, which also count toward any enclosing
-    invocation's total."""
-    usage = EmbeddingUsage(parent=current_usage())
-    with usage_scope(usage):
-        result = _build_root(
-            conn=conn,
-            embedder=embedder,
-            identity=identity,
-            watch_root=watch_root,
-            engine=engine,
-            full=full,
-            verbose=verbose,
-            log=log,
-            embed_concurrency=embed_concurrency,
-            embed_batching=embed_batching,
-        )
-    return replace(result, embedding=usage.summary())  # the root's workers have shut down
+    """Index one root under the caller's lock, with durable bounded turns.
 
-
-def _build_root(
-    *,
-    conn: sqlite3.Connection,
-    embedder: Embedder,
-    identity: EmbeddingIdentity,
-    watch_root: Path,
-    engine: IgnoreEngine,
-    full: bool,
-    verbose: bool,
-    log: Callable[[str], None],
-    embed_concurrency: int,
-    embed_batching: str,
-) -> BuildResult:
-    """Walk one root end-to-end, reconciling the chunks DB to the tree.
-
-    The caller holds the store's writer lock for the whole walk, so no other
-    palace writer commits between a plan and its commit here. Reuses
-    :func:`palace.reindex.bootstrap.enumerate_root` verbatim for
-    the deterministic sorted admitted-file enumeration (it prunes
-    dotfile/gitignored directories, drops ``.gitignore`` files
-    themselves, and yields ``(relative_posix, absolute)`` in sorted
-    POSIX order). Per admitted file: classify and plan on the calling thread,
-    embed inline at concurrency one or through the bounded worker stage above
-    one, then commit on the calling thread in walk order. In **incremental**
-    mode the file-hash short-circuit and section diff stay active; in
-    **``--full``** mode the plan forces a complete replacement whose delete
-    and insert share one commit transaction.
-
-    After the forward scan, runs the **deletion-reconciliation sweep**:
-    every ``files``-table row whose ``watch_root`` equals the walked root
-    and whose relative ``path`` is no longer in the on-disk admitted set
-    has its chunks dropped. This is the difference the daemon learns from
-    FSEvents ``deleted`` events and the tool must compute itself.
+    A file-backed chunks database is required for its private derived staging.
+    Full callers retain completion receipts until they certify the full store.
     """
-    resolved_root = watch_root.expanduser().resolve()
-    t0 = time.monotonic()
-
-    pairs = list(enumerate_root(root=resolved_root, engine=engine, resume_from=None))
-
-    files = 0
-    embedded = 0
-    unchanged = 0
-    queued: deque[_QueuedPlan] = deque()
-    inflight_chunks = 0
-    stage = _EmbedStage(embedder=embedder, concurrency=embed_concurrency)
-
-    def drain_one() -> None:
-        nonlocal embedded, unchanged, inflight_chunks
-        queued_plan = queued.popleft()
-        try:
-            vectors = queued_plan.future.result()
-        except BaseException as exc:
-            stage.shutdown(cancel=True)
-            raise IndexError(f"embedding failed for {queued_plan.plan.rel}: {exc}") from exc
-        # A full rebuild is the remedy for a stale or missing certificate, so
-        # its commits do not assert the identity they are about to replace;
-        # the held lock keeps every other palace writer out until the stamp.
-        outcome: IndexOutcome = commit_plan(
-            conn=conn,
-            plan=queued_plan.plan,
-            embeddings=vectors,
-            identity=None if full else identity,
-            log=log,
-        )
-        inflight_chunks -= queued_plan.chunks
-        if outcome.noop and not queued_plan.plan.full_delete:
-            unchanged += 1
-        elif outcome.embedded > 0:
-            embedded += 1
-
-    try:
-        for _relative_posix, absolute in pairs:
-            if stage.failed:
-                while queued:
-                    drain_one()
-            files += 1
-            plan = plan_one(
-                conn=conn,
-                file_kind=classify_kind(absolute),
-                change_kind="created",
-                path=absolute,
-                watch_root=resolved_root,
-                full=full,
-                verbose=verbose,
-                log=log,
-            )
-            plan_chunks = len(plan.chunk_ids)
-            while queued and (
-                plan_chunks > EMBED_INFLIGHT_MAX_CHUNKS
-                or inflight_chunks + plan_chunks > EMBED_INFLIGHT_MAX_CHUNKS
-            ):
-                drain_one()
-            if stage.failed:
-                while queued:
-                    drain_one()
-            queued.append(_QueuedPlan(plan=plan, future=stage.submit(plan), chunks=plan_chunks))
-            inflight_chunks += plan_chunks
-            if embed_concurrency == 1:
-                drain_one()
-        while queued:
-            drain_one()
-    finally:
-        stage.shutdown(cancel=True)
-
-    # Deletion-reconciliation sweep, scoped to the walked root via the
-    # absolute ``watch_root`` column. ``files.path`` is now relative and
-    # not root-scoped in the value itself, so a bare relative string like
-    # ``src/foo.rs`` could collide across roots — keying the sweep on
-    # ``watch_root`` is what keeps it confined to the walked root.
-    on_disk_relative = {relative_posix.as_posix() for relative_posix, _absolute in pairs}
-    deletion_set = {
-        path_str
-        for (path_str,) in conn.execute(
-            "SELECT path FROM files WHERE watch_root = ?", (str(resolved_root),)
-        ).fetchall()
-        if path_str not in on_disk_relative
-    }
-    deleted = 0
-    for path_str in deletion_set:
-        delete_path(conn=conn, watch_root=str(resolved_root), path_str=path_str)
-        deleted += 1
-
-    elapsed = time.monotonic() - t0
-    return BuildResult(
-        watch_root=resolved_root,
-        files=files,
-        embedded=embedded,
-        unchanged=unchanged,
-        deleted=deleted,
-        embed_concurrency=embed_concurrency,
-        embed_batching=embed_batching,
-        seconds=elapsed,
+    database = next(
+        (row[2] for row in conn.execute("PRAGMA database_list") if row[1] == "main"), ""
     )
+    if not database:
+        raise IndexError("build_root requires a file-backed chunks database")
+    scheduled = schedule(
+        conn=conn,
+        store=Path(database).parent.parent,
+        roots=[(watch_root, engine)],
+        embedder=embedder,
+        identity=identity,
+        full=full,
+        concurrency=embed_concurrency,
+        limits=limits or BuildLimits(),
+        log=log,
+        progress=progress,
+        remote=identity.provider.startswith("openrouter:"),
+        verbose=verbose,
+    )
+    if not full:
+        scheduled.clear_completed()
+    return _root_result(scheduled.roots[0], embed_concurrency, embed_batching)
 
 
 def build(
@@ -394,6 +216,8 @@ def build(
     log: Callable[[str], None] | None = None,
     embed_concurrency: int | None = None,
     lock_timeout: float = WRITER_LOCK_TIMEOUT_SECONDS,
+    limits: BuildLimits | None = None,
+    progress: Callable[[BuildProgress], None] | None = None,
 ) -> BuildReport:
     """Reconcile one or more watch roots to the chunks DB in one pass; see :func:`_build`.
 
@@ -416,6 +240,8 @@ def build(
                 embed_concurrency=embed_concurrency,
                 lock_timeout=lock_timeout,
                 roots=roots,
+                limits=limits or BuildLimits(),
+                progress=progress,
             )
         report = BuildReport(roots=tuple(roots), embedding=usage.summary())
         out_log(
@@ -438,6 +264,8 @@ def _build(
     embed_concurrency: int | None,
     lock_timeout: float,
     roots: list[BuildResult],
+    limits: BuildLimits,
+    progress: Callable[[BuildProgress], None] | None,
 ) -> None:
     """Reconcile one or more watch roots to the chunks DB in one pass.
 
@@ -464,7 +292,6 @@ def _build(
         raise IndexError("lock_timeout must be a finite non-negative number of seconds")
 
     out_log: Callable[[str], None] = log if log is not None else _stderr_log
-    verbose_log: Callable[[str], None] = out_log if verbose else (lambda _msg: None)
 
     config = load_embedder_config(store)
     identity = identity_for(config)
@@ -537,6 +364,7 @@ def _build(
         data_version_start = read_data_version(conn)
         walked_roots: set[str] = set()
 
+        admitted_roots: list[tuple[Path, IgnoreEngine]] = []
         for resolved_root in walk_set:
             # Under-store check (defense-in-depth: ``palace watch add``
             # rejects this at add-time, but an ad-hoc ``--watch-root`` or
@@ -557,19 +385,23 @@ def _build(
                 )
                 continue
 
-            engine = IgnoreEngine(resolved_root)
-            result = build_root(
-                conn=conn,
-                embedder=embedder,
-                identity=identity,
-                watch_root=resolved_root,
-                engine=engine,
-                full=full,
-                verbose=verbose,
-                log=verbose_log,
-                embed_concurrency=effective_concurrency,
-                embed_batching=embed_batching,
-            )
+            admitted_roots.append((resolved_root, IgnoreEngine(resolved_root)))
+        scheduled = schedule(
+            conn=conn,
+            store=store,
+            roots=admitted_roots,
+            embedder=embedder,
+            identity=identity,
+            full=full,
+            concurrency=effective_concurrency,
+            limits=limits,
+            log=out_log,
+            progress=progress,
+            remote=config.provider == PROVIDER_OPENROUTER,
+            verbose=verbose,
+        )
+        for state in scheduled.roots:
+            result = _root_result(state, effective_concurrency, embed_batching)
             roots.append(result)
             walked_roots.add(str(result.watch_root))
             out_log(
@@ -627,6 +459,7 @@ def _build(
                     else:
                         stamp_identity(conn, identity)
                         conn.execute("COMMIT")
+                        scheduled.clear_completed()
                         out_log(
                             "palace index build: embed-identity stamped="
                             f"convention={identity.convention} model={identity.model} "
@@ -637,6 +470,8 @@ def _build(
                         with contextlib.suppress(sqlite3.Error):
                             conn.execute("ROLLBACK")
                     raise
+        if not full:
+            scheduled.clear_completed()
         return
     finally:
         if conn is not None:

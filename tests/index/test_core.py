@@ -132,8 +132,12 @@ def test_index_markdown_through_core_inserts_chunks(
     assert ids_chunks == ids_vec == ids_fts
     assert outcome == IndexOutcome(kind="markdown", new=3, embedded=3)
 
+    _assert_markdown_input_reconstruction(
+        tmp_store / "reconstruction", tmp_watch_root, FakeEmbedder()
+    )
 
-def test_markdown_embed_input_is_reconstructible_from_stored_columns(
+
+def _assert_markdown_input_reconstruction(
     tmp_store: Path,
     tmp_watch_root: Path,
     embedder: FakeEmbedder,
@@ -249,8 +253,10 @@ def test_index_jsonl_through_core_append_only(
     assert outcome.new == 1
     assert outcome.embedded == 1
 
+    _assert_jsonl_input_reconstruction(tmp_store / "reconstruction", tmp_watch_root, FakeEmbedder())
 
-def test_jsonl_embed_input_is_reconstructible_from_stored_columns(
+
+def _assert_jsonl_input_reconstruction(
     tmp_store: Path,
     tmp_watch_root: Path,
     embedder: FakeEmbedder,
@@ -297,8 +303,10 @@ def test_index_code_through_core(
     assert outcome.new == 2
     assert outcome.embedded == 2
 
+    _assert_code_input_reconstruction(tmp_store / "reconstruction", tmp_watch_root, FakeEmbedder())
 
-def test_code_embed_input_is_reconstructible_from_stored_columns(
+
+def _assert_code_input_reconstruction(
     tmp_store: Path,
     tmp_watch_root: Path,
     embedder: FakeEmbedder,
@@ -341,8 +349,10 @@ def test_index_text_through_core(
     assert outcome.kind == "text"
     assert outcome.embedded == 1
 
+    _assert_text_input_reconstruction(tmp_store / "reconstruction", tmp_watch_root, FakeEmbedder())
 
-def test_text_embed_input_is_reconstructible_from_stored_columns(
+
+def _assert_text_input_reconstruction(
     tmp_store: Path,
     tmp_watch_root: Path,
     embedder: FakeEmbedder,

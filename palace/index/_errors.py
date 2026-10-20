@@ -18,7 +18,7 @@ explicit phase choice (see Phase 2.3 Open Questions / Minor Corrections).
 
 from __future__ import annotations
 
-__all__ = ["IndexError", "StalePlanError"]
+__all__ = ["IdentityMismatchError", "IndexError", "StalePlanError"]
 
 
 class IndexError(Exception):  # noqa: A001 — intentional shadow per phase
@@ -28,6 +28,10 @@ class IndexError(Exception):  # noqa: A001 — intentional shadow per phase
     translates this into ``error: ...`` on stderr and exits 1 without a
     Python traceback.
     """
+
+
+class IdentityMismatchError(IndexError):
+    """The store certificate differs from the selected embedding identity."""
 
 
 class StalePlanError(IndexError):

@@ -239,7 +239,8 @@ def build_subparser(subparsers: Any) -> None:
         default=None,
         metavar="N",
         help=(
-            "Embedding requests in flight (default: sustained-measured remote setting; "
+            "Bounded embedding turns in flight; completed documents become searchable "
+            "before larger files finish (default: sustained-measured remote setting; "
             "values above the selected provider's capability are refused)."
         ),
     )
@@ -1203,8 +1204,8 @@ def _print_indexing_verdict(
             )
         else:
             print(
-                f"indexing: PARKED ({state.reason}) — correct the writer startup "
-                "failure and restart the daemon",
+                f"indexing: PARKED ({state.reason}) — correct the "
+                f"{state.park_kind} cause and restart the daemon",
                 flush=True,
             )
         return

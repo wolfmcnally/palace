@@ -60,7 +60,9 @@ class EventsTail:
         clock: Callable[[], date] | None = None,
         log: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
+        failure_event: threading.Event | None = None,
     ) -> None:
+        self._failure_event = failure_event
         self._store = store
         self._cursor = cursor if cursor is not None else today_default()
         self._clock = clock if clock is not None else _default_clock
@@ -92,7 +94,7 @@ class EventsTail:
 
         Iteration ends when ``stop_event`` is set.
         """
-        while not self._stop_event.is_set():
+        while not self._stopped():
             day = self._cursor.day
             day_path = self._store / "events" / f"{day}.jsonl"
             if not day_path.is_file():
@@ -107,7 +109,7 @@ class EventsTail:
             # Open + seek; read until EOF, yielding one event per line.
             with day_path.open("rb") as fh:
                 fh.seek(self._cursor.byte_offset)
-                while not self._stop_event.is_set():
+                while not self._stopped():
                     line_offset = fh.tell()
                     line = fh.readline()
                     if not line:
@@ -166,11 +168,18 @@ class EventsTail:
         )
         return True
 
+    def _stopped(self) -> bool:
+        return self._stop_event.is_set() or (
+            self._failure_event is not None and self._failure_event.is_set()
+        )
+
     def _wait(self) -> bool:
         """Sleep one poll interval. Returns True unless ``stop_event`` fired."""
         # ``Event.wait`` returns True when the event is set; we want
         # the inverse — keep iterating unless we've been asked to stop.
-        return not self._stop_event.wait(timeout=POLL_INTERVAL_SECONDS)
+        event = self._failure_event if self._failure_event is not None else self._stop_event
+        event.wait(timeout=POLL_INTERVAL_SECONDS)
+        return not self._stopped()
 
     def _parse_event(self, line: bytes, *, offset: int) -> ChangeEvent | None:
         """Parse one events-log line into a :class:`ChangeEvent`.

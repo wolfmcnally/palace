@@ -33,7 +33,6 @@ __all__ = [
     "EMBED_COSINE_TOLERANCE",
     "EMBED_CONCURRENCY_DEFAULT",
     "EMBED_DIM",
-    "EMBED_INFLIGHT_MAX_CHUNKS",
     "EMBED_CONVENTION",
     "EMBEDDER_MODEL",
     "EmbeddingIdentity",
@@ -137,11 +136,6 @@ EMBED_CONCURRENCY_DEFAULT: int = 8
 # the 2026-08-16 burst curve; only N=8 has two-hour sustained evidence, so
 # this is a capability ceiling rather than the policy default above.
 REMOTE_EMBED_MAX_CONCURRENCY: int = 16
-
-# Bound queued plans by vector count rather than file count because the
-# measured corpus spans 5..1,721 chunks/file. At 4,096 dimensions and float32,
-# 4,096 chunks are about 67 MB of vectors. One oversize file is admitted alone.
-EMBED_INFLIGHT_MAX_CHUNKS: int = 4096
 
 # Remote retries are bounded inside one request so a transient upstream shed
 # does not discard a large file's completed first batches. HTTP 429 and the

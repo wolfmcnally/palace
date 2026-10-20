@@ -343,7 +343,7 @@ class BootstrapCursor:
 
 
 def _walk_admitted_paths(
-    root_resolved: Path, engine: IgnoreEngine
+    root_resolved: Path, engine: IgnoreEngine, max_files: int | None = None
 ) -> tuple[list[tuple[PurePosixPath, Path]], int]:
     """Collect every admitted ``(relative_posix, absolute)`` under ``root_resolved``.
 
@@ -402,6 +402,11 @@ def _walk_admitted_paths(
                 relative = absolute_path.relative_to(root_resolved)
             except ValueError:
                 continue
+            if max_files is not None and len(collected) >= max_files:
+                raise ReindexError(
+                    f"build file admission limit exceeded ({max_files}); "
+                    "narrow/ignore the roots or adjust max_files through Python BuildLimits"
+                )
             collected.append((PurePosixPath(*relative.parts), absolute_path))
 
     collected.sort(key=lambda pair: pair[0].as_posix())
@@ -413,6 +418,7 @@ def enumerate_root(
     root: Path,
     engine: IgnoreEngine,
     resume_from: str | None,
+    max_files: int | None = None,
 ) -> Iterator[tuple[PurePosixPath, Path]]:
     """Yield ``(relative_posix_path, absolute_path)`` in sorted POSIX order.
 
@@ -433,7 +439,7 @@ def enumerate_root(
     counts these via the seeded ``files_resumed`` from the cursor).
     """
     root_resolved = root.expanduser().resolve()
-    pairs, _skipped = _walk_admitted_paths(root_resolved, engine)
+    pairs, _skipped = _walk_admitted_paths(root_resolved, engine, max_files=max_files)
     for relative_posix, absolute_path in pairs:
         if resume_from is not None and relative_posix.as_posix() <= resume_from:
             continue

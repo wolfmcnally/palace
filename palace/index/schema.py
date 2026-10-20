@@ -40,7 +40,7 @@ from typing import Any
 import sqlite_vec
 
 from palace.daemons.capture.ids import compute_record_id
-from palace.index._errors import IndexError
+from palace.index._errors import IdentityMismatchError, IndexError
 from palace.index.config import (
     EMBED_CONVENTION,
     EMBED_DIM,
@@ -388,14 +388,14 @@ def assert_identity(conn: sqlite3.Connection, expected: EmbeddingIdentity) -> No
     """Refuse a write unless every recorded axis matches the store config."""
     divergences = identity_divergences(found=read_identity(conn), expected=expected)
     if divergences:
-        raise IndexError(identity_mismatch_line(divergences))
+        raise IdentityMismatchError(identity_mismatch_line(divergences))
 
 
 def assert_identity_readable(conn: sqlite3.Connection) -> None:
     """Refuse vector reads on incompatible or convention-only stores."""
     divergences = readable_divergences(read_identity(conn))
     if divergences:
-        raise IndexError(identity_mismatch_line(divergences))
+        raise IdentityMismatchError(identity_mismatch_line(divergences))
 
 
 def read_data_version(conn: sqlite3.Connection) -> int:

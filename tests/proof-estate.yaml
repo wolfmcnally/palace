@@ -1914,26 +1914,6 @@ families:
   duration_seconds: 0.0
   flake_rate: 0.0
   replacement_lineage: []
-- id: est-core-py-test-code-embed-input-is-reconstructible-from-stored-columns-88ef796b55
-  kind: pytest
-  selectors:
-  - tests/index/test_core.py::test_code_embed_input_is_reconstructible_from_stored_columns
-  source_paths:
-  - tests/index/test_core.py
-  covers:
-  - tests/index/test_core.py
-  - palace/index/**
-  contract: Executable proof for test code embed input is reconstructible from stored columns.
-  risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
 - id: pytest-tests-index-test-core-py-test-core-chunk-id-includes-watch-root-f283bfd587
   kind: pytest
   selectors:
@@ -2043,9 +2023,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test index code through core.
+  contract: Typed indexing plus the original isolated embedding-input reconstruction assertions.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Original positive-index assertions and unchanged isolated reconstruction fixture/assertions.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2063,9 +2043,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test index jsonl through core append only.
+  contract: Typed indexing plus the original isolated embedding-input reconstruction assertions.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Original positive-index assertions and unchanged isolated reconstruction fixture/assertions.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2123,9 +2103,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test index markdown through core inserts chunks.
+  contract: Typed indexing plus the original isolated embedding-input reconstruction assertions.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Original positive-index assertions and unchanged isolated reconstruction fixture/assertions.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2183,49 +2163,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test index text through core.
+  contract: Typed indexing plus the original isolated embedding-input reconstruction assertions.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
-- id: st-core-py-test-jsonl-embed-input-is-reconstructible-from-stored-columns-a193041c3f
-  kind: pytest
-  selectors:
-  - tests/index/test_core.py::test_jsonl_embed_input_is_reconstructible_from_stored_columns
-  source_paths:
-  - tests/index/test_core.py
-  covers:
-  - tests/index/test_core.py
-  - palace/index/**
-  contract: Executable proof for test jsonl embed input is reconstructible from stored columns.
-  risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
-- id: core-py-test-markdown-embed-input-is-reconstructible-from-stored-columns-c118da5ddd
-  kind: pytest
-  selectors:
-  - tests/index/test_core.py::test_markdown_embed_input_is_reconstructible_from_stored_columns
-  source_paths:
-  - tests/index/test_core.py
-  covers:
-  - tests/index/test_core.py
-  - palace/index/**
-  contract: Executable proof for test markdown embed input is reconstructible from stored columns.
-  risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Original positive-index assertions and unchanged isolated reconstruction fixture/assertions.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2304,26 +2244,6 @@ families:
   - tests/index/test_core.py
   - palace/index/**
   contract: Executable proof for test stored path refuses path outside watch root.
-  risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
-- id: est-core-py-test-text-embed-input-is-reconstructible-from-stored-columns-dd1f75a7cb
-  kind: pytest
-  selectors:
-  - tests/index/test_core.py::test_text_embed_input_is_reconstructible_from_stored_columns
-  source_paths:
-  - tests/index/test_core.py
-  covers:
-  - tests/index/test_core.py
-  - palace/index/**
-  contract: Executable proof for test text embed input is reconstructible from stored columns.
   risk_class: index
   oracle: Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
@@ -5967,3 +5887,91 @@ families:
   duration_seconds: 1.0
   flake_rate: 0.0
   replacement_lineage: []
+- id: bounded-indexing-fairness
+  kind: pytest
+  selectors:
+  - tests/index/test_scheduler.py::test_build_rotates_and_publishes_atomically
+  source_paths:
+  - tests/index/test_scheduler.py
+  covers:
+  - palace/index/**
+  - palace/reindex/bootstrap.py
+  contract: Small documents beyond a full giant window publish atomically and are queryable across roots at concurrency one and three.
+  risk_class: fairness
+  oracle: Independent SQL snapshots and BM25 lookup during publication, exact root-owned request accounting.
+  admission: Phase 21 compensated admission; one observed qualifying run, not a long-run flake estimate.
+  nearest_overlap: Core typed indexing proves parser/commit semantics; it does not exercise bounded multi-document scheduling, durable receipts or daemon failure lifecycle.
+  historical_evidence: []
+  mutation_evidence:
+  - Prevent reserved-lane small admission while a giant is active.
+  tier: vital
+  duration_seconds: 0.268
+  flake_rate: 0.0
+  replacement_lineage:
+  - pytest:tests/index/test_core.py::test_markdown_embed_input_is_reconstructible_from_stored_columns
+- id: bounded-indexing-recovery
+  kind: pytest
+  selectors:
+  - tests/index/test_scheduler.py::test_build_receipts_recover_and_refuse_mismatches
+  source_paths:
+  - tests/index/test_scheduler.py
+  covers:
+  - palace/index/**
+  - palace/reindex/bootstrap.py
+  contract: Durable source/identity-bound receipts survive interruption and process death; invalid receipts cannot vouch for work.
+  risk_class: recovery
+  oracle: Owned SIGKILL subprocess, independent database rows and exact resumed fake-provider request counts.
+  admission: Phase 21 compensated admission; one observed qualifying run, not a long-run flake estimate.
+  nearest_overlap: Core typed indexing proves parser/commit semantics; it does not exercise bounded multi-document scheduling, durable receipts or daemon failure lifecycle.
+  historical_evidence: []
+  mutation_evidence:
+  - Accept a completed receipt without checking its vector checksum.
+  tier: vital
+  duration_seconds: 0.768
+  flake_rate: 0.0
+  replacement_lineage:
+  - pytest:tests/index/test_core.py::test_jsonl_embed_input_is_reconstructible_from_stored_columns
+- id: bounded-indexing-limits
+  kind: pytest
+  selectors:
+  - tests/index/test_scheduler.py::test_build_limits_progress_and_append_ranges
+  source_paths:
+  - tests/index/test_scheduler.py
+  covers:
+  - palace/index/**
+  - palace/reindex/bootstrap.py
+  contract: Supported-job admission limits refuse incomplete work and frozen JSONL consumed ranges permit later appends.
+  risk_class: limits
+  oracle: At/over source-byte boundary, explicit refusal before inference, SQL cursor and final row count.
+  admission: Phase 21 compensated admission; one observed qualifying run, not a long-run flake estimate.
+  nearest_overlap: Core typed indexing proves parser/commit semantics; it does not exercise bounded multi-document scheduling, durable receipts or daemon failure lifecycle.
+  historical_evidence: []
+  mutation_evidence:
+  - Disable bounded manifest collection at the file cap.
+  tier: vital
+  duration_seconds: 0.132
+  flake_rate: 0.0
+  replacement_lineage:
+  - pytest:tests/index/test_core.py::test_code_embed_input_is_reconstructible_from_stored_columns
+- id: bounded-indexing-daemon-stop
+  kind: pytest
+  selectors:
+  - tests/index/test_index_server.py::test_daemon_failure_preserves_cursor_and_unblocks_tail
+  source_paths:
+  - tests/index/test_index_server.py
+  covers:
+  - palace/index/**
+  - palace/reindex/bootstrap.py
+  contract: First embedding, cursor or lock failure parks the actual daemon before later work, at idle tail and full queue.
+  risk_class: daemon-stop
+  oracle: Actual server lifecycle, on-disk cursor absence, unchanged later-file bodies and joined shutdown.
+  admission: Phase 21 compensated admission; one observed qualifying run, not a long-run flake estimate.
+  nearest_overlap: Core typed indexing proves parser/commit semantics; it does not exercise bounded multi-document scheduling, durable receipts or daemon failure lifecycle.
+  historical_evidence: []
+  mutation_evidence:
+  - Remove independent writer failure notification to the idle tail.
+  tier: vital
+  duration_seconds: 1.816
+  flake_rate: 0.0
+  replacement_lineage:
+  - pytest:tests/index/test_core.py::test_text_embed_input_is_reconstructible_from_stored_columns

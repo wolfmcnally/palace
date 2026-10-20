@@ -108,10 +108,11 @@ def _park(
 ) -> _ParkOutcome:
     """Publish a cause-specific parked state and wait for its recovery condition."""
     write_state(store, new_state("parked", park_kind=kind, reason=reason))
-    if kind == "writer-startup":
+    if kind != "identity":
         log(
             "palace index: PARKED — "
-            f"{reason} — writer startup retries are disabled; correct the cause "
+            f"{reason} — automatic retries are disabled; wait for a build/provider to recover "
+            "or fix, move or delete the failing source, then correct the cause "
             "and restart the daemon"
         )
         shutdown_event.wait()
@@ -198,14 +199,9 @@ def serve(
     def on_completed(item: _WorkItem) -> None:
         if item.day is None or item.byte_offset is None:
             return
-        try:
-            TailCursor(
-                day=item.day,
-                byte_offset=item.byte_offset,
-                last_event_id=item.event_id,
-            ).save(store)
-        except OSError as exc:
-            log(f"palace index: cursor-save failed reason={exc!r}")
+        TailCursor(day=item.day, byte_offset=item.byte_offset, last_event_id=item.event_id).save(
+            store
+        )
 
     injected_embedder = embedder
     try:
@@ -295,10 +291,19 @@ def serve(
                     return 0
                 continue
 
-            tail = EventsTail(store=store, cursor=cursor, stop_event=shutdown_event)
+            tail = EventsTail(
+                store=store,
+                cursor=cursor,
+                stop_event=shutdown_event,
+                failure_event=writer.failed_event,
+            )
             write_state(store, new_state("indexing"))
             log(f"palace index: tailing {store}/events/ from {cursor.day}:{cursor.byte_offset}")
             midrun_halt: str | None = None
+
+            def stopping(failed: threading.Event = writer.failed_event) -> bool:
+                return shutdown_event.is_set() or failed.is_set()
+
             try:
                 for event, new_offset in tail.follow():
                     if writer.halt_reason is not None:
@@ -312,18 +317,22 @@ def serve(
                         log=log,
                         day=day,
                         byte_offset=new_offset,
+                        should_stop=stopping,
                     )
+                if writer.halt_reason is not None:
+                    midrun_halt = writer.halt_reason
             finally:
                 writer.stop()
                 if owned_embedder:
                     with contextlib.suppress(Exception):
                         active_embedder.close()
+            midrun_halt = writer.halt_reason or midrun_halt
             if midrun_halt is not None and not shutdown_event.is_set():
                 reason = midrun_halt.removeprefix("embedding-identity mismatch: ")
                 reason = reason.split(" — rebuild it with", maxsplit=1)[0]
                 outcome = _park(
                     store=store,
-                    kind="identity",
+                    kind=writer.halt_kind,
                     reason=reason,
                     shutdown_event=shutdown_event,
                     log=log,
@@ -353,6 +362,7 @@ def _enqueue_with_position(
     log: Callable[[str], None],
     day: str,
     byte_offset: int,
+    should_stop: Callable[[], bool] | None = None,
 ) -> None:
     """Like :func:`process_change_event` but stamps cursor position on the work item.
 
@@ -364,6 +374,14 @@ def _enqueue_with_position(
     # ``process_change_event`` does not return the queued item, hence the
     # local wrapper.
     from palace.index.pipeline import classify_kind  # local: avoid cycle at import time
+
+    def enqueue(item: _WorkItem) -> None:
+        while should_stop is None or not should_stop():
+            try:
+                work_queue.put(item, timeout=0.1)
+                return
+            except queue.Full:
+                continue
 
     event_path = Path(event.path)
     watch_root = Path(event.watch_root)
@@ -384,7 +402,7 @@ def _enqueue_with_position(
     kind = classify_kind(event_path)
 
     if event.change_kind == "deleted":
-        work_queue.put(
+        enqueue(
             _WorkItem(
                 change_kind="deleted",
                 path=event_path,
@@ -405,7 +423,7 @@ def _enqueue_with_position(
         log(f"palace index: skip kind={kind} path={rel}")
         # We still want the cursor to advance past skipped events; put a
         # no-op work item so on_completed fires.
-        work_queue.put(
+        enqueue(
             _WorkItem(
                 change_kind=event.change_kind,
                 path=event_path,
@@ -418,7 +436,7 @@ def _enqueue_with_position(
         )
         return
 
-    work_queue.put(
+    enqueue(
         _WorkItem(
             change_kind=event.change_kind,
             path=event_path,

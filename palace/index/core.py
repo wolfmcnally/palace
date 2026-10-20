@@ -241,6 +241,7 @@ def plan_one(
     full: bool = False,
     verbose: bool = False,
     log: Callable[[str], None],
+    source_bytes: bytes | None = None,
 ) -> FilePlan:
     """Read and diff one file without embedding or mutating SQLite."""
     stored = _stored_path(path, watch_root)
@@ -275,17 +276,42 @@ def plan_one(
         )
     if file_kind == "markdown":
         return _plan_markdown(
-            conn=conn, path=path, watch_root=watch_root, full=full, verbose=verbose, log=log
+            conn=conn,
+            path=path,
+            watch_root=watch_root,
+            full=full,
+            verbose=verbose,
+            log=log,
+            source_bytes=source_bytes,
         )
     if file_kind == "jsonl":
-        return _plan_jsonl(conn=conn, path=path, watch_root=watch_root, full=full, log=log)
+        return _plan_jsonl(
+            conn=conn,
+            path=path,
+            watch_root=watch_root,
+            full=full,
+            log=log,
+            source_bytes=source_bytes,
+        )
     if file_kind == "code":
         return _plan_code(
-            conn=conn, path=path, watch_root=watch_root, full=full, verbose=verbose, log=log
+            conn=conn,
+            path=path,
+            watch_root=watch_root,
+            full=full,
+            verbose=verbose,
+            log=log,
+            source_bytes=source_bytes,
         )
     if file_kind == "text":
         return _plan_text(
-            conn=conn, path=path, watch_root=watch_root, full=full, verbose=verbose, log=log
+            conn=conn,
+            path=path,
+            watch_root=watch_root,
+            full=full,
+            verbose=verbose,
+            log=log,
+            source_bytes=source_bytes,
         )
     log(f"palace index: skip kind={file_kind} path={rel}")
     return _noop_plan(
@@ -306,6 +332,7 @@ def _plan_markdown(
     full: bool,
     verbose: bool,
     log: Callable[[str], None],
+    source_bytes: bytes | None = None,
 ) -> FilePlan:
     stored = _stored_path(path, watch_root)
     rel = _log_relative_path(path, watch_root)
@@ -323,7 +350,7 @@ def _plan_markdown(
     # the two reads then shows up as a signature mismatch at commit time.
     prior = _prior_file_row(conn, watch_root=watch_root, stored=stored)
     prior_signature = None if full else _file_signature(prior)
-    file_bytes = path.read_bytes()
+    file_bytes = source_bytes if source_bytes is not None else path.read_bytes()
     file_hash = hashlib.sha256(file_bytes).hexdigest()
     if not full and prior is not None and prior[0] == file_hash:
         if verbose:
@@ -417,6 +444,7 @@ def _plan_jsonl(
     watch_root: Path,
     full: bool,
     log: Callable[[str], None],
+    source_bytes: bytes | None = None,
 ) -> FilePlan:
     stored = _stored_path(path, watch_root)
     rel = _log_relative_path(path, watch_root)
@@ -449,9 +477,12 @@ def _plan_jsonl(
     )
     prior_sections = prior_row[0] if prior_row is not None else None
     prior_signature = None if full else _jsonl_signature(prior_sections, resume_offset)
-    with path.open("rb") as handle:
-        handle.seek(resume_offset)
-        tail_bytes = handle.read()
+    if source_bytes is None:
+        with path.open("rb") as handle:
+            handle.seek(resume_offset)
+            tail_bytes = handle.read()
+    else:
+        tail_bytes = source_bytes
     new_chunks, advance = parse_jsonl_tail(file_bytes=tail_bytes, resume_offset=0, log=log)
     prior_count = _count_prior_jsonl_records(prior_sections)
     offset_chunks = tuple(
@@ -532,6 +563,7 @@ def _plan_code(
     full: bool,
     verbose: bool,
     log: Callable[[str], None],
+    source_bytes: bytes | None = None,
 ) -> FilePlan:
     stored = _stored_path(path, watch_root)
     rel = _log_relative_path(path, watch_root)
@@ -547,7 +579,7 @@ def _plan_code(
         )
     prior = _prior_file_row(conn, watch_root=watch_root, stored=stored)
     prior_signature = None if full else _file_signature(prior)
-    file_bytes = path.read_bytes()
+    file_bytes = source_bytes if source_bytes is not None else path.read_bytes()
     file_hash = hashlib.sha256(file_bytes).hexdigest()
     if not full and prior is not None and prior[0] == file_hash:
         if verbose:
@@ -618,6 +650,7 @@ def _plan_text(
     full: bool,
     verbose: bool,
     log: Callable[[str], None],
+    source_bytes: bytes | None = None,
 ) -> FilePlan:
     stored = _stored_path(path, watch_root)
     rel = _log_relative_path(path, watch_root)
@@ -633,7 +666,7 @@ def _plan_text(
         )
     prior = _prior_file_row(conn, watch_root=watch_root, stored=stored)
     prior_signature = None if full else _file_signature(prior)
-    file_bytes = path.read_bytes()
+    file_bytes = source_bytes if source_bytes is not None else path.read_bytes()
     file_hash = hashlib.sha256(file_bytes).hexdigest()
     if not full and prior is not None and prior[0] == file_hash:
         if verbose:

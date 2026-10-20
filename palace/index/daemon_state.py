@@ -27,7 +27,7 @@ __all__ = [
 
 
 DaemonRunState = Literal["starting", "indexing", "parked"]
-ParkKind = Literal["identity", "writer-startup"]
+ParkKind = Literal["identity", "writer-startup", "work-failure"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +111,7 @@ def read_state(store: Path) -> DaemonState | StateUnreadable | None:
             raise ValueError("pid is not a positive integer")
         if not isinstance(since, str):
             raise ValueError("since is not a string")
-        if park_kind not in {None, "identity", "writer-startup"}:
+        if park_kind not in {None, "identity", "writer-startup", "work-failure"}:
             raise ValueError(f"unknown park kind {park_kind!r}")
         if reason is not None and not isinstance(reason, str):
             raise ValueError("reason is not a string or null")

@@ -11,6 +11,8 @@
 
 ## Scripts
 
+Synchronous indexing uses `palace index build`; its [bounded build and recovery contract](../palace/index/README.md#bounded-synchronous-builds) describes admission ceilings, partial-progress visibility and explicit restart remedies. `palace-index-smoke` below invokes live Ollama and is separate from hermetic `bin/check all` CLI smoke. The bounded scheduler qualification uses fake-provider pytest cases rather than that live script.
+
 ### `palace-private-demo` — synthetic private-inference walkthrough
 
 `./bin/palace-private-demo setup` creates synthetic text, explicit endpoint selectors and a one-day localhost certificate. `serve` runs the HTTPS fixture in the foreground; `cleanup` refuses a running server, changed source/certificates or unexpected files. Requires OpenSSL and no paid inference. Follow [private providers](../docs/private-providers.md) for configuration, build/search and refusal commands.

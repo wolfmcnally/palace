@@ -25,9 +25,8 @@ Failure posture:
   block triggers a ``ROLLBACK``; the file's row is left in its previous
   state. The next restart re-reads the change event and the file-hash
   short-circuit makes a successful run idempotent.
-- **Log-and-continue at the queue level.** A failed work item logs the
-  exception and the thread keeps draining — one bad file must not kill
-  the daemon.
+- **Fail-stop at the queue level.** A failed item stops this worker and wakes
+  the server. Later events cannot move the durable cursor past a failure.
 - **``on_completed`` callback** is the test seam the server uses to
   advance the cursor only after the writer commits.
 """
@@ -39,6 +38,7 @@ import queue
 import sqlite3
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,13 +46,14 @@ from typing import Final
 
 import sqlite_vec
 
-from palace.index._errors import IndexError
+from palace.index._errors import IdentityMismatchError, IndexError
 from palace.index.config import (
     WRITER_BUSY_TIMEOUT_SECONDS,
     EmbeddingIdentity,
     prepare_chunks_db_path,
 )
 from palace.index.core import _log_relative_path, index_one
+from palace.index.daemon_state import ParkKind
 from palace.index.embedder import Embedder
 from palace.index.schema import assert_identity, init_db
 from palace.reindex.config import ChangeKind
@@ -115,14 +116,25 @@ class WriterWorker(threading.Thread):
         self._conn: sqlite3.Connection | None = None
         self._ready = threading.Event()
         self.halt_reason: str | None = None
+        self.halt_kind: ParkKind = "identity"
+        self.failed_event = threading.Event()
 
     # ------------------------------------------------------------------ lifecycle
 
     def stop(self, timeout: float = 5.0) -> None:
-        """Enqueue the sentinel and join the worker thread. Idempotent."""
-        self._queue.put(_SENTINEL)
+        """Bound sentinel admission and never block behind a dead/full queue."""
+        deadline = time.monotonic() + timeout
+        while self.is_alive() and not self.failed_event.is_set():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                self._queue.put(_SENTINEL, timeout=min(0.1, remaining))
+                break
+            except queue.Full:
+                continue
         if self.is_alive():
-            self.join(timeout=timeout)
+            self.join(timeout=max(0.0, deadline - time.monotonic()))
 
     def wait_ready(self, timeout: float) -> bool:
         """Wait until startup has either succeeded or halted."""
@@ -174,12 +186,17 @@ class WriterWorker(threading.Thread):
                         verbose=self._verbose,
                         log=self._log,
                     )
-                except Exception as exc:  # noqa: BLE001 — log-and-continue
+                    if self._on_completed is not None:
+                        self._on_completed(item)
+                except Exception as exc:  # noqa: BLE001 — fail-stop, preserving cursor
                     rel = _log_relative_path(item.path, item.watch_root)
-                    self._log(f"palace index: write-failed path={rel} reason={exc!r}")
-                    continue
-                if self._on_completed is not None:
-                    self._on_completed(item)
+                    self.halt_reason = f"write-failed path={rel} reason={exc!r}"
+                    self.halt_kind = (
+                        "identity" if isinstance(exc, IdentityMismatchError) else "work-failure"
+                    )
+                    self.failed_event.set()
+                    self._log(f"palace index: {self.halt_reason}")
+                    return
         finally:
             self._conn = None
             with contextlib.suppress(sqlite3.Error):

@@ -80,6 +80,7 @@ from palace.index.lifecycle import (
 )
 from palace.index.markdown import ParsedMarkdown, Section, chunk_sections, parse_markdown
 from palace.index.pipeline import classify_kind, process_change_event
+from palace.index.scheduler import BuildLimits, BuildProgress
 from palace.index.schema import (
     ChunkRecord,
     FileRecord,
@@ -100,6 +101,8 @@ from palace.index.writer import WriterWorker
 from palace.writer_lock import WriterLockTimeout, writer_lock, writer_lock_path
 
 __all__ = [
+    "BuildLimits",
+    "BuildProgress",
     "BINARY_EXTENSIONS",
     "BuildResult",
     "CODE_EXTENSIONS",

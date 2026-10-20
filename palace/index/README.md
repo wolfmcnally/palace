@@ -36,7 +36,23 @@ Phase 2.5 — see [`daemons/index/README.md`](../../daemons/index/README.md)
 for `uv run palace index install` / `uninstall` and the operator
 `bin/palace-index-status` triage script.
 
-## Prerequisites
+## Bounded synchronous builds
+
+As of 2026-10-20, `palace index build` rotates embedding turns across a bounded, sorted multi-root manifest. Completed documents become searchable while earlier large documents are still embedding. Publication remains a whole-document transaction: readers see the previous document or its complete replacement. The build keeps the store writer lock throughout reconciliation; readers can continue using the same-identity index. Identity-changing full rebuilds remain an offline maintenance operation.
+
+Default supported ceilings are 8 MiB per ordinary source or unconsumed JSONL tail, 16,384 changed chunks per document, 64 MiB per serialized plan, 100,000 admitted files per invocation and 1 GiB of logical private staging bytes. Local turns contain at most 32 inputs and 128 KiB; OpenRouter retains its existing 1,024-input and 30,000 normalized-byte/framing request ceiling, with an additional 128 KiB raw ceiling on each input. A remote single input must also fit the stricter 30,000 conservative normalized-byte/framing request budget. These are engineering admission limits, not measured throughput, RSS, allocated filesystem space, SQLite/WAL size or monetary guarantees. Existing parsers can amplify input memory. The Python `BuildLimits` value permits deliberate adjustments; invalid or insufficient budgets refuse before inference. The CLI uses these defaults.
+
+The active set reserves each document's plan and worst-case receipt space, while a separate admission reserve permits a one-turn document beyond a giant-filled window to make progress. Other large documents wait for released capacity. Dispatch and result folding are deterministic for the fixed manifest and concurrency setting; provider outputs need not be deterministic. The changed publication order can affect retrieval ties that previously followed whole-file insertion order. Retrieval parameters and tie algorithms are unchanged.
+
+Private recovery artifacts live under `<store>/index/build-staging`, with source-range, plan, chunk-ID and full embedding-identity bindings. Repeating the same build reuses validated completed turns. Each receipt is flushed before completion is recorded; partial vectors never enter search. Source or identity changes invalidate selected stale work on the next invocation, with reclaimed bytes reported. Each invocation deliberately freezes its source snapshots during manifest planning; editing even a deferred document can refuse the current build. Rerun to replan while reusing other still-compatible receipts. A response lost before its durable receipt may be requested again, so recovery does not promise exactly-once billing. Corrupt receipts visibly refuse reuse; inspect or remove derived `index/build-staging` and rerun to regenerate it. Source files are unaffected. Do not copy staging as canonical index content.
+
+An oversized source, oversized AST declaration, oversized pending JSONL tail, exhausted staging budget or failed request produces an explicit incomplete outcome. Previously indexed rows can remain visible and stale. No deletion sweep or successful full identity certificate follows incomplete work. Ignore the unsupported source or deliberately increase the supported limit before rebuilding. JSONL recovery validates only its consumed range and permits later appends beyond that range; this scope does not stream arbitrarily large pending tails in capped prefixes.
+
+Structured `BuildProgress` callbacks distinguish discovery, admission, dispatch, durable receipt, reuse, committed/queryable documents, refusal and completion. Default stderr progress is rate-limited; terminal JSON report fields remain unchanged. Counts of durable chunks are separate from committed documents and do not imply queryable partial coverage or known cost.
+
+The daemon separately stops at its first failed event, including a writer-lock timeout or cursor-save failure, without processing later events or advancing its checkpoint past the failure. It parks in process with a `work-failure` reason. Wait for a long build or provider to recover, fix, move or delete a poison source as appropriate, then restart explicitly. Identity mismatch retains its separate repair posture. Changing an ignore rule does not skip an event already in the log. There is no automatic work-failure retry or restart loop.
+
+## Provider prerequisites
 
 The index daemon needs a running [Ollama](https://ollama.ai/) instance
 with the `qwen3-embedding:8b` model pulled. The daemon's startup probe
@@ -442,17 +458,7 @@ batch tool has no such constraint, so routing it through the log would
 be pure overhead. After a build, `<store>/events/` is absent or empty
 and `<store>/meta/index-cursor.json` is never created.
 
-**One bounded pipeline.** The calling thread plans files and commits them in
-deterministic walk order; only remote embedding moves to workers. At effective
-concurrency 1, embedding runs inline on that same calling thread and no executor
-is created. Above 1, the in-flight window is capped at 4,096 chunks (about 67 MB
-of float32 vectors at dimension 4,096); one oversize file is admitted alone so
-the largest input cannot deadlock the queue. The measured default is 8, the
-highest level with a two-hour sustained run. N=16 measured faster in bursts and
-remains available through `--embed-concurrency 16`, but is not the default
-because it was never sustained. An explicit value above the selected
-embedder's measured capability fails loudly; an omitted flag resolves local
-Ollama to 1 without refusal.
+**One bounded pipeline.** The calling thread plans files and publishes complete documents at deterministic fold points. Embedding turns run in a bounded executor, including at concurrency one; all SQLite access remains on the calling thread. The active document set reserves durable staging capacity and keeps a lane for later one-turn documents; unsupported oversized work is refused explicitly, never admitted alone above the bound. The remote concurrency default remains 8 from the existing two-hour sustained qualification; 16 remains available within provider capability. Local Ollama resolves to one. See the supported limits and recovery contract above.
 
 **Identical output across modes.** A DB built by `palace index build`
 over a tree and a DB built by the daemon path (`palace reindex
@@ -502,10 +508,7 @@ one new/changed section re-embedded; `unchanged` is files the file-hash
 short-circuit skipped; `deleted` is files dropped by the reconciliation
 sweep.
 
-`embed_concurrency` is the effective value after provider capability
-resolution. `embed_batching` is provider-accurate:
-`per-file(max=1024)` for OpenRouter (the input-count ceiling; the aggregate budget also applies) and `per-file(max=unbounded)` for
-Ollama.
+`embed_concurrency` is the effective value after provider capability resolution. `embed_batching` describes scheduled turns: `per-turn(max=1024,budget=30000)` for OpenRouter and `per-turn(max=32,bytes=131072)` for local providers. Provider transport bounds remain independently enforced.
 
 **Paths are watch-root-relative (Phase 3.2).** `chunks.path` /
 `files.path` / `jsonl_cursors.path` store each file's POSIX path relative
