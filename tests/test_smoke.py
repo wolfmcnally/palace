@@ -58,7 +58,7 @@ def test_palace_cli_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    assert re.match(r"^palace 0\.1\.0\s*$", result.stdout), result.stdout
+    assert re.match(r"^palace 0\.2\.0\s*$", result.stdout), result.stdout
 
     # The complete CLI remains importable on Linux, while macOS operations
     # refuse before creating a store, loading a native extension, or running

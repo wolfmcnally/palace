@@ -6,7 +6,7 @@ Applications can search a single knowledge store or combine results across multi
 
 Palace provides library and command-line interfaces for building agent memory, personal knowledge tools, and other RAG applications, with explicit control over storage, provenance, and inference boundaries.
 
-Version 0.1.0 is the first tagged MIT release. Package registry publication is separate. APIs and storage contracts remain experimental; review the changelog before upgrading.
+Version 0.2.0 packages the bounded indexing and recovery improvements; 0.1.0 remains the first tagged MIT release. Package registry publication is separate. APIs and storage contracts remain experimental; review the changelog before upgrading.
 
 ## Supported retrieval surfaces
 

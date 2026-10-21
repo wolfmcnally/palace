@@ -35,7 +35,7 @@ LaunchAgent supervision remain macOS-specific. Contributors run the complete
 repository gate; hosted CI checks both supported platforms. Synthetic checks do
 not establish availability of a particular remote endpoint or local model.
 
-Version 0.1.0 is the first public release target, under the root MIT license.
+Version 0.1.0 was the first public release, under the root MIT license. Later releases retain their own immutable tags and package artifacts.
 The release checklist defines package, installation, documentation, and smoke
 checks. No package-registry publication or deployment is implied by a Git tag.
 

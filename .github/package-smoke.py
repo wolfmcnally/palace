@@ -14,7 +14,7 @@ from palace.multistore import search_stores
 from palace.search import search
 from palace.watch.config import WatchRootsConfig, default_config_path
 
-assert palace.__version__ == "0.1.0"
+assert palace.__version__ == "0.2.0"
 
 assert Path(palace.__file__).is_relative_to(Path(sys.prefix)), palace.__file__
 
@@ -71,6 +71,6 @@ with tempfile.TemporaryDirectory(prefix="palace-wheel-smoke-") as tmp:
     else:
         raise AssertionError("incompatible identity accepted")
     print(
-        "PASS wheel0.1.0 isolated import, synthetic indexing/retrieval, "
+        "PASS wheel0.2.0 isolated import, synthetic indexing/retrieval, "
         "multistore origin, incompatible identity refusal"
     )

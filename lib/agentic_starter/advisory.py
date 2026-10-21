@@ -72,6 +72,132 @@ def budget_path(root: Path, phase: str) -> Path:
     )
 
 
+def _records(text: str) -> list[dict[str, Any]]:
+    try:
+        rows = [json.loads(line) for line in text.splitlines() if line.strip()]
+    except json.JSONDecodeError as exc:
+        raise AdvisoryError("invalid advisory ledger JSON") from exc
+    if any(not isinstance(row, dict) for row in rows):
+        raise AdvisoryError("invalid advisory ledger record")
+    return rows
+
+
+def validate_budget(root: Path, phase: str, text: str) -> list[dict[str, Any]]:
+    """Replay exceptions and claims against their original append-only prefix."""
+    rows = _records(text)
+    permits: dict[str, dict[str, Any]] = {}
+    spent: set[str] = set()
+    prefix = ""
+    for row in rows:
+        if "exception" in row:
+            permit = row["exception"]
+            if not isinstance(permit, dict):
+                raise AdvisoryError("invalid exception receipt")
+            identifier = digest(permit)
+            if (
+                set(row) != {"exception", "exception_sha256"}
+                or row["exception_sha256"] != identifier
+            ):
+                raise AdvisoryError("exception receipt digest mismatch")
+            expected = {
+                "repository",
+                "phase",
+                "operation",
+                "run",
+                "registration_sha256",
+                "candidate_id",
+                "scope",
+                "owner_evidence",
+                "prefix_sha256",
+            }
+            evidence = permit.get("owner_evidence", {})
+            if (
+                set(permit) != expected
+                or not isinstance(evidence, dict)
+                or set(evidence) != {"source", "reference", "statement"}
+                or any(not isinstance(v, str) or not v.strip() for v in evidence.values())
+                or not isinstance(permit["scope"], str)
+                or not permit["scope"].strip()
+                or any(
+                    not isinstance(permit[k], str)
+                    or len(permit[k]) != 64
+                    or any(c not in "0123456789abcdef" for c in permit[k])
+                    for k in ("candidate_id", "registration_sha256")
+                )
+            ):
+                raise AdvisoryError(
+                    "exception requires attributable owner evidence and exact scope"
+                )
+            prior = active_launches(_records(prefix))
+            matching = [r for r in prior if r["operation"] == "role.code-review"]
+            if (
+                permit["repository"] != str(root.resolve())
+                or permit["phase"] != phase
+                or permit["operation"] != "role.code-review"
+                or len(matching) != 2
+                or permit["prefix_sha256"] != hashlib.sha256(prefix.encode()).hexdigest()
+            ):
+                raise AdvisoryError("exception scope or original two-claim prefix mismatch")
+            if permits:
+                last = next(reversed(permits))
+                claimed = [
+                    r
+                    for r in _records(prefix)
+                    if r.get("exception_sha256") == last and "exception" not in r
+                ]
+                if any(
+                    permit[k] != permits[last][k]
+                    for k in ("candidate_id", "scope", "owner_evidence")
+                ):
+                    raise AdvisoryError(
+                        "exception retry changed the approved candidate, scope or evidence"
+                    )
+                if not claimed or any(r in prior for r in claimed):
+                    raise AdvisoryError("exception already pending or consumed")
+            permits[identifier] = permit
+        elif "not_started" not in row:
+            if (
+                row.get("operation") not in {"role.code-review", "role.plan-review"}
+                or not isinstance(row.get("cause"), str)
+                or not isinstance(row.get("run"), str)
+                or type(row.get("attempt")) is not int
+                or row["attempt"] < 1
+                or type(row.get("pass")) is not int
+            ):
+                raise AdvisoryError("invalid advisory claim")
+            prior = [
+                r for r in active_launches(_records(prefix)) if r["operation"] == row["operation"]
+            ]
+            if row["pass"] != len(prior) + 1 or (prior and not row["cause"].strip()):
+                raise AdvisoryError("advisory pass sequence or cause violated")
+            if len(prior) >= 2:
+                identifier = row.get("exception_sha256")
+                permit = permits.get(identifier)
+                if (
+                    len(prior) != 2
+                    or not permit
+                    or identifier in spent
+                    or row["operation"] != permit["operation"]
+                    or row["run"] != permit["run"]
+                    or row.get("candidate_id") != permit["candidate_id"]
+                    or row.get("registration_sha256") != permit["registration_sha256"]
+                ):
+                    raise AdvisoryError("advisory exception missing, spent or mismatched")
+                spent.add(identifier)
+            elif "exception_sha256" in row:
+                raise AdvisoryError("exception cannot replace a normal advisory pass")
+        else:
+            if set(row) != {"not_started"} or row["not_started"] not in active_launches(
+                _records(prefix)
+            ):
+                raise AdvisoryError("unstarted advisory claim is missing")
+        # Serialized records are canonical; a changed byte invalidates subsequent receipts.
+        prefix += json.dumps(row, sort_keys=True) + "\n"
+    if prefix != text:
+        raise AdvisoryError("advisory ledger is not canonical append-only JSON")
+    return rows
+
+
 def start(
     root: Path, phase: str, run_dir: Path, operation: str, attempt: int, cause: str
 ) -> dict[str, Any]:
@@ -103,7 +229,11 @@ def start(
 
 def active_launches(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     cancelled = {digest(r["not_started"]) for r in records if "not_started" in r}
-    return [r for r in records if "not_started" not in r and digest(r) not in cancelled]
+    return [
+        r
+        for r in records
+        if "not_started" not in r and "exception" not in r and digest(r) not in cancelled
+    ]
 
 
 def cancel_unstarted(root: Path, phase: str, claim: dict[str, Any]) -> None:

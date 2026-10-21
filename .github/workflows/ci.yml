@@ -26,14 +26,14 @@ jobs:
         run: brew install jq
       - run: ./bin/setup
       - run: ./bin/check all
-      - run: uv build --out-dir dist
+      - run: uv build --managed-python --out-dir dist
       - name: Clean wheel installation and synthetic smoke
         shell: bash
         run: |
           uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/palace-requirements.txt" > /dev/null
           uv venv --managed-python --python 3.12 "$RUNNER_TEMP/palace-release-venv"
           uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --require-hashes -r "$RUNNER_TEMP/palace-requirements.txt"
-          uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --no-deps dist/palace-0.1.0-py3-none-any.whl
+          uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --no-deps dist/palace-0.2.0-py3-none-any.whl
           cp .github/package-smoke.py "$RUNNER_TEMP/palace-package-smoke.py"
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/palace-release-venv/bin/python" palace-package-smoke.py

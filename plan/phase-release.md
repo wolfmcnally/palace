@@ -1,6 +1,6 @@
 ---
 id: release
-title: Public 0.1.0 preparation
+title: Public release preparation
 depends_on: []
 informs: []
 ---
@@ -9,7 +9,7 @@ informs: []
 
 ## Goal
 
-Publish a self-contained MIT checkout with reviewed source and synthetic fixtures, retained methodology, and inspected 0.1.0 packages. Preserve operator data outside the public tree.
+Publish a self-contained MIT checkout with reviewed source and synthetic fixtures, retained methodology, and inspected versioned packages. Preserve operator data outside the public tree.
 
 ## Deliverables
 

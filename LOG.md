@@ -407,3 +407,190 @@ Remaining:
 Phase 21 accepted-close bookkeeping landed: the exact prospective ledger was applied and verified; the separate release row and all original sketches/history remain unchanged. Filed lessons/real-dog.md with one methodology observation, added one distinct caped-bonobo occurrence (two total), and filed user-actions/pygmy-quoll.md for human product/readability review with mechanically qualified disposable fake-provider commands. Lessons validation and append-only log checks pass. Existing esoteric-hawk remains a three-occurrence human graduation recommendation; no policy change was made.
 
 Ripple requires no downstream edit. The sanitized offline dashboard is the next and final tracked close write; report generation and the second bare full handoff gate are still pending at this append. No source or test changes followed candidate acceptance. Guarded explicit-path delivery follows only after the handoff receipt; product/readability acceptance remains with the user.
+
+## 2026-10-21 09:49 — START (resumed)
+Public release preparation — next version 0.2.0
+
+Execution trace: 2f811aa69ab249c2b0df02c6b5d8ebdc
+Baseline: 65ec2cad58c0956187c4e276bca6e022410f844f — preserve the historical v0.1.0 tag/assets and existing source semantics.
+
+Planned work:
+- Standalone quickstarts, deeper reference guides, contribution and security instructions.
+- Third-party attribution, pinned CI, fresh full gates and frozen mutation assay.
+- Exact package build, clean install and synthetic retrieval smoke.
+
+The operator explicitly approved completion through new-version tagging, existing-public-repository publication and anonymous downloaded-artifact verification, not readiness alone. Prepared version and release-authority updates remain unaccepted pending fresh independent review and all gates. This continues the existing release phase, preserving all prior records and review allowance history. No package-registry upload, new grants, production mutation or inference is included.
+
+## 2026-10-21 09:49 — PARK
+Public release preparation
+
+Execution trace: 2f811aa69ab249c2b0df02c6b5d8ebdc
+The independent plan report failed ingestion because affected_paths included its absolute scratch plan path. The original response and diagnostics remain immutable; no report is relabeled as admitted. Initial final-version builds were identical and both clean platform installs passed, but these remain unaccepted prior evidence. No release/tag or remote source mutation occurred.
+
+Diagnosed resume: a fresh trace will capture bounded release-prose corrections and obtain the second and final plan-advice pass with explicit repository-relative output labels. Historical phase allowance is retained; the exact path-schema diagnosis consumes one of three self-resume units, leaving two. Same provider/model/effort, no approval bypass. The role and all qualification commands terminated; no child process remains active. Candidate lineage is the prepared current working tree, without restoration or discarded changes.
+
+The START header was mistakenly typed as 09:49; the setup trace establishes it was appended at approximately 09:43 local time. That incorrect original header is preserved; no exact timing claim derives from it.
+
+Lessons:
+- Already covered: inspect enforcing contracts before constructing invocations; the child-span scope flags, pinned tool layout and required definitions table were corrected after their exact diagnostics. No new permanent rule is needed.
+- Report path vocabulary must be explicit when reviewing private scratch plans. Preserve raw outputs and correct through fresh admitted reviewer output, not by silently rewriting the original. Candidate lesson will be harvested at close.
+
+## 2026-10-21 09:51 — START (resumed)
+Public release preparation — final-version qualification
+
+Execution trace: 0ed21a3e40454afdb5ffc97b4e34d8c0
+
+Planned work:
+- Standalone quickstarts, deeper reference guides, contribution and security instructions.
+- Third-party attribution, pinned CI, fresh full gates and frozen mutation assay.
+- Exact package build, clean install and synthetic retrieval smoke.
+
+The schema-refused original review run is parked and immutable. Fresh authority capture includes only bounded approved release-prose corrections. The second and final plan-advice pass retains the same existing phase, provider, model, effort and cumulative budget. All initial builds/installations and successful historical-wheel upgrade smoke remain prior evidence until final changed-package qualification. Existing code-advice pass 1 belonged to the historical misbound remote-budget repair; the remaining pass is used for the complete current release candidate. No report omissions, invented phase or machinery modifications are authorized.
+
+## 2026-10-21 10:11 — PARK
+Public release preparation — 0.2.0 artifacts qualified, evidence recovery unresolved
+
+Execution trace: 0ed21a3e40454afdb5ffc97b4e34d8c0
+
+Version 0.2.0 metadata, root-only lock update, version-bound CI/CLI smoke, release and upgrade documentation are prepared. No commit, push, new tag or release was made. Existing v0.1.0 history and assets remain intact; their tag and anonymous asset-hash baseline is retained privately. The operator's whole-release approval remains applicable and is not being requested again.
+
+Verified preparation:
+- Both final-version builds are byte-identical; every archive member, generated metadata, wheel RECORD, license, dependency declaration and packaged source byte was inspected.
+- Fresh exact-wheel installations on macOS ARM64 and Linux ARM64 passed installed-byte, CLI, injected indexing/search/reranking, no-op, recorded identity, origin-preservation and mismatch-refusal checks without provider calls.
+- The anonymously downloaded published 0.1.0 wheel built a deterministic synthetic store; the hash-bound final wheel searched it and performed an unchanged no-op while preserving its source bytes. This does not certify real providers or arbitrary stores.
+- Fresh frozen assay detected all 22 cases. Complete corrected ./bin/check all passed all 268 tests, lint, format, typecheck, version smoke and policies, with no warnings. The first full run's single old-version fixture failure is preserved; its existing escaped expectation was corrected and its focused check passed before the full rerun. No new product test or proof family was added.
+- Independent Opus/high plan and code reports are preserved and ingested. Their advice prompted precise upgrade limits and source/artifact custody checks. The final small changelog/test corrections have primary dispositions and refreshed qualification, not a fabricated third review. Independent disclosure review found no actual secret or consumer identifier; bounded content screens found none, but neither establishes universal absence. Gitleaks was unavailable and its old-release result is not reused as current proof.
+
+The normal evidence validator refuses the run because the orchestrator used phase-wide review pass 2 as its first local attempt number. Closed telemetry and registrations retain that exact observation. The supported carry-advice route requires the same refused source validation. No missing attempt is invented, no historical record is rewritten, and no exhausted allowance is reset. This differs from the earlier report-path failure, whose parked original remains immutable. No managed implementation acceptance, completed phase, handoff gate or delivery is claimed.
+
+Candidate lineage: the independently reviewed candidate received only documented changelog precision and an existing CLI version-fixture correction, plus truthful bookkeeping. Final package qualification was rebuilt after packaged prose changes. The final source gate preceded this lesson/park/finalized-trace bookkeeping; a new normal handoff gate remains required. Quickstarts and attribution were preexisting release preparation, not rewritten for this minor version. The phase-file user review and existing readability/provider walkthroughs remain human judgments; package plumbing was exercised automatically.
+
+Remaining: supported disposition of the exact local-attempt evidence seam, then normal accepted close/handoff/delivery, hosted branch CI, pristine delivered-commit build comparison, new tag and successful tag CI, GitHub release publication and anonymous downloaded-new-artifact verification. No package registry, live store, inference, security/grant change or service operation is included. Release notes are prepared from the changelog plus hashes, excluding coordination details. No unrelated phase is selected.
+
+Lessons:
+- Filed magenta-rottweiler: distinguish per-run role attempts from phase-wide advisory passes; candidate methodology/bin observation, not authority to change the checker.
+- Existing fixture-inventory rule already covers the missed escaped version literal; both plain and escaped forms were searched after correction.
+- Existing esoteric-hawk remains a three-occurrence human graduation candidate; no rule was graduated. Other already-reported product/readability judgments remain open and are not new publication prerequisites.
+
+## 2026-10-21 10:58 — START (resumed)
+Public release preparation — qualified same-phase evidence recovery
+
+Execution trace: 79e3b6a6252b4419a9e0a831e2013ddf
+
+Planned work:
+- Standalone quickstarts, deeper reference guides, contribution and security instructions.
+- Third-party attribution, pinned CI, fresh full gates and frozen mutation assay.
+- Exact package build, clean install and synthetic retrieval smoke.
+
+The retained tooling owner supplied a narrowly adapted, independently reviewed and gate-proved correction. Only bin/kickoff-evidence and the passive budget-validation closure in lib/agentic_starter/advisory.py were adopted with exact preimage/output hashes. Original tool bytes, patch, source review/native evidence and recipient refusal were archived privately. Original 24 evidence hashes and unchanged two-plan/two-code phase ledger were checked before adoption. No old pinned tools or closed trace was edited.
+
+This genuine same-release primary full/full continuation attests the two independently preserved predecessor runs and carries only final plan-2/code-2 reports. No new role/model invocation, fake local attempt, budget exception/reset, schema weakening or new phase is authorized. Existing final package/platform/upgrade evidence is retained only after checking its actual inputs; no replay is claimed. The current scope still includes guarded delivery, exact branch/tag CI, new-version GitHub release and anonymous downloaded-artifact verification under the original whole-release approval.
+
+## 2026-10-21 11:10 — END
+Public release preparation — source and package qualification
+
+Source preparation is accepted on the evidence below. The complete release remains in progress: guarded delivery, hosted branch/tag CI, pristine delivered-commit artifact equality, publication and anonymous downloaded-artifact verification follow. No new release or tag is claimed by this record. The release row stays in progress until those objective criteria are actually verified; no new phase is selected.
+
+Execution trace: 79e3b6a6252b4419a9e0a831e2013ddf
+
+Files changed:
+- pyproject.toml and uv.lock — version 0.2.0, with no runtime dependency change.
+- .github/package-smoke.py, .github/workflows/ci.yml and tests/test_smoke.py — final-version artifact/CLI witnesses and managed build command.
+- CHANGELOG.md, README.md and RELEASE.md — minor-version scope, exact admission/upgrade/caller changes and package instructions; historical 0.1.0 retained.
+- plan/INDEX.md, plan/phase-release.md and briefs/deployed-consumer-readiness.md — existing release scope made version-neutral; original authorities preserved in history.
+- bin/kickoff-evidence and lib/agentic_starter/advisory.py — exact independently qualified selective recovery closure; no producer, cancellation, ordinary two-pass or close change.
+- LOG.md, EXECUTION_LOG.jsonl and lessons/magenta-rottweiler.md — truthful failures, successful recovery and candidate learning.
+
+Build status:
+- Exact archive/metadata/source/RECORD inspection and two-build equality: OK; final package inputs rechecked unchanged after tooling adoption.
+- macOS ARM64 and Linux ARM64 fresh exact-wheel installations with synthetic injected indexing/search/reranking, identity/origin/no-op/refusal and installed-byte checks: OK. These are real prior qualified executions, not a replay attributed to recovery.
+- Hash-bound synthetic upgrade from the anonymously downloaded historical wheel: OK; no real-provider or arbitrary-store compatibility guarantee.
+- Fresh frozen assay: 22/22 observed. Retained local tooling/control-plane proofs: 10 passed, no warnings.
+- Managed recovery/integrity gate: OK; both genuine predecessors, original24, final plan-2/code-2, exact phase budget and artifact inputs.
+- Managed ./bin/check all: OK, 268 tests and all lint/format/type/CLI/policy checks.
+- Diagnostic review: two recovery-gate and nine full-gate uv environment notices explained by the pinned script environment; canonical wrappers ignore it and select the locked project environment. No override, fallback or test/product warning.
+- Handoff gate: pending after all tracked bookkeeping and the required sanitized report; no delivery before it.
+
+Review lane: full. Evidence lane: full. Follow-up route: full-cycle same-phase primary continuation.
+
+Role model/venue — orchestrated by Codex:
+- Primary: inline planning/coding under the frozen explicit-configuration receipt; no provider-reported primary identity is inferred.
+- Plan reviewer and code critic: original independent Claude Opus/high reports retained with original run/report/span/candidate/native provenance; only final plan-2/code-2 carried. No new invocation, no historical code1 promotion and no ingested plan1 was manufactured.
+- Source correction: separately authorized independent Opus/high source review and qualified tests retained privately; recipient acceptance is this primary's own assessment and actual local proofs, not an imported donor verdict.
+- Historical native model/version/effort observations remain with their original artifacts; no new harness observation exists in this continuation.
+
+Candidate-bound evidence:
+- Product candidate: 4844f3f611961e03d32af7cac9e08887e6ea2f5407fe809e2b335997af0391c6.
+- Both managed final commands preserved their respective full-tree/product identities. Final advice joins are unchanged; phase budget remains exactly two PLAN and two CODE with the original four byte-identical rows.
+- Normal acceptance validation: EVIDENCE VALID before and after finalization; fresh primary dispositions recorded.
+- Supported actual attest/carry/export succeeded. Disposable refusal witnesses rejected a changed budget-prefix digest and a missing real critic predecessor; restored export succeeded. All 24 named original files and old pinned source bytes remain unchanged.
+- Finalized timing summaries are valid; no new role intelligence or user wait is fabricated from carried historical advice.
+
+### Execution timing
+
+Execution trace: 79e3b6a6252b4419a9e0a831e2013ddf
+- Outcome: `success`
+- Makespan: 647285857334 ns (647.285857334 s)
+- Intelligence: 0 ns (0.000000000 s)
+- Gates: 162677777250 ns (162.677777250 s)
+- Orchestration: 646961085208 ns (646.961085208 s)
+- Wait: 0 ns (0.000000000 s)
+- Retry/rework: 0 ns (0.000000000 s)
+- Failed work: 0 ns (0.000000000 s)
+- Unattributed: 324772126 ns (0.324772126 s)
+- Category totals are interval unions and may overlap.
+
+#### Slowest material spans
+
+- `orchestration.acceptance` — category `reconciliation`, attempt 1, outcome `success`: 331721668750 ns (331.721668750 s)
+- `orchestration.setup` — category `reconciliation`, attempt 1, outcome `success`: 313537014166 ns (313.537014166 s)
+- `gate.full` — category `gate`, attempt 1, outcome `success`: 161953545375 ns (161.953545375 s)
+- `orchestration.implementation` — category `reconciliation`, attempt 1, outcome `success`: 1635322750 ns (1.635322750 s)
+- `gate.recovery-integrity` — category `gate`, attempt 1, outcome `success`: 724231875 ns (0.724231875 s)
+
+Acceptance:
+- Objective source preparation: final version metadata and described caller behavior; independent advice and fresh primary dispositions; exact locally inspected reproducible packages; two-platform clean installation, bounded synthetic upgrade, supported immutable evidence recovery and managed complete source gates.
+- Still unproved objective release criteria: hosted CI, new tested-commit tag/release, uploaded asset hashes and anonymous downloaded-new-artifact installation. These are subsequent authorized release steps, not manual acceptance claims or completed work.
+- Parked human judgments: existing quickstart/product/readability/provider walkthroughs remain separate. No new operator decision or publication approval is requested.
+
+Delivery: existing guard after a green final handoff gate, then the already-approved new-version tag/release substeps. Historical v0.1.0 tag/assets/history must remain intact; no package registry, live store, inference, permission/security or service operation is included.
+
+Ripple: none — same existing release, no downstream sketches selected. Existing quickstarts/attribution were not rewritten; the current frozen assay was actually rerun.
+
+Lessons:
+- magenta-rottweiler filed: distinguish local attempts from phase-wide allowance; supported two-predecessor attestation now resolves the preserved failure without rewriting it. No duplicate occurrence or rule graduation.
+- Existing fixture inventory discipline covers the missed escaped version string; it was corrected and focused/full verified.
+- Existing esoteric-hawk graduation recommendation remains outside this release scope; no new policy DECIDE blocks this approved work.
+
+User demo: phase quickstart/synthetic package/inference-boundary review remains available for the operator. Current packaging checks are automated disposable fixtures, not a fabricated interactive demo. Existing readability action remains open and is not a release prerequisite.
+
+Remaining: required report and bare handoff gate; guarded source delivery; exact branch/tag CI; clean delivered-commit artifact comparison; new GitHub release/assets/checksums; anonymous downloaded-new-artifact verification. No publication or phase completion is claimed prematurely.
+
+## 2026-10-21 11:13 — PARK
+Public release preparation — mandatory named-phase report hold
+
+Execution trace: 79e3b6a6252b4419a9e0a831e2013ddf
+
+The accounting recovery is complete and the current source-preparation run remains independently advised, primary-dispositioned, managed-gate proved, finalized and accepted. Its accepted closure is immutable; this append-only record does not change that outcome. All 24 original evidence files and exact two-PLAN/two-CODE bytes remain unchanged. Ten focused recipient proofs and the managed full 268-test/all-policy gate passed. Existing qualified packages and platform/upgrade evidence have unchanged inputs.
+
+Actual remaining refusal: the required execution-telemetry dashboard command for phase `release` exits 2 with `accepted trace is absent or belongs to another phase`. The successful finalized root is `phase.release`; lib/agentic_starter/execution_dashboard.py `_phase_for` admits only the numeric PHASE_RE. This repeats the preserved named-identity projection defect under a genuine whole-release commission. No new report root, synthetic phase, omission, checker change or user publication question is introduced.
+
+The release ledger stays in progress. The mandatory report must be supported before the bare handoff gate or guarded source delivery; branch/tag CI, pristine commit build comparison, publication and anonymous downloaded-new-artifact verification remain pending. All commands are terminal. The coordinator receives the concrete current report defect for routing to the retained tooling owner under existing release authority; no second tooling writer is started.
+
+Lessons:
+- Added the distinct current occurrence to caped-bonobo, now three observations; this remains a candidate, not automatic rule graduation or a new release approval prerequisite.
+- magenta-rottweiler is now resolved by supported real-predecessor attestation while its original failure remains preserved.
+- Existing esoteric-hawk remains a separate human graduation recommendation; no standing policy was changed.
+
+## 2026-10-21 12:01 — END (report recovery)
+
+Public release preparation — named report recovery complete
+
+The mandatory release report renders through the qualified live reader against the unchanged successful accepted trace. Only two live reporting modules changed; closed pinned tools, acceptance, reports and exhausted two-PLAN/two-CODE bytes remain exact. The selective source correction was independently qualified before adoption. Fourteen recipient tests and disposable named/numeric positive, malformed/wrong-phase/case refusal and nonexact wait-union checks passed. Presentation templates and assets are unchanged.
+
+This completes the report hold, not publication. The release ledger stays in progress until hosted commit/tag gates, pristine delivered-source artifact comparison, publication and anonymous downloaded-artifact installation prove the remaining criteria. Qualified package inputs remain identical. The final report write and bare full handoff gate precede guarded delivery. Manual readability and provider-quality judgments remain separate.
+
+Lessons:
+- caped-bonobo preserves the named-identity projection mismatch and bounded correction, without phase invention or evidence rewriting.
+- Private fixture argument and data-envelope parsing mistakes were corrected against the actual handoff schema and canonical parser; rejected diagnostic outputs remain in the execution transcript. No product edits or new duplicate lesson were needed.
+- Existing graduation recommendations remain human judgments, not a release prerequisite.

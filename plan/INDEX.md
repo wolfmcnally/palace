@@ -5,7 +5,7 @@
 | Phase | Title | Status |
 |---|---|---|
 | [Phase 21](phase-21.md) | Bounded indexing and recovery | ✅ |
-| [Release](phase-release.md) | Public 0.1.0 preparation | ⬅️ |
+| [Release](phase-release.md) | Public release preparation | 🚧 |
 
 Private phase history is excluded. Retained policies and current API contracts govern future work.
 

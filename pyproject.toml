@@ -1,6 +1,6 @@
 [project]
 name = "palace"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-first memory and identity-bound multi-store retrieval."
 readme = "README.md"
 license = "MIT"
