@@ -594,3 +594,33 @@ Lessons:
 - caped-bonobo preserves the named-identity projection mismatch and bounded correction, without phase invention or evidence rewriting.
 - Private fixture argument and data-envelope parsing mistakes were corrected against the actual handoff schema and canonical parser; rejected diagnostic outputs remain in the execution transcript. No product edits or new duplicate lesson were needed.
 - Existing graduation recommendations remain human judgments, not a release prerequisite.
+
+## 2026-10-21 13:35 — END
+
+Palace 0.2.0 — full authorized release published and verified
+
+Palace 0.2.0 is published with a new annotated tag bound to the tested release commit. Historical 0.1.0 tag object, commit and asset bytes remain unchanged. The complete source passed the managed implementation gate, final bare handoff gate and normal tag-push guard. Hosted branch and tag CI each passed full checks, package builds and installed synthetic smoke on macOS and Linux. Pristine exports rebuilt twice with byte-identical qualified archives.
+
+Anonymous public HTTPS GETs retrieved all three release assets without account authentication, cookies or proxy credentials. Both package hashes match the previously qualified archives and published SHA256SUMS. Fresh outside-checkout macOS ARM64 and Linux ARM64 environments installed the downloaded wheel with hash-locked dependencies. Dependency checks, exact installed member comparisons, synchronous indexing/retrieval, recorded identity, unchanged no-op, origin preservation, reranking and mismatched-identity refusal passed with injected fake providers and forbidden inference network connections. No production data, paid inference, deployment, production-service restart, grant change or package-registry publication occurred.
+
+Release: https://github.com/wolfmcnally/palace/releases/tag/v0.2.0
+
+Branch CI: https://github.com/wolfmcnally/palace/actions/runs/39649508975
+
+Tag CI: https://github.com/wolfmcnally/palace/actions/runs/39650844078
+
+The release ledger is completed; no next phase is selected. Original accepted source evidence, rejected attempts, final advice, phase identity and exhausted review budgets remain preserved. This close records remote qualification separately; the original source-preparation timing does not measure the later CI or publication interval. Final factual bookkeeping and its regenerated report receive a fresh bare handoff gate before guarded delivery. No tagged source or published asset is relabeled by that bookkeeping commit.
+
+Build warnings:
+- Local source gates are warning-free. Hosted setup reports an already-current jq, Git initialization hints and a pinned checkout-action Node runtime deprecation; both platform jobs completed successfully. Runner label migration notices do not establish the architecture of these exact archives.
+- Linux dependency installation may report its known hardlink-to-copy fallback; copies and exact installed-byte checks pass. Platform claims here remain ARM64 for the exact downloaded-wheel environments.
+
+Acceptance:
+- Objective release, artifacts, tag/commit, CI, public downloads, installation and synthetic behavior are verified.
+- Manual quickstart/readability and real-provider quality judgments remain separate. User Demo: Review the quickstart, synthetic package smoke and documented inference boundaries.
+
+Lessons:
+- caped-bonobo preserves the named-report-reader mismatch and its independently qualified correction; originals and accepted trace were not rewritten.
+- magenta-rottweiler preserves the local-attempt accounting failure and real-predecessor recovery without extra allowance.
+- Existing lesson graduation recommendations and readability review remain operator judgments, not release blockers. No new policy is graduated.
+- Recalibration: no target has the required thirty valid successful samples. The advisory reader explicitly skips incomplete historical schema-3 rows; full diagnostics are preserved privately. No timeout settings or old telemetry bytes were changed.
