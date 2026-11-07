@@ -814,3 +814,128 @@ Applied after the END block above: `plan/INDEX.md` Phase 22 row 🚧 → ✅ wit
 
 Lessons:
 - none beyond the four filed in the END block.
+
+## 2026-11-07 08:49 — START
+
+Phase 23 — Release 0.3.0 preparation
+
+Execution trace: 45d1bcb5fefd489c89ea70a9fb2b560c
+
+Planned work:
+- Version 0.3.0 in `pyproject.toml`, `uv.lock`, `.github/package-smoke.py`, `README.md`, `RELEASE.md` and the changelog, with the `Unreleased` section renamed to `0.3.0` and dated.
+- A sanitization record: a bounded scan of the current tree and the built artifacts for consumer names, private paths, account identifiers and credential shapes, with its exact command and result recorded in the END block; secret-scanning tools remain unavailable on this machine and that gap is stated, not hidden.
+- Locally built 0.3.0 artifacts (sdist and wheel) rebuilt twice byte-identically from the same tree, a hash-locked clean installation that excludes and separately installs the Git-pinned dependency, and the package smoke passing in that environment on macOS.
+- Release documentation consistent with the artifacts: the checklist's version references and the installation steps for the Git-pinned dependency.
+
+## 2026-11-07 09:15 — END
+Phase 23 — Release 0.3.0 preparation
+
+Execution trace: 45d1bcb5fefd489c89ea70a9fb2b560c
+
+What is true now: the tree is exactly what the 0.3.0 release would tag. Every place the 0.2.0 release named its version now says 0.3.0; the changelog carries a dated 0.3.0 section; the operator guide and changelog state the one passed workstation qualification run and what it did not establish; two builds from this tree produced byte-identical artifacts; a hash-locked clean install with the Git-pinned Conric installed separately passed the package smoke; a bounded sanitization scan of the tree and both artifacts found no credential, bearer, private-path, account-identifier or consumer-name disclosure. Nothing was pushed, tagged, released, uploaded or deployed, and no AWS call was made. Publication remains a separate, later step after the instance-role qualification and the operator's go-ahead.
+
+Files changed:
+- pyproject.toml, uv.lock — version 0.3.0 (the lock's own `version` line edited by hand; one line changed)
+- .github/package-smoke.py, .github/workflows/ci.yml, tests/test_smoke.py — version assertion, wheel filename and the regex-escaped version pattern now 0.3.0
+- README.md, RELEASE.md — the version sentence and the checklist's three version references
+- CHANGELOG.md — `Unreleased` renamed to `0.3.0 — 2026-11-07`; the "no live qualification" sentence replaced with the dated workstation observation and its limits
+- docs/bedrock.md — the same dated qualification sentence and limits
+- briefs/bedrock-embedding-provider.md — "Workstation qualification observations" section and `status: implemented`, landed before authority capture so the brief is an unchanged captured authority
+- plan/phase-23.md (new), plan/INDEX.md, LOG.md, EXECUTION_LOG.jsonl — phase sketch, ledger row, log blocks, telemetry
+- lessons/strange-ibis.md — pending (filed in bookkeeping, see Lessons)
+
+Build status:
+- ./bin/check all: OK (lint, format, typecheck, 268 passed with no test warnings, CLI smoke, policies; the only diagnostics are the pinned-script uv environment notices recorded for every prior gate)
+- uv build --managed-python --out-dir (outside the tree), twice into separate directories: OK; sdist a33b538905f09d8afa4a3839a9626090517240a89ec696d73823444ffa733860 and wheel 78054425b403112c241d807fa230e0c9ab1ac6990c80b6933397d3f106a2785e, byte-identical across both builds (SHA-256)
+- uv export --frozen --no-dev --no-emit-project --no-emit-package conric --format requirements-txt: OK (Conric absent except as a `via` comment)
+- Release smoke (`uv pip install --require-hashes` in a fresh managed venv outside the tree, Conric from the pinned commit with `--no-deps`, the wheel with `--no-deps`, `.github/package-smoke.py` from outside the checkout): OK — `PASS wheel0.3.0`, `providers list` shows `bedrock`, member listings reviewed
+- Sanitization scan (zsh wrapper sha256 7550c8bbb1ba988e3f893d6ea7384a2c492255ae6a7187c4c3352d96cc03eb2c over the tracked-tree inventory, the unpacked sdist and the unpacked wheel, against a 37-entry consumer-name list sha256 6c15858d647e25236b4965fc28bdc69382ef98c270401c42eebe420569251de5, private-path, twelve-digit account and credential/bearer shapes): OK — 0 credential, 0 bearer; 47 twelve-digit matches are nanosecond durations in LOG.md and EXECUTION_LOG.jsonl plus one botocore pin documentation example; 23 private-path matches are the documented placeholders `/Users/example/`, `/Users/me/` and `/Users/.../` in `policies/repo-relative-paths.md` and the capture fixtures; 15 consumer-name matches (13 tree, 1 sdist, 1 wheel) each attributed to one of three common English words on the list used in ordinary prose or as an identifier in the consolidation module. Every match dispositioned innocent in the gate review; no name is printed in any artifact. gitleaks and trufflehog remain uninstalled on this machine, so this is the named-pattern claim only.
+- Handoff gate: runs after this tracked END block; completion is contingent on the ignored receipt from the final bare `./bin/check all`
+
+Review lane (per `policies/review-lanes.md`):
+- light (declared in the phase: version strings, changelog, documentation wording and packaging checks only; no product behavior)
+
+Evidence lane (per `policies/review-lanes.md`):
+- full (`.github/package-smoke.py` is a deploy seam)
+
+Follow-up route (per `policies/review-lanes.md`):
+- N/A (initial implementation)
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus high read-only and write-enabled with toolchain probe; codex --model gpt-6-astra high read-only); workflow mode delegated because the invoking session's model is fable, outside the eligible primary list
+- Planner: requested model=opus effort=high venue=claude; attempt 1 produced the plan; attempt 2 was a mechanical concreteness revision (three Definitions Read rows with malformed identifier cells), not a review round
+- Reviewer (plan review): skipped (light lane)
+- Coder: requested model=opus effort=high venue=claude; one attempt, nine files, focused checks green
+- Critic (code review): requested model=astra effort=high venue=codex; APPROVED with an empty finding ledger; its independent escaped-and-plain version sweep found only the preserved historical changelog references
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none recorded by the orchestrator (the watcher's own diagnostics are in the run directory).
+
+Role timing (per `policies/role-timeouts.md`):
+- Planner: 228.5 s (success), 59.1 s (success, revision); first event and longest idle unavailable to the orchestrator
+- Reviewer (plan review): skipped (light lane)
+- Coder: 88.0 s (success)
+- Critic (code review): 69.9 s (success)
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Outcome: `success`
+- Makespan: 1494369584125 ns (1494.369584125 s)
+- Intelligence: 445461729457 ns (445.461729457 s)
+- Gates: 169027379083 ns (169.027379083 s)
+- Orchestration: 1493426919001 ns (1493.426919001 s)
+- Wait: 443690353041 ns (443.690353041 s)
+- Retry/rework: 59137961000 ns (59.137961000 s) (the planner's concreteness revision)
+- Failed work: 0 ns (0.000000000 s)
+- Unattributed: 942665124 ns (0.942665124 s)
+- Category totals are interval unions and may overlap.
+- `orchestration.acceptance` — category `reconciliation`, attempt 1, outcome `success`: 819111789083 ns (819.111789083 s); this span also covers the instance-lane bundle work for the consumer's qualification route, which is outside this phase's tree
+- `orchestration.planning` — category `reconciliation`, attempt 1, outcome `success`: 331560505417 ns (331.560505417 s)
+- `orchestration.implementation` — category `reconciliation`, attempt 1, outcome `success`: 301462834209 ns (301.462834209 s)
+- `role.plan` — category `intelligence`, attempt 1, outcome `success`: 228491802708 ns (228.491802708 s)
+- `gate.check-all` — category `gate`, attempt 1, outcome `success`: 160.3 s
+- Awaiting user input: none (phase-summary reports no operator parks)
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK (timing-summary succeeded for the finalized trace)
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=48118c6b64ac0066e915d9880596f614d12b121291db31517767562c92529be7 approved=10d69d31aeabf71e8a362e156a354f3c04a2aa4604443dd42db86420107c39fb final=10d69d31aeabf71e8a362e156a354f3c04a2aa4604443dd42db86420107c39fb; full-tree identity 116943972073cd59e1bdd3eb2889d117f8a088168a4d42171d4a9360f97bf43d unchanged before and after the gate sequence
+- Revision packets: 0 code; 1 mechanical plan revision
+- Findings: open=0 addressed=0 verified=0 closed=0 blocked=0 (empty ledger); reopened=0; missed-in-full-pass=0
+- Gates: focused=4 (coder: setup, smoke test, lint, format, policy) implementation-final=6 (check-all, two builds, export, release smoke, sanitization scan); all recorded against approved implementation candidate=yes; active command-manifest digest 5891383e09dc53454d4af42db984a5a8bdd69685e0d5fc4e29f2c01b326c40e7
+- Evidence validation: `bin/kickoff-evidence validate --run-dir <this run> --level acceptance` OK (EVIDENCE VALID)
+
+Wall-clock observations:
+- The light lane skipped plan review and the single critique had nothing to find; the full gate was the only material cost (160 s). The cited brief's observations section landed before authority capture, so no governing-prose park recurred.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound): the version appears as 0.3.0 at every site the 0.2.0 release named (confirmed by the critic's escaped-and-plain sweep); the changelog section is dated; both builds are byte-identical; the hash-locked clean install and package smoke pass in a fresh environment outside the tree; the scan is clean under the stated dispositions; no push, tag, release, upload, deployment or AWS call occurred
+- Parked for the user: whether the sanitization dispositions (common-word consumer-name matches, placeholder paths, nanosecond durations) are acceptable for a public release; the gitleaks/trufflehog gap; the publication itself (push, tag v0.3.0, GitHub Release), which waits for the instance-role qualification result and an explicit go-ahead
+
+Delivery:
+- restricted: "the no-push restriction is superseded only for the explicitly ordered qualified release, not generally before AWS qualification. Preserve local commit-only Phase 22 delivery and full gates" and "Do not push unqualified source" (factotum relay of the operator's direction, 2026-11-07 06:56Z and 06:59Z; reaffirmed 15:43Z as "continue local release preparation" under gates without publishing). Delivery is therefore `./bin/deliver --no-push`: a local commit, no push.
+- Reinstall note: the editable system-wide uv tool still reports 0.2.0 until `uv tool install --editable . --reinstall` is run; no dependency changed in this phase, so the Phase 22 reinstall note is the operative one.
+
+Ripple (per `policies/phase-ripple.md`):
+- none — no downstream sketches
+
+Lessons:
+- filed or pending: strange-ibis — a version-bump inventory must search regex-escaped forms and the previous release commit's own file list; a plain-literal grep missed `tests/test_smoke.py` (`0\.2\.0`) and `.github/workflows/ci.yml` (local, skill); pending, filed in bookkeeping
+- occurrences added or pending: none
+- graduation DECIDE: none new; caped-bonobo (3) and esoteric-hawk (3) remain the standing candidates
+- recalibration: insufficient samples (no target has 30 successful samples)
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — this phase changes version strings, documentation and packaging evidence only; the product surfaces were demonstrated in Phase 22 and publication is a later, separately authorized step.
+
+Remaining:
+- Publication of 0.3.0 (push master, annotated tag v0.3.0, GitHub Release with both artifacts and SHA256SUMS, hosted CI green on branch and tag) after the instance-role qualification passes and the operator's go-ahead arrives; the hosted CI install step changed for the Git-pinned Conric and has not yet run hosted because nothing was pushed.
+- Test protocol: skipped (reason: no user-observable surface changed; version strings, documentation and packaging evidence only).
+
+## 2026-11-07 09:16 — END (bookkeeping)
+
+Phase 23 — Release 0.3.0 preparation — bookkeeping outcomes after the accepted close
+
+Execution trace: 45d1bcb5fefd489c89ea70a9fb2b560c
+
+Applied after the END block above: `plan/INDEX.md` Phase 23 row 🚧 → ✅ with no next row (no further sketched phase exists, which is the valid completed state); `lessons/strange-ibis.md` filed as a local candidate and `./bin/lessons validate` passes; catalogs pass. Ripple: none, no downstream sketches. The tracked phase report is generated next, then the bare handoff gate, then local commit-only delivery. Publication is not part of this phase.
+
+Lessons:
+- none beyond strange-ibis, filed above.

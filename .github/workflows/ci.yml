@@ -35,7 +35,7 @@ jobs:
           uv venv --managed-python --python 3.12 "$RUNNER_TEMP/palace-release-venv"
           uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --require-hashes -r "$RUNNER_TEMP/palace-requirements.txt"
           uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --no-deps "conric @ git+https://github.com/wolfmcnally/conric.git@ed9286297e92b8c049f70eb15a3b5556ed107ff0"
-          uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --no-deps dist/palace-0.2.0-py3-none-any.whl
+          uv pip install --python "$RUNNER_TEMP/palace-release-venv/bin/python" --no-deps dist/palace-0.3.0-py3-none-any.whl
           cp .github/package-smoke.py "$RUNNER_TEMP/palace-package-smoke.py"
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/palace-release-venv/bin/python" palace-package-smoke.py

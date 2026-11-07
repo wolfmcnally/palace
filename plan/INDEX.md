@@ -7,6 +7,7 @@
 | [Phase 21](phase-21.md) | Bounded indexing and recovery | ✅ |
 | [Release](phase-release.md) | Public release preparation | ✅ |
 | [Phase 22](phase-22.md) | Bedrock embedding provider and composed settings | ✅ |
+| [Phase 23](phase-23.md) | Release 0.3.0 preparation | ✅ |
 
 Private phase history is excluded. Retained policies and current API contracts govern future work.
 

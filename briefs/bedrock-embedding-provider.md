@@ -1,7 +1,7 @@
 ---
 title: "Bedrock embedding provider and composed Palace settings"
 date: 2026-11-07
-status: draft
+status: implemented
 scope: "Public technical design for a registered AWS Bedrock embedding provider (Cohere Embed v4) selected through a Palace-owned composed-configuration section; dated service observations and their limits; no consumer inventory or deployment evidence."
 ---
 
@@ -28,6 +28,16 @@ Initialization writes the store's selector once. An existing selector that alrea
 - **Boundary.** Bedrock is third-party inference, so the existing published-corpus opt-in and the unconditional personal-store and personal-vault refusals apply unchanged. A Bedrock failure is a refusal, never a substitution.
 - **Probe.** `probe()` is the authenticated retention read, not an embedding. Model availability and the returned dimension are therefore first observed on the first real batch, which is validated before any row is written.
 
+## Workstation qualification observations
+
+As of 2026-11-07 (retrieved live, 15:40:47Z to 15:41:07Z). Route: a workstation profile resolving to an operator-controlled development account, explicit Region us-east-1. Read-only prerequisites immediately before the run: caller identity confirmed; `GetFoundationModelAvailability` for `cohere.embed-v4:0` reported agreement AVAILABLE, authorization AUTHORIZED, entitlement AVAILABLE, region AVAILABLE; `GetAccountDataRetention` in that Region reported mode `none` (last updated 2026-09-02). The installed AWS CLI 2.34.4 does not know the retention operation; the read used botocore 1.43.104, the call Palace itself makes.
+
+Fixture: ten synthetic Markdown notes totalling 2,526 bytes with one planted marker phrase and no operator data, treated as a published corpus for this bounded test. Settings composed from two YAML files through `palace providers set --settings`; stamped identity `bedrock:us-east-1` / `cohere.embed-v4:0` / 1536 / the shared text convention. `palace index build --full`: 10 documents, 11 chunks, 10 embedding requests, 0 failures, concurrency 4, 1.18 s. `palace search --mode vector --no-rerank`: the planted note ranked first of ten.
+
+Observed provider behavior: one retention read per provider instance before any embedding call (build probe and search); documents sent as `search_document` (10 requests of one document each), the query as `search_query` (1 request); every response carried 1536 finite unit-norm floats, stored in a `FLOAT[1536]` table beside the recorded identity rows. All 13 audit records are HTTP 200 on the first attempt (no retries) and carry provider, model, dimension and input type without text, query or credential. The provider returns no usage figure, so cost is recorded unknown; a byte upper bound puts the run under 3,000 billed tokens, far below the USD 1.00 cap approved for it, at the rate the account's owner had previously observed.
+
+Not established by this run: instance-role authentication, other Regions, per-model retention, cross-Region vector equality, throughput, or any property of a real corpus. The instance-role lane remains a separate operator-approved action.
+
 ## Per-store vector width
 
 Before this work the vector table was declared at the local default's 4096 width and vector reads refused any other recorded dimension, so no provider could store a narrower vector without padding. Padding would preserve cosine distances but would put a second, false width into the identity. The table is now declared from the store's recorded identity dimension at initialization; a store whose existing table was created at another width is refused with the remedy of rebuilding from an empty chunks database. Existing 4096 stores create byte-identical DDL.
@@ -38,7 +48,7 @@ Conric is pinned by Git URL, so a hash-locked installation of Palace's dependenc
 
 ## What remains outside this brief
 
-Live qualification against the real model in one Region, from a workstation profile and from an instance role, is an operator-approved paid action with its cost stated; it is not performed by the repository gate. Marketplace agreements, the Region's retention configuration and the IAM grants `bedrock:InvokeModel` and `bedrock:GetAccountDataRetention` are administrator actions. Reranking through Bedrock, inference profiles, image inputs and other embedding types are not included.
+The workstation lane of live qualification ran once under an operator-approved USD 1.00 cap (observations above); the instance-role lane remains a separate operator-approved paid action. Neither is performed by the repository gate. Marketplace agreements, the Region's retention configuration and the IAM grants `bedrock:InvokeModel` and `bedrock:GetAccountDataRetention` are administrator actions. Reranking through Bedrock, inference profiles, image inputs and other embedding types are not included.
 
 ## Sources
 
