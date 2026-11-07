@@ -226,7 +226,7 @@ def serve(
             owned_embedder = injected_embedder is None
             active_embedder: Embedder
             if injected_embedder is None:
-                active_embedder, expected = resolve_embedder(store)
+                active_embedder, expected = resolve_embedder(store, purpose="document")
             else:
                 active_embedder = injected_embedder
             log(

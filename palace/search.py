@@ -349,7 +349,7 @@ def _query_snapshot(
                     if config.provider == "ollama":
                         embedder = OllamaEmbedder()
                     else:
-                        embedder, selected = resolve_embedder(store)
+                        embedder, selected = resolve_embedder(store, purpose="query")
                         stack.callback(embedder.close)
                         if selected != identity:
                             raise IndexError("embedding provider changed during query preparation")

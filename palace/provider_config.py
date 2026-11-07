@@ -21,7 +21,7 @@ from palace.index._errors import IndexError
 from palace.vault import resolve_vault_root
 
 PROVIDERS = {
-    "embedding": ("ollama", "openrouter", "endpoint"),
+    "embedding": ("ollama", "openrouter", "endpoint", "bedrock"),
     "reranking": ("local", "endpoint"),
 }
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")

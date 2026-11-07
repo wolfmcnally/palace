@@ -23,6 +23,7 @@ dependencies = [
     "onnxruntime>=1.28.0",
     "tokenizers>=0.23.1",
     "boto3>=1.39.9",
+    "conric @ git+https://github.com/wolfmcnally/conric.git@ed9286297e92b8c049f70eb15a3b5556ed107ff0",
 ]
 
 [project.scripts]
@@ -38,6 +39,9 @@ dev = [
 [build-system]
 requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["palace"]
@@ -56,6 +60,7 @@ include = [
     "/CONTRIBUTING.md",
     "/SECURITY.md",
     "/PROVENANCE.md",
+    "/docs/bedrock.md",
     "/docs/metadata.md",
     "/docs/multi-store.md",
     "/docs/private-providers.md",

@@ -1943,29 +1943,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test core stores watch root relative path.
+  contract: Stored chunk and file paths are watch-root-relative with an absolute watch_root, plus the original refusal of a path outside the watch root.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
-- id: pytest-tests-index-test-core-py-test-delete-path-keys-on-relative-path-c514e3016d
-  kind: pytest
-  selectors:
-  - tests/index/test_core.py::test_delete_path_keys_on_relative_path
-  source_paths:
-  - tests/index/test_core.py
-  covers:
-  - tests/index/test_core.py
-  - palace/index/**
-  contract: Executable proof for test delete path keys on relative path.
-  risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Original relative-path SQL assertions and the unchanged outside-root refusal assertions on the message.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -1983,9 +1963,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test delete path through core drops all tables.
+  contract: Deleting a path drops its rows from every table, plus the original relative-key deletion contract.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Original per-table counts and the unchanged relative-versus-absolute deletion fixture/assertions in an isolated store and watch root.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2054,26 +2034,6 @@ families:
   duration_seconds: 0.0
   flake_rate: 0.0
   replacement_lineage: []
-- id: s-index-test-core-py-test-index-markdown-file-hash-short-circuit-is-noop-02d546334e
-  kind: pytest
-  selectors:
-  - tests/index/test_core.py::test_index_markdown_file_hash_short_circuit_is_noop
-  source_paths:
-  - tests/index/test_core.py
-  covers:
-  - tests/index/test_core.py
-  - palace/index/**
-  contract: Executable proof for test index markdown file hash short circuit is noop.
-  risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
 - id: -py-test-index-markdown-single-section-change-reembeds-only-that-section-2fe9728220
   kind: pytest
   selectors:
@@ -2083,9 +2043,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test index markdown single section change reembeds only that section.
+  contract: A one-section change re-embeds only that section, plus the original file-hash short-circuit no-op on an unchanged file.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Original section chunk-id assertions and the unchanged short-circuit fixture/assertions in an isolated store and watch root.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2226,26 +2186,6 @@ families:
   contract: Index and delete transactions preserve committed rows on failure and delete identical rows on success; primary errors survive automatic abort and rollback failure.
   risk_class: index
   oracle: Independent SQL row/hash and integrity reads, primary exception object identity, transaction state, rollback call counts and secondary exception notes across six failure permutations.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
-- id: ests-index-test-core-py-test-stored-path-refuses-path-outside-watch-root-cf75d6b5c0
-  kind: pytest
-  selectors:
-  - tests/index/test_core.py::test_stored_path_refuses_path_outside_watch_root
-  source_paths:
-  - tests/index/test_core.py
-  covers:
-  - tests/index/test_core.py
-  - palace/index/**
-  contract: Executable proof for test stored path refuses path outside watch root.
-  risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -5975,3 +5915,72 @@ families:
   flake_rate: 0.0
   replacement_lineage:
   - pytest:tests/index/test_core.py::test_text_embed_input_is_reconstructible_from_stored_columns
+- id: bedrock-settings-refusals
+  kind: pytest
+  selectors:
+  - tests/test_bedrock_provider.py::test_bedrock_settings_and_selector_refuse_before_any_request
+  source_paths:
+  - tests/test_bedrock_provider.py
+  covers:
+  - tests/test_bedrock_provider.py
+  - palace/bedrock.py
+  - palace/settings.py
+  - palace/index/**
+  contract: The composed palace section and the TOML selector share one validator; unknown fields, a missing Region, an inference-profile model and an unsupported dimension refuse with identical text and file locations; the Bedrock identity is Region-qualified; initialization writes once and refuses a different selector; configuration makes no request.
+  risk_class: provider-config
+  oracle: Literal expected refusal strings with Conric source locations, selector file bytes, CLI stdout and stderr, an opener that fails the test if called, and absent audit directories.
+  admission: Phase 22 compensated admission; offline stubbed qualification only, no live Bedrock run.
+  nearest_overlap: Private-provider families validate endpoint selectors; none composes a Conric section, validates Bedrock fields or proves once-only initialization.
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage:
+  - pytest:tests/index/test_core.py::test_stored_path_refuses_path_outside_watch_root
+- id: bedrock-provider-requests
+  kind: pytest
+  selectors:
+  - tests/test_bedrock_provider.py::test_bedrock_embedder_checks_retention_then_sends_bounded_requests
+  source_paths:
+  - tests/test_bedrock_provider.py
+  covers:
+  - tests/test_bedrock_provider.py
+  - palace/bedrock.py
+  - palace/settings.py
+  - palace/index/**
+  contract: The Bedrock embedder refuses without credentials, fails closed on any retention mode but none before an embedding request, stays on the Region's standard endpoints under every ambient override, sends exact SigV4 Embed v4 bodies in batches of at most 96 inside the request budget, validates both response shapes, retries only retryable codes and audits every attempt.
+  risk_class: remote-egress
+  oracle: Real boto3 clients answered by before-send stubs that record every prepared request; decoy credential files and an unflagged client as positive controls; parsed audit records; the suite transport guard.
+  admission: Phase 22 compensated admission; offline stubbed qualification only, no live Bedrock run.
+  nearest_overlap: OpenRouter and private-endpoint families prove HTTP providers; S3 Vectors proves a boto3 vector store; none checks retention, endpoint binding or Embed v4 request shape.
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage:
+  - pytest:tests/index/test_core.py::test_index_markdown_file_hash_short_circuit_is_noop
+- id: bedrock-store-width
+  kind: pytest
+  selectors:
+  - tests/test_search.py::test_bedrock_store_builds_and_searches_at_its_own_width
+  source_paths:
+  - tests/test_search.py
+  covers:
+  - tests/test_search.py
+  - palace/bedrock.py
+  - palace/settings.py
+  - palace/index/**
+  contract: A published 1536-dimension Bedrock store builds and searches end to end with document and query input types; a changed selected width refuses before any request and leaves vectors unchanged; an unpublished store refuses; default stores keep the pre-phase 4096 vector-table statement.
+  risk_class: index
+  oracle: sqlite_master vector-table SQL, recorded identity rows, stub request bodies and counts, vector blobs and audit records compared before and after, and the literal pre-phase statement normalized by SQLite.
+  admission: Phase 22 compensated admission; offline stubbed qualification only, no live Bedrock run.
+  nearest_overlap: Search families use 4096-wide fake embedders; none declares a narrower vector table or routes build and query purposes to a provider.
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage:
+  - pytest:tests/index/test_core.py::test_delete_path_keys_on_relative_path

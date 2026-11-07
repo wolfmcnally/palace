@@ -56,6 +56,15 @@ def _noop_log(_line: str) -> None:
     return None
 
 
+def _isolated(tmp_store: Path, tmp_watch_root: Path, name: str) -> tuple[Path, Path]:
+    """A fresh store and watch root for an absorbed family, beside the fixture's own."""
+    store = tmp_store / name
+    root = tmp_watch_root.parent / f"{name}-watch"
+    store.mkdir()
+    root.mkdir()
+    return store, root
+
+
 def _store_of(conn: sqlite3.Connection) -> Path:
     """The store a ``_open`` connection was bootstrapped from."""
     return Path(conn.execute("PRAGMA database_list").fetchone()[2]).parent.parent
@@ -157,7 +166,7 @@ def _assert_markdown_input_reconstruction(
     assert embedder.last_batch == [scored_text(path=path_str, heading=heading, body=body)]
 
 
-def test_index_markdown_file_hash_short_circuit_is_noop(
+def _assert_markdown_file_hash_short_circuit_is_noop(
     tmp_store: Path,
     tmp_watch_root: Path,
     embedder: FakeEmbedder,
@@ -214,6 +223,10 @@ def test_index_markdown_single_section_change_reembeds_only_that_section(
     assert after[0] == before[0]
     assert after[2] == before[2]
     assert after[1] != before[1]
+
+    _assert_markdown_file_hash_short_circuit_is_noop(
+        *_isolated(tmp_store, tmp_watch_root, "short-circuit"), FakeEmbedder()
+    )
 
 
 def test_index_jsonl_through_core_append_only(
@@ -426,6 +439,10 @@ def test_delete_path_through_core_drops_all_tables(
     assert vec_n == 0
     assert fts_n == 0
 
+    _assert_delete_path_keys_on_relative_path(
+        *_isolated(tmp_store, tmp_watch_root, "relative-delete"), FakeEmbedder()
+    )
+
 
 def test_index_one_spurious_delete_guard(
     tmp_store: Path,
@@ -582,6 +599,8 @@ def test_core_stores_watch_root_relative_path(
     assert not chunk_path.startswith(("/", "~"))
     assert chunk_watch_root == str(tmp_watch_root)
 
+    _assert_stored_path_refuses_path_outside_watch_root()
+
 
 def test_core_chunk_id_includes_watch_root(
     tmp_path: Path,
@@ -633,7 +652,7 @@ def test_core_chunk_id_includes_watch_root(
     assert ids_a == ids_a_again
 
 
-def test_stored_path_refuses_path_outside_watch_root() -> None:
+def _assert_stored_path_refuses_path_outside_watch_root() -> None:
     """``_stored_path`` raises ``IndexError`` for a path outside the root."""
     with pytest.raises(PalaceIndexError) as exc:
         _stored_path(Path("/tmp/elsewhere/x.md"), Path("/tmp/root"))
@@ -642,7 +661,7 @@ def test_stored_path_refuses_path_outside_watch_root() -> None:
     assert "/tmp/root" in message
 
 
-def test_delete_path_keys_on_relative_path(
+def _assert_delete_path_keys_on_relative_path(
     tmp_store: Path,
     tmp_watch_root: Path,
     embedder: FakeEmbedder,

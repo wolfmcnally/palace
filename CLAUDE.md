@@ -35,6 +35,7 @@ Palace is a personal-memory substrate for agents and applications. Preserve prov
 ## Product briefs
 
 - [Memory System Improvements Plan](briefs/Memory-System-Improvements-Plan.md)
+- [bedrock embedding provider](briefs/bedrock-embedding-provider.md)
 - [consolidator extraction source pluggability](briefs/consolidator-extraction-source-pluggability.md)
 - [contextual enrichment](briefs/contextual-enrichment.md)
 - [deployed consumer readiness](briefs/deployed-consumer-readiness.md)

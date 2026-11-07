@@ -165,6 +165,14 @@ wheels = [
 ]
 
 [[package]]
+name = "conric"
+version = "0.1.0"
+source = { git = "https://github.com/wolfmcnally/conric.git?rev=ed9286297e92b8c049f70eb15a3b5556ed107ff0#ed9286297e92b8c049f70eb15a3b5556ed107ff0" }
+dependencies = [
+    { name = "pyyaml" },
+]
+
+[[package]]
 name = "cryptography"
 version = "48.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -560,6 +568,7 @@ version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
+    { name = "conric" },
     { name = "httpx" },
     { name = "mcp", extra = ["cli"] },
     { name = "onnxruntime" },
@@ -586,6 +595,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.39.9" },
+    { name = "conric", git = "https://github.com/wolfmcnally/conric.git?rev=ed9286297e92b8c049f70eb15a3b5556ed107ff0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.0" },
     { name = "onnxruntime", specifier = ">=1.28.0" },

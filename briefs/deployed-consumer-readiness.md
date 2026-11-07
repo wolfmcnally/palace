@@ -12,13 +12,7 @@ requirements; it contains no inventory of actual consumer deployments.
 
 ## Inference and data boundaries
 
-Embedding identity is recorded in each store and incompatible query providers
-are refused. Local inference, OpenRouter, and private endpoint adapters have
-different disclosure boundaries; follow the provider documentation and use
-remote inference only for corpora whose disclosure is authorized. OpenRouter
-is intended for published corpora. Private endpoints require explicit caller
-configuration and credentials. Provider failures must not silently select a
-different venue. AWS Bedrock is not an implemented provider.
+Embedding identity is recorded in each store and incompatible query providers are refused. Local inference, OpenRouter, and private endpoint adapters have different disclosure boundaries; follow the provider documentation and use remote inference only for corpora whose disclosure is authorized. OpenRouter is intended for published corpora. Private endpoints require explicit caller configuration and credentials. Provider failures must not silently select a different venue. AWS Bedrock (Cohere Embed v4) is an implemented third-party embedding provider that requires the store's published-corpus assertion and refuses unless the selected Region's data-retention mode reads exactly `none`.
 
 ## Multiple stores
 

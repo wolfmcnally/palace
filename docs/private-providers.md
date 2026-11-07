@@ -106,4 +106,4 @@ This explicitly degraded request should return `failed` status; omitting the len
 ./bin/palace-private-demo cleanup
 ```
 
-Operator judgment of the walkthrough and diagnostic clarity remains separate from automated qualification. No real endpoint provisioning, private corpus, paid call, Bedrock adapter, remote rerank vendor or Linux daemon is included.
+Operator judgment of the walkthrough and diagnostic clarity remains separate from automated qualification. No real endpoint provisioning, private corpus, paid call, remote rerank vendor or Linux daemon is included. AWS Bedrock embedding is a separate third-party provider; see [Bedrock embedding and composed settings](bedrock.md).

@@ -11,4 +11,6 @@ Guides for users and library integrators. Start with the repository README and s
 
 - [Private inference providers](private-providers.md) — explicit boundary authorization, HTTPS adapter, audit, failure behavior and synthetic walkthrough.
 
+- [Bedrock embedding and composed settings](bedrock.md) — the `palace` section of a composed configuration, the equivalent TOML selector, the `bedrock` provider's retention check, bounds, audit and per-store vector width.
+
 - [Document metadata](metadata.md) — exact indexed string sets, document discovery without passages, atomic refreshes and constrained retrieval.

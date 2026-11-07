@@ -12,6 +12,19 @@ import palace.index.embedder as embedder_module
 import palace.rerank_model as rerank_model_module
 
 
+def aws_env_credential_names() -> tuple[str, ...]:
+    """Every variable botocore's ``EnvProvider`` reads, from the installed SDK itself."""
+    from botocore.credentials import EnvProvider
+
+    return (
+        EnvProvider.ACCESS_KEY,
+        EnvProvider.SECRET_KEY,
+        *EnvProvider.TOKENS,
+        EnvProvider.EXPIRY_TIME,
+        EnvProvider.ACCOUNT_ID,
+    )
+
+
 @pytest.fixture(scope="session", autouse=True)
 def guard_outbound_embedding() -> Iterator[str]:
     """Fail any embedding HTTP request that lacks an explicit test transport."""
@@ -34,6 +47,59 @@ def guard_outbound_embedding() -> Iterator[str]:
     patcher.setattr(embedder_module, "_build_client", guarded_client)
     try:
         yield sentinel
+    finally:
+        patcher.undo()
+
+
+# Every ambient source the installed botocore consults for credentials, bearer tokens and
+# endpoint overrides; the guard removes them before any test constructs a session. The
+# environment provider's inputs come from its own class attributes, so the inventory
+# follows the installed SDK (keys, AWS_SECURITY_TOKEN/AWS_SESSION_TOKEN, expiry, account).
+_AWS_AMBIENT = (
+    *aws_env_credential_names(),
+    "AWS_PROFILE",
+    "AWS_DEFAULT_PROFILE",
+    "AWS_ROLE_ARN",
+    "AWS_WEB_IDENTITY_TOKEN_FILE",
+    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+    "AWS_CREDENTIAL_FILE",
+    "AWS_BEARER_TOKEN_BEDROCK",
+    "AWS_ENDPOINT_URL",
+    "AWS_ENDPOINT_URL_BEDROCK",
+    "AWS_ENDPOINT_URL_BEDROCK_RUNTIME",
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def guard_outbound_aws(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+    """Isolate AWS credentials and endpoints, and fail any request a stub did not answer.
+
+    A ``before-send`` stub answers a request before botocore's transport is reached, so
+    only an unstubbed request (instance-metadata credential fetches included) arrives at
+    the replaced ``URLLib3Session.send``. Yields the directory the redirected AWS config
+    paths point into, none of which exist.
+    """
+    from botocore.httpsession import URLLib3Session
+
+    isolated = tmp_path_factory.mktemp("palace-test-aws")
+    patcher = pytest.MonkeyPatch()
+    for name in _AWS_AMBIENT:
+        patcher.delenv(name, raising=False)
+    patcher.setenv("AWS_CONFIG_FILE", str(isolated / "config"))
+    patcher.setenv("AWS_SHARED_CREDENTIALS_FILE", str(isolated / "credentials"))
+    patcher.setenv("BOTO_CONFIG", str(isolated / "boto"))
+    patcher.setenv("AWS_EC2_METADATA_DISABLED", "true")
+
+    def reject(self: object, request: object) -> object:
+        pytest.fail(
+            "test attempted a real outbound AWS request: "
+            f"{getattr(request, 'method', '?')} {getattr(request, 'url', '?')}"
+        )
+
+    patcher.setattr(URLLib3Session, "send", reject)
+    try:
+        yield isolated
     finally:
         patcher.undo()
 

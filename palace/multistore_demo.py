@@ -185,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
             stack.enter_context(
                 patch(
                     "palace.multistore.resolve_embedder",
-                    lambda store: (DemoEmbedder(), resolve_identity(store)),
+                    lambda store, *, purpose: (DemoEmbedder(), resolve_identity(store)),
                 )
             )
             stack.enter_context(

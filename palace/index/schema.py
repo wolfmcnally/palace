@@ -32,6 +32,7 @@ greenfield-until-released policy holds).
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,7 +44,6 @@ from palace.daemons.capture.ids import compute_record_id
 from palace.index._errors import IdentityMismatchError, IndexError
 from palace.index.config import (
     EMBED_CONVENTION,
-    EMBED_DIM,
     SCHEMA_TAG,
     EmbeddingIdentity,
     chunks_db_path,
@@ -59,7 +59,9 @@ __all__ = [
     "assert_identity",
     "assert_identity_readable",
     "assert_schema_version",
+    "assert_vector_width",
     "compute_chunk_id",
+    "declared_vector_dim",
     "identity_divergences",
     "identity_mismatch_line",
     "init_db",
@@ -165,8 +167,8 @@ CHUNKS_ROOT_PATH_INDEX = (
 )
 
 
-def _ddl_statements() -> tuple[str, ...]:
-    """The schema DDL, run once on bootstrap."""
+def _ddl_statements(dim: int) -> tuple[str, ...]:
+    """The schema DDL, run once on bootstrap, with the vector table at ``dim``."""
     return (
         # Canonical row store. Every promoted fact about a chunk lives
         # here; the two virtual tables below are derived indexes.
@@ -246,12 +248,12 @@ def _ddl_statements() -> tuple[str, ...]:
         )
         """,
         # sqlite-vec virtual table. ``FLOAT[N]`` declares a fixed-dim
-        # f32 vector column; sqlite_vec.serialize_float32 is the writer
-        # idiom (a bytes blob, not a list).
+        # f32 vector column at the store's identity dimension;
+        # sqlite_vec.serialize_float32 is the writer idiom (a bytes blob, not a list).
         f"""
         CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vec USING vec0(
             chunk_id TEXT PRIMARY KEY,
-            embedding FLOAT[{EMBED_DIM}]
+            embedding FLOAT[{dim}]
         )
         """,
         # FTS5 virtual table. ``chunk_id UNINDEXED`` lets the writer
@@ -358,8 +360,41 @@ def identity_divergences(
     )
 
 
-def readable_divergences(found: RecordedIdentity) -> tuple[str, ...]:
-    """Bind reader compatibility while permitting a foreign model/provider value."""
+_VECTOR_WIDTH = re.compile(r"\bembedding\s+FLOAT\[(\d+)\]", re.IGNORECASE)
+_SCHEMAS = frozenset({"main", "source"})
+
+
+def declared_vector_dim(conn: sqlite3.Connection, schema: str = "main") -> int | None:
+    """Return the width ``chunks_vec`` was declared at in ``schema``, or ``None`` if absent."""
+    if schema not in _SCHEMAS:
+        raise IndexError(f"unknown attached schema {schema!r}")
+    row = conn.execute(
+        f"SELECT sql FROM {schema}.sqlite_master WHERE name = 'chunks_vec'"
+    ).fetchone()
+    if row is None or row[0] is None:
+        return None
+    match = _VECTOR_WIDTH.search(str(row[0]))
+    if match is None:
+        raise IndexError("chunks vector table declares no embedding width")
+    return int(match.group(1))
+
+
+def assert_vector_width(conn: sqlite3.Connection, dim: int, *, store: Path) -> None:
+    """Refuse a store whose existing vector table was declared at another width."""
+    found = declared_vector_dim(conn)
+    if found is not None and found != dim:
+        raise IndexError(
+            f"chunks vector table width {found} differs from the store's selected dim {dim}; "
+            f"move {chunks_db_path(store)} aside and run 'palace index build --full' to "
+            "rebuild from an empty chunks database"
+        )
+
+
+def readable_divergences(found: RecordedIdentity, *, declared_dim: int | None) -> tuple[str, ...]:
+    """Bind reader compatibility while permitting a foreign model/provider value.
+
+    The recorded dimension must equal the width the vector table was declared at.
+    """
     divergences: list[str] = []
     if found.convention != EMBED_CONVENTION:
         value = found.convention if found.convention is not None else "none"
@@ -368,10 +403,11 @@ def readable_divergences(found: RecordedIdentity) -> tuple[str, ...]:
         divergences.append("model not recorded")
     if found.provider is None:
         divergences.append("provider not recorded")
-    expected_dim = str(EMBED_DIM)
-    if found.dim != expected_dim:
+    if declared_dim is None:
+        divergences.append("vector table not declared")
+    elif found.dim != str(declared_dim):
         value = found.dim if found.dim is not None else "none"
-        divergences.append(f"dim found='{value}' expected='{expected_dim}'")
+        divergences.append(f"dim found='{value}' expected='{declared_dim}'")
     return tuple(divergences)
 
 
@@ -393,7 +429,7 @@ def assert_identity(conn: sqlite3.Connection, expected: EmbeddingIdentity) -> No
 
 def assert_identity_readable(conn: sqlite3.Connection) -> None:
     """Refuse vector reads on incompatible or convention-only stores."""
-    divergences = readable_divergences(read_identity(conn))
+    divergences = readable_divergences(read_identity(conn), declared_dim=declared_vector_dim(conn))
     if divergences:
         raise IdentityMismatchError(identity_mismatch_line(divergences))
 
@@ -551,12 +587,14 @@ def init_db(conn: sqlite3.Connection, *, store: Path) -> None:
 
     _assert_not_foreign_schema(conn, store=store)
 
-    for statement in _ddl_statements():
+    identity = resolve_identity(store)
+    assert_vector_width(conn, identity.dim, store=store)
+    for statement in _ddl_statements(identity.dim):
         conn.execute(statement)
     chunk_count = int(conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0])
     meta_count = int(conn.execute("SELECT COUNT(*) FROM index_meta").fetchone()[0])
     if chunk_count == 0 and meta_count == 0:
-        stamp_identity(conn, resolve_identity(store))
+        stamp_identity(conn, identity)
         # A new store keeps its keyword-row lookup from its first write.
         conn.execute(
             "INSERT OR IGNORE INTO index_meta (key, value) VALUES (?, 'complete')",

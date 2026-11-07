@@ -1316,3 +1316,137 @@ def test_s3vectors_backend_query_composes_with_fusion(
     assert json.loads(out.err.strip().splitlines()[-1])["vector_usage"]["requests"] == 2
     assert palace_main(argv) == 0
     assert "palace search: vector backend s3vectors requests=2" in capsys.readouterr().err
+
+
+def test_bedrock_store_builds_and_searches_at_its_own_width(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from palace.index._errors import IndexError as PalaceError
+    from palace.index.build import build
+    from palace.index.config import chunks_db_path, prepare_chunks_db_path
+    from palace.index.embedder_config import EmbedderConfig, save_embedder_config
+    from palace.index.schema import _ddl_statements, declared_vector_dim, init_db, read_identity
+    from tests.test_bedrock_provider import BedrockStub, audit, fixture_credentials
+
+    stub = BedrockStub()
+    stub.install(monkeypatch)
+    fixture_credentials(monkeypatch)
+    root = tmp_path / "published"
+    root.mkdir()
+    files = {
+        "alpha.md": "## Alpha\nlantern harbor\n",
+        "beta.md": "## Beta\nquiet meadow\n",
+        "gamma.md": "## Gamma\ncopper kettle\n",
+    }
+    for name, body in files.items():
+        (root / name).write_text(body, encoding="utf-8")
+
+    def selector(dim: int, *, published: bool = True) -> EmbedderConfig:
+        return EmbedderConfig(
+            provider="bedrock",
+            model="cohere.embed-v4:0",
+            dim=dim,
+            region="us-east-1",
+            published_corpus=published,
+            published_corpus_note="Synthetic published fixture" if published else None,
+            published_corpus_asserted_at="2026-11-07T00:00:00Z" if published else None,
+        )
+
+    def vec_sql(conn: sqlite3.Connection) -> str:
+        return str(
+            conn.execute("SELECT sql FROM sqlite_master WHERE name = 'chunks_vec'").fetchone()[0]
+        )
+
+    def vec_rows(store: Path) -> list[tuple[str, bytes]]:
+        import sqlite_vec
+
+        with closing(sqlite3.connect(chunks_db_path(store))) as conn:
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
+            return [
+                (str(cid), bytes(blob))
+                for cid, blob in conn.execute(
+                    "SELECT chunk_id, embedding FROM chunks_vec ORDER BY chunk_id"
+                )
+            ]
+
+    store = tmp_path / "store"
+    save_embedder_config(store, selector(1536))
+    build(store=store, watch_root_filter=root, full=True, log=lambda _line: None)
+    with closing(sqlite3.connect(chunks_db_path(store))) as conn:
+        assert "embedding FLOAT[1536]" in vec_sql(conn)
+        assert declared_vector_dim(conn) == 1536
+        recorded = read_identity(conn)
+    assert (recorded.provider, recorded.model, recorded.dim) == (
+        "bedrock:us-east-1",
+        "cohere.embed-v4:0",
+        "1536",
+    )
+    build_types = {json.loads(r.body)["input_type"] for r in stub.invokes()}
+    assert build_types == {"search_document"}
+    assert sorted(len(blob) for _, blob in vec_rows(store)) == [1536 * 4] * 3
+
+    hits = search(query="lantern harbor", store=store, mode="vector")
+    assert hits[0].path.endswith("alpha.md")
+    assert json.loads(stub.invokes()[-1].body)["input_type"] == "search_query"
+
+    # Without a published-corpus assertion the build refuses before any request.
+    unpublished = tmp_path / "unpublished"
+    save_embedder_config(unpublished, selector(1536, published=False))
+    before = len(stub.requests)
+    with pytest.raises(PalaceError, match="published-corpus assertion"):
+        build(store=unpublished, watch_root_filter=root, full=True, log=lambda _line: None)
+    assert len(stub.requests) == before
+
+    # A different selected width refuses before the probe: no request of any kind, no new
+    # audit record and unchanged vectors; search refuses on identity.
+    rows, records = vec_rows(store), audit(store)
+    save_embedder_config(store, selector(1024))
+    before = len(stub.requests)
+    with pytest.raises(PalaceError, match="chunks vector table width 1536 differs"):
+        build(store=store, watch_root_filter=root, full=True, log=lambda _line: None)
+    assert len(stub.requests) == before
+    assert audit(store) == records and vec_rows(store) == rows
+    with pytest.raises(PalaceError, match="embedding-identity mismatch: dim found='1536'"):
+        search(query="lantern harbor", store=store, mode="vector")
+    assert len(stub.requests) == before
+
+    # A default store's vector table is the literal pre-phase 4096 statement.
+    import sqlite_vec
+
+    default = tmp_path / "default"
+    default.mkdir()
+    with closing(sqlite3.connect(str(prepare_chunks_db_path(default)))) as conn:
+        init_db(conn, store=default)
+        stored = vec_sql(conn)
+    pre_phase = """
+        CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vec USING vec0(
+            chunk_id TEXT PRIMARY KEY,
+            embedding FLOAT[4096]
+        )
+        """
+    assert pre_phase in _ddl_statements(4096)
+    with closing(sqlite3.connect(":memory:")) as scratch:
+        scratch.enable_load_extension(True)
+        sqlite_vec.load(scratch)
+        scratch.execute(pre_phase)
+        assert vec_sql(scratch) == stored
+
+    # A relative store path builds twice through the pre-probe width check (the second
+    # build reads the existing database), and still refuses a different width before any
+    # provider request.
+    monkeypatch.chdir(tmp_path)
+    relative = Path("relative-store")
+    for _ in range(2):
+        build(
+            store=relative,
+            watch_root_filter=root,
+            full=True,
+            embedder=FakeEmbedder(),
+            log=lambda _line: None,
+        )
+    save_embedder_config(relative, selector(1024))
+    before = len(stub.requests)
+    with pytest.raises(PalaceError, match="chunks vector table width 4096 differs"):
+        build(store=relative, watch_root_filter=root, full=True, log=lambda _line: None)
+    assert len(stub.requests) == before

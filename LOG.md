@@ -624,3 +624,193 @@ Lessons:
 - magenta-rottweiler preserves the local-attempt accounting failure and real-predecessor recovery without extra allowance.
 - Existing lesson graduation recommendations and readability review remain operator judgments, not release blockers. No new policy is graduated.
 - Recalibration: no target has the required thirty valid successful samples. The advisory reader explicitly skips incomplete historical schema-3 rows; full diagnostics are preserved privately. No timeout settings or old telemetry bytes were changed.
+
+## 2026-11-06 22:43 — START
+
+Phase 22 — Bedrock embedding provider and composed settings
+
+Execution trace: f04dc7e5759742d6953b0ef18c0efd75
+Baseline: bf62a5f — 4096-dimension stores create the same vector-table DDL and pass the same proofs as before this phase
+
+Planned work:
+- A per-store vector width: the chunks vector table declared from the store's recorded identity dimension, with an explicit refusal when an existing table was created at another width.
+- A registered `bedrock` embedding provider: direct regional model id, AWS SDK credential chain only, same-Region `GetAccountDataRetention` check requiring `none` before the first embedding request, Cohere Embed v4 request body with purpose-specific `input_type`, batches of at most 96 under an aggregate request budget, bounded concurrency and retries with SDK retries disabled, audited attempts, and the existing published-corpus boundary.
+- A Palace-owned composed-settings module: a Conric leaf validator for the top-level `palace` section sharing one mapping validator with the TOML selector, a loader taking composed files and root, and a once-only store initialization that refuses a differing existing selector.
+- Purpose-aware embedder resolution (`document` or `query`) at every build, update, daemon and search call site, with the protocol unchanged for injected embedders.
+- Conric as a pinned runtime dependency with the lockfile, release checklist and CI install adjusted for a Git-pinned package; documentation of the `palace` section, the provider, the retention check's limited meaning and the Region constraint; pinned service-model excerpts; updated changelog and consumer-readiness brief.
+- Offline hermetic proofs admitted with compensating retirements.
+
+Phase 22 — Bedrock embedding provider and composed settings — governing-prose park before the continuation run
+
+Execution trace: f04dc7e5759742d6953b0ef18c0efd75
+
+The approved plan rewrote one sentence of a cited brief (`briefs/deployed-consumer-readiness.md`: "AWS Bedrock is not an implemented provider" became a capability statement). That brief was a captured authority of this run, so acceptance validation refused the otherwise green run with "declared authority changed; re-review in a fresh evidence run". Nothing in the product failed: the delegated Opus planner's plan passed the mechanical concreteness check and two independent Astra reviews (three findings, all verified); the delegated Opus coder's implementation passed two independent Astra critiques (three findings, all verified, one of them a confirmed relative-store-path bug fixed in revision); and the six-command implementation-candidate sequence ending in `./bin/check all` passed (268 tests, no test warnings) with the product and full-tree identities unchanged before and after. Every artifact, the run directory and the candidate lineage (initial 26be215dabf6d8cd25b437b1360c5da11b146f01973a89f66a02f20252c4c5d4, reviewed and gate-proved 04730a0b67219f0b6511e44eef0b0a100b78371a133445a7e57d8a3c306d2abb) are preserved.
+
+Resume condition: a fresh evidence run that captures the current authorities, carries the approved plan (hash e9891a9adc7c14c0925bd13308855f09e8bb7bb081288bbd9d66afd43d144f28) and its round-2 approval, has the critic re-review the complete diff from HEAD against the preserved plan and current authorities, and repeats the candidate-bound gate sequence. This session continues immediately; no operator input is required. Delivery remains restricted to a local commit with no push, per the factotum-relayed instruction of 2026-11-07 and its clarification.
+
+Lessons:
+- filed: banana-kingfisher — the watcher's artifact flag is venue-specific; two prelaunch refusals (methodology, skill)
+- filed: curious-wallaby — pin a dependency's API source under docs/reference before a plan cites it (methodology, policy)
+- filed: jade-hare — a delegated coder venue cannot run the whole suite green under the delegation guard (methodology, test)
+- filed: sturdy-hummingbird — a plan that edits one of its own cited briefs forces this park; land that edit before capture (methodology, skill)
+- occurrences added: none
+- graduation DECIDE: none new; caped-bonobo and esoteric-hawk remain at three occurrences from earlier phases
+
+## 2026-11-07 00:06 — START (resumed)
+
+Phase 22 — Bedrock embedding provider and composed settings
+
+Execution trace: 6bfeb9c16521489294986aa564ed1dc7
+Baseline: bf62a5f — 4096-dimension stores create the same vector-table DDL and pass the same proofs as before this phase
+
+Continuation of the parked first run (trace f04dc7e5759742d6953b0ef18c0efd75) after the approved plan's one-sentence rewrite of the cited brief `briefs/deployed-consumer-readiness.md` was captured as current authority. The preserved approved plan (hash e9891a9adc7c14c0925bd13308855f09e8bb7bb081288bbd9d66afd43d144f28, round-2 `APPROVED`), the complete implementation (gate-proved candidate 04730a0b67219f0b6511e44eef0b0a100b78371a133445a7e57d8a3c306d2abb) and all six verified findings carry forward. No planning stage runs; the coder confirms nothing remains and reruns the focused sequence, the critic re-reviews the complete diff from HEAD against the preserved plan and current authorities, and the candidate-bound gate sequence repeats.
+
+Planned work:
+- A per-store vector width: the chunks vector table declared from the store's recorded identity dimension, with an explicit refusal when an existing table was created at another width.
+- A registered `bedrock` embedding provider: direct regional model id, AWS SDK credential chain only, same-Region `GetAccountDataRetention` check requiring `none` before the first embedding request, Cohere Embed v4 request body with purpose-specific `input_type`, batches of at most 96 under an aggregate request budget, bounded concurrency and retries with SDK retries disabled, audited attempts, and the existing published-corpus boundary.
+- A Palace-owned composed-settings module: a Conric leaf validator for the top-level `palace` section sharing one mapping validator with the TOML selector, a loader taking composed files and root, and a once-only store initialization that refuses a differing existing selector.
+- Purpose-aware embedder resolution (`document` or `query`) at every build, update, daemon and search call site, with the protocol unchanged for injected embedders.
+- Conric as a pinned runtime dependency with the lockfile, release checklist and CI install adjusted for a Git-pinned package; documentation of the `palace` section, the provider, the retention check's limited meaning and the Region constraint; pinned service-model excerpts; updated changelog and consumer-readiness brief.
+- Offline hermetic proofs admitted with compensating retirements.
+
+## 2026-11-07 00:07 — PARK (heading correction)
+
+Phase 22 — Bedrock embedding provider and composed settings — PARK record heading
+
+Execution trace: f04dc7e5759742d6953b0ef18c0efd75
+
+The parked close of the first Phase 22 run was written at 00:05 by the evidence tool's close operation from a block the orchestrator supplied without its own heading line, so the PARK record (beginning "Phase 22 — Bedrock embedding provider and composed settings — governing-prose park before the continuation run") sits headerless between the 22:43 START block and the 00:06 START (resumed) block. That text is the complete, truthful PARK record for trace f04dc7e5759742d6953b0ef18c0efd75, closed parked with reason code governing-prose-rebind and a recorded failure signature; it is not part of the START block. Nothing above is amended; this block only supplies the heading the record lacks.
+
+Lessons:
+- none new: the close operation's documented block format includes the heading line; the orchestrator omitted it once and will include it in the accepted END block.
+
+## 2026-11-07 00:17 — END
+Phase 22 — Bedrock embedding provider and composed settings
+
+Execution trace: 6bfeb9c16521489294986aa564ed1dc7 (continuation run; the first run, trace f04dc7e5759742d6953b0ef18c0efd75, is closed parked above and holds the planning, both plan reviews, the implementation, both first critiques and the first passing gate sequence on the same product candidate)
+
+What is true now: Palace can embed a store with Cohere Embed v4 through AWS Bedrock, selected from a Palace-owned `palace` section of a composed Conric configuration or from the TOML selector; the Region's data-retention mode is checked fail-closed before any request; documents and queries use their distinct input types; each store's vector table is declared at its own dimension; every request is bounded, audited and never substituted. Every proof is offline and hermetic. No AWS call, credential read, grant, paid inference, deployment, push or tag happened. Live AWS qualification has not been performed and is not claimed.
+
+Files changed:
+- palace/bedrock.py — new Bedrock Cohere Embed v4 embedder: lazy clients with SDK retries off and endpoint overrides ignored, credential-chain refusal, once-per-instance same-Region retention check, 96-input batches under a 120,000-unit budget, bounded audited retries, strict response validation
+- palace/settings.py — new composed `palace` section: Conric leaf validator, loader, once-only store initialization
+- palace/index/embedder_config.py — one mapping validator and reason table for every provider, `bedrock` selector fields and identity `bedrock:<region>`, published-corpus boundary extended, `resolve_embedder(store, *, purpose)`
+- palace/index/schema.py, palace/index/store_ops.py — vector table declared at the store's dimension, declared-width reader, width refusal, width-aware readable check
+- palace/index/build.py, palace/index/scheduler.py — request shape replaces the remote flag, pre-probe read-only width check, Bedrock batching label and concurrency reason, document purpose
+- palace/index/update.py, palace/index/server.py, palace/search.py, palace/multistore.py, palace/multistore_demo.py — purpose at every call site
+- palace/index/config.py, palace/provider_config.py — Bedrock constants with dated comments; `bedrock` registered
+- palace/providers.py, palace/index/cli.py — `providers set --settings` (repeatable), readable refusal prefixes, `embedder show` prints Region, profile and published-corpus fields
+- pyproject.toml, uv.lock — Conric pinned at commit ed9286297e92b8c049f70eb15a3b5556ed107ff0, hatchling direct references, docs/bedrock.md in the sdist
+- RELEASE.md, .github/workflows/ci.yml — hash-locked export excludes Conric; Conric installed separately from the pinned commit
+- tests/conftest.py — session guard isolating every botocore credential, bearer-token and endpoint source and refusing any real send
+- tests/test_bedrock_provider.py (new), tests/test_search.py, tests/index/test_core.py, tests/index/test_writer_lock.py — two new families and one new case in the search family, funded by three consolidations whose assertions were preserved; purpose lambdas
+- tests/proof-estate.yaml, reports/test-governance/palace-reset.jsonl — three retirements and three funded admissions; 271 families
+- docs/bedrock.md (new), docs/README.md, docs/private-providers.md, palace/index/README.md, CHANGELOG.md — operator guide, catalog row, cross-references, per-store width and Bedrock selector text, Unreleased changelog entry
+- docs/reference/botocore-bedrock-service-model-2023-04-20.json, docs/reference/botocore-bedrock-runtime-service-model-2023-09-30.json, docs/reference/conric-config-0.1.0.py, docs/reference/LICENSE-conric.txt, docs/reference/README.md — pinned service-model and dependency-API excerpts with catalog rows
+- briefs/bedrock-embedding-provider.md (new), briefs/deployed-consumer-readiness.md, CLAUDE.md — design brief in capability-class terms, the readiness brief's Bedrock sentence, brief catalog line
+- plan/phase-22.md (new), plan/INDEX.md, LOG.md, lessons/banana-kingfisher.md, lessons/curious-wallaby.md, lessons/jade-hare.md, lessons/sturdy-hummingbird.md, user-actions/undetectable-serval.md — phase sketch, ledger row, log blocks, four lesson candidates, one operator action
+
+Build status:
+- ./bin/setup: OK
+- ./bin/test tests/test_bedrock_provider.py tests/test_private_providers.py tests/test_search.py tests/index/test_core.py -q: OK (37 passed)
+- ./bin/test-governance validate: OK (state valid, 271 families, 0 unspent retirements)
+- uv build --managed-python (out of tree): OK (palace-0.2.0 wheel and sdist with the Git-pinned Conric requirement)
+- uv export --frozen --no-dev --no-emit-project --no-emit-package conric: OK (Conric absent from the hash-locked file)
+- ./bin/check all: OK (268 tests, no test warnings; nine pinned-script uv environment notices explained in the gate review)
+- Handoff gate: runs after this tracked END block; completion is contingent on the ignored receipt from the final bare `./bin/check all`
+
+Review lane (per `policies/review-lanes.md`):
+- full
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- full cycle — planned continuation of the approved plan in a fresh evidence run after the governing-prose park (the cited readiness brief's one-sentence rewrite was a deliverable); no planning stage repeated
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus high read-only and write-enabled with toolchain probe; codex --model gpt-6-astra high read-only); workflow mode delegated because the invoking session's model is fable, outside the eligible primary list
+- Planner: requested model=opus effort=high venue=claude; attempt 1 ended error_max_turns after 51 turns with no plan; the documented one-time conclude-now resume (attempt 2) produced the plan; attempts 3 and 5 were mechanical concreteness revisions, attempt 4 the review-round revision
+- Reviewer (plan review): requested model=astra effort=high venue=codex; round 1 REVISE (3 findings), round 2 APPROVED (all verified)
+- Coder: requested model=opus effort=high venue=claude; attempt 1 initial, attempt 2 revision (3 findings resolved); continuation attempt 1 in this run made no change
+- Critic (code review): requested model=astra effort=high venue=codex; round 1 REVISE (3 findings, one SUSPECTED and confirmed by the orchestrator's probe), round 2 APPROVED (all verified); continuation critique APPROVED with an empty finding ledger and continuation eligibility confirmed
+- Prelaunch watcher refusals (no attempt consumed): planner attempt 1 and reviewer attempt 1 were each relaunched once after the venue-specific artifact flag was corrected
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none recorded by the orchestrator (the watcher's own diagnostics are in the run directories).
+
+Role timing (per `policies/role-timeouts.md`):
+- Planner: attempts 409.8 s (error_max_turns), 292.2 s, 154.0 s, 224.2 s, 182.6 s; first event and longest idle unavailable to the orchestrator
+- Reviewer (plan review): 248.0 s, 111.7 s
+- Coder: 1462.8 s, 192.8 s; continuation 78.1 s (success)
+- Critic (code review): 259.2 s, 105.5 s; continuation 186.0 s (success)
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Outcome: `success`
+- Makespan: 693962327417 ns (693.962327417 s)
+- Intelligence: 264082998208 ns (264.082998208 s)
+- Gates: 169887501707 ns (169.887501707 s)
+- Orchestration: 693100756917 ns (693.100756917 s)
+- Wait: 263133605917 ns (263.133605917 s)
+- Retry/rework: 0 ns (0.000000000 s)
+- Failed work: 0 ns (0.000000000 s)
+- Unattributed: 861570500 ns (0.861570500 s)
+- Category totals are interval unions and may overlap.
+- `orchestration.implementation` — category `reconciliation`, attempt 1, outcome `success`: 430014731959 ns (430.014731959 s)
+- `orchestration.acceptance` — category `reconciliation`, attempt 1, outcome `success`: 228835148458 ns (228.835148458 s)
+- `role.code-review` — category `intelligence`, attempt 1, outcome `success`: 186000840333 ns (186.000840333 s)
+- `role.code-review` — category `wait`, attempt 1, outcome `success`: 185536125959 ns (185.536125959 s)
+- `gate.check-all` — category `gate`, attempt 1, outcome `success`: 161576433875 ns (161.576433875 s)
+- Awaiting user input: none (phase-summary reports no operator parks)
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK (timing-summary succeeded for the finalized trace)
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=26be215dabf6d8cd25b437b1360c5da11b146f01973a89f66a02f20252c4c5d4 approved=04730a0b67219f0b6511e44eef0b0a100b78371a133445a7e57d8a3c306d2abb final=04730a0b67219f0b6511e44eef0b0a100b78371a133445a7e57d8a3c306d2abb (unchanged across both runs)
+- Revision packets: first run 1 plan and 2 code; this run 0
+- Findings: first run plan 3 and code 3, all verified; this run code open=0 addressed=0 verified=0 closed=0 blocked=0 (empty ledger; reopened=0; missed-in-full-pass=0)
+- Gates: first run focused=5 implementation-final=6 (all green, identities unchanged); this run focused=5 implementation-final=6 (all green, product and full-tree identities unchanged before and after); all recorded against the approved implementation candidate=yes
+- Evidence validation: `bin/kickoff-evidence validate --run-dir <this run> --level acceptance` OK (EVIDENCE VALID)
+
+Wall-clock observations:
+- The governing-prose park added one continuation coder attempt, one critique and a repeat gate sequence to an unchanged candidate; the lesson sturdy-hummingbird proposes landing a cited brief's planned one-sentence edit before authority capture. Focused selections were used during iteration; the full suite ran only in the two candidate gates.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound): the `palace` section parsed from a composed file set and refused on unknown fields; selector refusals for unknown fields, missing Region, inference-profile ids and unsupported dimensions on both routes; the `bedrock:<region>` identity stamp; refusal at probe without credentials; refusal for every retention mode but `none` with zero embedding sends; exact document and query request bodies; batching at 96 and budget splitting; no request from configuration alone; SDK endpoint overrides ignored; complete credential isolation with positive controls; a 1536-dimension store built and searched end to end through stubbed real clients, including the relative-store two-build case; width refusal before any send; unchanged 4096 DDL; proof estate valid at zero growth; the complete gate sequence
+- Parked for the user: the User Demo below; readability of `docs/bedrock.md` and the refusal texts; live AWS qualification (a paid, operator-approved action; the hermetic proofs establish nothing about the real service); the engineering defaults (concurrency ceiling 4, 120,000-unit budget), the model allowlist of exactly `cohere.embed-v4:0`, and whether an ambient production bearer-token variable should be refused; all filed in user-actions/undetectable-serval.md
+
+Delivery:
+- restricted: "No new grants, credentials, security changes, AWS calls/resources, paid inference, live data transmission, deployment, publication, pushes or tags are authorized by this assignment." (factotum relay of the operator's direction, 2026-11-07 05:27Z), clarified at 06:59Z: "the no-push restriction is superseded only for the explicitly ordered qualified release, not generally before AWS qualification. Preserve local commit-only Phase 22 delivery and full gates". Delivery is therefore `./bin/deliver --no-push`: a local commit, no push.
+- Reinstall note: the editable system-wide uv tool needs `uv tool install --editable . --reinstall` because Conric is a new dependency.
+
+Ripple (per `policies/phase-ripple.md`):
+- none — no downstream sketches
+
+Lessons:
+- filed: banana-kingfisher — the watcher's artifact flag is venue-specific; two prelaunch refusals (methodology, skill)
+- filed: curious-wallaby — pin a dependency's API source under docs/reference before a plan cites it (methodology, policy)
+- filed: jade-hare — a delegated coder venue cannot run the whole suite green under the delegation guard (methodology, test)
+- filed: sturdy-hummingbird — a plan that edits one of its own cited briefs forces the governing-prose park; land that edit before capture (methodology, skill)
+- occurrences added or pending: none
+- graduation DECIDE: none new; caped-bonobo (3) and esoteric-hawk (3) remain the standing candidates
+- recalibration: insufficient samples (no target has 30 successful samples)
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: From the repository, write `defaults.yaml` containing `palace:` → `embedding:` with `provider: bedrock`, `model: cohere.embed-v4:0` and `region: us-east-1`, and `site.yaml` containing `palace:` → `embedding:` → `dim: 1536`. Run the entry point:
+
+./bin/python -m palace.cli providers set --operation embedding --store .demo-bedrock --settings defaults.yaml --settings site.yaml
+
+Expect `Configured embedding; no inference request was made.` Inspect `.demo-bedrock/meta/embedder.toml` (provider, model, region, dim) and `./bin/python -m palace.cli index embedder show --store .demo-bedrock`; the stamped identity should read `provider=bedrock:us-east-1 dim=1536`. Variations to explore, each repeating the same `providers set` command: change `dim` in `site.yaml` to 1000 (the refusal should name 256, 512, 1024 and 1536 and point at `site.yaml`); restore 1536 and remove `region` from `defaults.yaml` (the refusal should name the missing field); restore it and add an unknown key under `palace` (the refusal should name its path and file location). Judge whether the refusals and the documented section shape in `docs/bedrock.md` are clear enough to hand to an operator. No step makes a network request or reads a credential. Afterwards delete `.demo-bedrock`, `defaults.yaml` and `site.yaml`.
+
+Remaining:
+- Live AWS qualification, the qualified release (proposed 0.3.0), and the consumer's integration are separate, later steps under their own authorizations; nothing here claims them.
+- Test protocol: the User Demo above is the user-facing protocol; the provider's live behavior cannot be exercised without the operator's paid qualification.
+
+## 2026-11-07 00:18 — END (bookkeeping)
+
+Phase 22 — Bedrock embedding provider and composed settings — bookkeeping outcomes after the accepted close
+
+Execution trace: 6bfeb9c16521489294986aa564ed1dc7
+
+Applied after the END block above: `plan/INDEX.md` Phase 22 row 🚧 → ✅ with no next row (the public ledger has no further sketched phase, which is the valid completed state); `user-actions/undetectable-serval.md` filed for the operator's demo judgment, the paid live AWS qualification, the unmeasured defaults and the bearer-token question; the four lesson candidates named in the END block are on disk and `./bin/lessons validate` passes; catalogs pass. Ripple: none, no downstream sketches. The tracked phase report is generated next, then the bare handoff gate, then local commit-only delivery.
+
+Lessons:
+- none beyond the four filed in the END block.

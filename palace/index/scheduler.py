@@ -12,6 +12,8 @@ from pathlib import Path
 
 from palace.index._errors import IndexError
 from palace.index.config import (
+    BEDROCK_MAX_BATCH,
+    BEDROCK_REQUEST_BUDGET,
     REMOTE_EMBED_MAX_BATCH,
     REMOTE_EMBED_MAX_TOKEN_BUDGET,
     EmbeddingIdentity,
@@ -44,6 +46,29 @@ class BuildLimits:
             isinstance(v, bool) or not isinstance(v, int) or v <= 0 for v in asdict(self).values()
         ):
             raise IndexError("build limits must be positive integers")
+
+
+@dataclass(frozen=True)
+class RequestShape:
+    """One remote provider's per-request input cap and aggregate request-unit budget."""
+
+    max_inputs: int
+    max_units: int
+
+
+def request_shape(provider_id: str) -> RequestShape | None:
+    """The request shape for an identity provider; ``None`` means local raw-byte turns."""
+    if provider_id.startswith("openrouter:"):
+        return RequestShape(REMOTE_EMBED_MAX_BATCH, REMOTE_EMBED_MAX_TOKEN_BUDGET)
+    if provider_id.startswith("bedrock:"):
+        return RequestShape(BEDROCK_MAX_BATCH, BEDROCK_REQUEST_BUDGET)
+    return None
+
+
+def _turn_inputs(limits: BuildLimits, shape: RequestShape | None) -> int:
+    if shape is None:
+        return limits.turn_inputs
+    return min(limits.remote_turn_inputs, shape.max_inputs)
 
 
 @dataclass(frozen=True)
@@ -99,22 +124,20 @@ class ScheduledBuild:
         self.staging.clear_completed(self.refs)
 
 
-def _ranges(inputs: Sequence[str], limits: BuildLimits, remote: bool) -> list[tuple[int, int]]:
+def _ranges(
+    inputs: Sequence[str], limits: BuildLimits, shape: RequestShape | None
+) -> list[tuple[int, int]]:
     result = []
     start = 0
-    maximum = (
-        min(limits.remote_turn_inputs, REMOTE_EMBED_MAX_BATCH) if remote else limits.turn_inputs
-    )
+    maximum = _turn_inputs(limits, shape)
     while start < len(inputs):
         end, size = start, 0
         while end < len(inputs) and end - start < maximum:
             text = inputs[end]
             raw = len(text.encode("utf-8"))
-            units = request_units(text) if remote else raw
+            units = request_units(text) if shape is not None else raw
             cap = (
-                min(limits.turn_bytes, REMOTE_EMBED_MAX_TOKEN_BUDGET)
-                if remote
-                else limits.turn_bytes
+                min(limits.turn_bytes, shape.max_units) if shape is not None else limits.turn_bytes
             )
             if raw > limits.turn_bytes or units > cap:
                 raise IndexError(
@@ -213,13 +236,13 @@ def schedule(
     limits: BuildLimits,
     log: Callable[[str], None],
     progress: Callable[[BuildProgress], None] | None,
-    remote: bool,
+    shape: RequestShape | None,
     verbose: bool = False,
 ) -> ScheduledBuild:
-    """The caller holds the whole-build lock; no SQLite connection crosses threads."""
-    maximum = (
-        min(limits.remote_turn_inputs, REMOTE_EMBED_MAX_BATCH) if remote else limits.turn_inputs
-    )
+    """The caller holds the whole-build lock; no SQLite connection crosses threads.
+
+    ``shape`` is the remote provider's request shape, or ``None`` for local turns."""
+    maximum = _turn_inputs(limits, shape)
     small_reserve = 2 * limits.plan_bytes + maximum * (identity.dim * 4 + 16384) + 16384
     if small_reserve >= limits.staging_bytes:
         raise IndexError(
@@ -300,7 +323,7 @@ def schedule(
                     state.unchanged += 1
                 state.finished = time.monotonic()
                 continue
-            turns = _ranges(plan.embed_inputs, limits, remote)
+            turns = _ranges(plan.embed_inputs, limits, shape)
             ref, _ = staging.prepare(plan, source, small=len(turns) == 1)
             documents.append(_Document(ref, state, turns))
             output.refs.append(ref)

@@ -79,8 +79,7 @@ Six tables in one sqlite file at `<store>/index/chunks.sqlite`:
   `tags_json`, `dataview_fields_json`, `embeds_json`,
   `frontmatter_json`, `ingest_time`, and `kind` (one of `"markdown"
   | "jsonl" | "code" | "text"`). Indexed on `path` and `watch_root`.
-- **`chunks_vec`** — sqlite-vec virtual table; `embedding FLOAT[4096]`.
-  One row per chunk; same `chunk_id` as the `chunks` row.
+- **`chunks_vec`** — sqlite-vec virtual table; `embedding FLOAT[N]`, where `N` is the store's recorded identity dimension (4096 for the local default). One row per chunk; same `chunk_id` as the `chunks` row. A store whose existing table was declared at another width than its selector's `dim` is refused; rebuild it from an empty chunks database.
 - **`chunks_fts`** — FTS5 virtual table over the `body` column with
   the `porter unicode61 remove_diacritics 2` tokenizer. One row per
   chunk; same `chunk_id`.
@@ -270,10 +269,7 @@ park is terminal, prints the writer-readiness reason, and never masquerades as
 
 ## Store-level embedder selection
 
-`palace index embedder show --store <store>` prints the selected provider and
-the identity a full build would stamp. An absent
-`<store>/meta/embedder.toml` means local `qwen3-embedding:8b` through Ollama.
-Selection is never inferred from `OPENROUTER_API_KEY`.
+`palace index embedder show --store <store>` prints the selected provider and the identity a full build would stamp. An absent `<store>/meta/embedder.toml` means local `qwen3-embedding:8b` through Ollama. Selection is never inferred from `OPENROUTER_API_KEY` or AWS credentials. The selector providers are `ollama`, `openrouter`, `endpoint` and `bedrock`; one validator accepts the TOML file and the composed `palace` section (`docs/bedrock.md`). Each store's vector table is declared at its selected `dim`.
 
 An already-*published* corpus — served from internet-reachable infrastructure,
 whether or not access is gated — may opt into a pinned OpenRouter upstream. The

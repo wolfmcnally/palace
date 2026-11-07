@@ -33,6 +33,7 @@ from palace.index.core import _delete_rows, _insert_fts_chunk
 from palace.index.schema import (
     RecordedIdentity,
     assert_schema_version,
+    declared_vector_dim,
     ensure_fts_rowid_map,
     identity_mismatch_line,
     readable_divergences,
@@ -249,8 +250,11 @@ def _copy_in_transaction(
     conn: sqlite3.Connection, root: str, targets: Sequence[str]
 ) -> StoreOpResult:
     source_identity, destination_identity = _identity(conn, "source"), _identity(conn, "main")
-    for label, identity in (("source", source_identity), ("destination", destination_identity)):
-        divergences = readable_divergences(identity)
+    for label, schema, identity in (
+        ("source", "source", source_identity),
+        ("destination", "main", destination_identity),
+    ):
+        divergences = readable_divergences(identity, declared_dim=declared_vector_dim(conn, schema))
         if divergences:
             raise IndexError(f"{label} store: " + identity_mismatch_line(divergences))
     if source_identity != destination_identity:

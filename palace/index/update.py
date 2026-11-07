@@ -212,7 +212,7 @@ def _update(
 
     owned_embedder = embedder is None
     if embedder is None:
-        embedder, identity = resolve_embedder(store)
+        embedder, identity = resolve_embedder(store, purpose="document")
     else:
         identity = resolve_identity(store)
     conn: sqlite3.Connection | None = None

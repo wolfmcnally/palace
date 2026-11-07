@@ -28,10 +28,10 @@ Rebuild into another fresh output directory and compare artifacts. Record actual
 
 ## Clean installation
 
-Export exact runtime requirements from the committed lockfile:
+Export exact runtime requirements from the committed lockfile. Conric is pinned by Git commit, which a hash-checked requirements file cannot carry, so it is excluded here and installed separately below from the same pinned commit:
 
 ```bash
-uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file "$PALACE_RELEASE_DIR/requirements.txt"
+uv export --frozen --no-dev --no-emit-project --no-emit-package conric --format requirements-txt --output-file "$PALACE_RELEASE_DIR/requirements.txt"
 ```
 
 Create an outside-checkout environment:
@@ -44,6 +44,12 @@ Install the hash-bound runtime dependencies, then the inspected wheel without re
 
 ```bash
 uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --require-hashes -r "$PALACE_RELEASE_DIR/requirements.txt"
+```
+
+Install Conric from its pinned commit without dependency resolution; the commit SHA is its integrity anchor, and its only dependency, PyYAML, is already hash-installed above:
+
+```bash
+uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "conric @ git+https://github.com/wolfmcnally/conric.git@ed9286297e92b8c049f70eb15a3b5556ed107ff0"
 ```
 
 ```bash

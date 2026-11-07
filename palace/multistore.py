@@ -230,7 +230,7 @@ def search_stores(
                 if embedders is not None:
                     delegate = embedders[identity]
                 else:
-                    delegate, resolved = resolve_embedder(root)
+                    delegate, resolved = resolve_embedder(root, purpose="query")
                     stack.callback(delegate.close)
                     if resolved != identity:
                         raise IndexError("provider identity changed during query preparation")

@@ -78,6 +78,7 @@ from palace.index.cursor import TailCursor
 from palace.index.daemon_state import StateUnreadable, read_state
 from palace.index.egress import EmbeddingUsageSummary
 from palace.index.embedder_config import (
+    PROVIDER_BEDROCK,
     PROVIDER_OLLAMA,
     PROVIDER_OPENROUTER,
     EmbedderConfig,
@@ -865,7 +866,10 @@ def cli_embedder_show(args: Any) -> int:
     print(f"model: {config.model}")
     print(f"dim: {config.dim}")
     print(f"upstream: {config.upstream if config.upstream is not None else 'none'}")
-    if config.provider == PROVIDER_OPENROUTER:
+    if config.provider == PROVIDER_BEDROCK:
+        print(f"region: {config.region}")
+        print(f"profile: {config.profile if config.profile is not None else 'none'}")
+    if config.provider in (PROVIDER_OPENROUTER, PROVIDER_BEDROCK):
         print(f"published_corpus: {str(config.published_corpus).lower()}")
         print(f"published_corpus_note: {config.published_corpus_note or 'none'}")
         print(f"published_corpus_asserted_at: {config.published_corpus_asserted_at or 'none'}")

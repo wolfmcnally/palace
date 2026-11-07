@@ -28,6 +28,11 @@ from typing import Literal
 from palace.writer_lock import WRITER_LOCK_TIMEOUT_SECONDS
 
 __all__ = [
+    "BEDROCK_DIMENSIONS",
+    "BEDROCK_EMBED_MAX_CONCURRENCY",
+    "BEDROCK_MAX_BATCH",
+    "BEDROCK_MODELS",
+    "BEDROCK_REQUEST_BUDGET",
     "BINARY_EXTENSIONS",
     "CODE_EXTENSIONS",
     "EMBED_COSINE_TOLERANCE",
@@ -91,9 +96,9 @@ OLLAMA_BASE_URL: str = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 # this URL never selects the remote path by itself.
 OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
 
-# Output dimension for qwen3-embedding:8b. Pinned because the chunks-vec
-# virtual table declares ``embedding FLOAT[4096]`` and a dim mismatch
-# silently corrupts the dense index.
+# Output dimension for qwen3-embedding:8b, the local default store's width.
+# The chunks-vec table is declared per store from the store's recorded identity
+# dimension (``palace.index.schema``); 4096 is only the local default's width.
 EMBED_DIM: int = 4096
 
 # Empirical discrimination boundary (2026-08-08): intra-upstream and
@@ -136,6 +141,26 @@ EMBED_CONCURRENCY_DEFAULT: int = 8
 # the 2026-08-16 burst curve; only N=8 has two-hour sustained evidence, so
 # this is a capability ceiling rather than the policy default above.
 REMOTE_EMBED_MAX_CONCURRENCY: int = 16
+
+# Bedrock Cohere Embed v4 (briefs/bedrock-embedding-provider.md, as of
+# 2026-11-07). The request body is specific to Embed v4, so the model set is an
+# allowlist of exactly the direct regional model id; inference profiles are
+# refused. Allowed output dimensions and the 96-input request cap are from the
+# Embed v4 user guide (``model-parameters-embed-v4.html``, retrieved 2026-11-07).
+BEDROCK_MODELS: frozenset[str] = frozenset({"cohere.embed-v4:0"})
+BEDROCK_DIMENSIONS: tuple[int, ...] = (256, 512, 1024, 1536)
+BEDROCK_MAX_BATCH: int = 96
+
+# Unmeasured, conservative aggregate request budget (2026-11-07) in the same
+# raw-or-NFC UTF-8 units as ``REMOTE_EMBED_MAX_TOKEN_BUDGET``: below Embed v4's
+# documented 128K-token context under either reading of "128K", so no tokenizer
+# whose tokens are at least one byte can exceed it. Owner decision pending live
+# qualification.
+BEDROCK_REQUEST_BUDGET: int = 120_000
+
+# Unmeasured, conservative Bedrock concurrency ceiling (2026-11-07). Lowerable
+# with ``--embed-concurrency``; raised only after live qualification.
+BEDROCK_EMBED_MAX_CONCURRENCY: int = 4
 
 # Remote retries are bounded inside one request so a transient upstream shed
 # does not discard a large file's completed first batches. HTTP 429 and the

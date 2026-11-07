@@ -1,0 +1,149 @@
+{
+  "version": "2.0",
+  "metadata": {
+    "apiVersion": "2023-04-20",
+    "auth": [
+      "aws.auth#sigv4",
+      "smithy.api#httpBearerAuth"
+    ],
+    "endpointPrefix": "bedrock",
+    "protocol": "rest-json",
+    "protocols": [
+      "rest-json"
+    ],
+    "serviceFullName": "Amazon Bedrock",
+    "serviceId": "Bedrock",
+    "signatureVersion": "v4",
+    "signingName": "bedrock",
+    "uid": "bedrock-2023-04-20"
+  },
+  "operations": {
+    "GetAccountDataRetention": {
+      "name": "GetAccountDataRetention",
+      "http": {
+        "method": "GET",
+        "requestUri": "/data-retention",
+        "responseCode": 200
+      },
+      "input": {
+        "shape": "GetAccountDataRetentionRequest"
+      },
+      "output": {
+        "shape": "GetAccountDataRetentionResponse"
+      },
+      "errors": [
+        {
+          "shape": "AccessDeniedException"
+        },
+        {
+          "shape": "ValidationException"
+        },
+        {
+          "shape": "InternalServerException"
+        },
+        {
+          "shape": "ThrottlingException"
+        }
+      ],
+      "documentation": "<p>Returns the account-wide data retention mode for Amazon Bedrock.</p>",
+      "readonly": true
+    }
+  },
+  "shapes": {
+    "AccessDeniedException": {
+      "type": "structure",
+      "members": {
+        "message": {
+          "shape": "NonBlankString"
+        }
+      },
+      "documentation": "<p>The request is denied because of missing access permissions.</p>",
+      "error": {
+        "httpStatusCode": 403,
+        "senderFault": true
+      },
+      "exception": true
+    },
+    "DataRetentionMode": {
+      "type": "string",
+      "documentation": "<p>The data retention mode for the account. Valid values are:</p> <ul> <li> <p> <code>default</code> \u2013 The standard data handling for the model applies.</p> </li> <li> <p> <code>none</code> \u2013 Zero data retention.</p> </li> <li> <p> <code>aws_review</code> \u2013 Amazon Web Services may review the request data. The data is not shared with the model provider. A model must support this mode to be invoked under it.</p> </li> <li> <p> <code>provider_data_share</code> \u2013 Data may be shared with the model provider.</p> </li> <li> <p> <code>inherit</code> \u2013 No data retention mode is set at this scope.</p> </li> </ul>",
+      "enum": [
+        "default",
+        "none",
+        "aws_review",
+        "provider_data_share",
+        "inherit"
+      ]
+    },
+    "GetAccountDataRetentionRequest": {
+      "type": "structure",
+      "members": {}
+    },
+    "GetAccountDataRetentionResponse": {
+      "type": "structure",
+      "required": [
+        "mode"
+      ],
+      "members": {
+        "mode": {
+          "shape": "DataRetentionMode",
+          "documentation": "<p>The data retention mode configured for the account.</p>"
+        },
+        "updatedAt": {
+          "shape": "Timestamp",
+          "documentation": "<p>The time at which the data retention mode was last updated.</p>"
+        }
+      }
+    },
+    "InternalServerException": {
+      "type": "structure",
+      "members": {
+        "message": {
+          "shape": "NonBlankString"
+        }
+      },
+      "documentation": "<p>An internal server error occurred. Retry your request.</p>",
+      "error": {
+        "httpStatusCode": 500
+      },
+      "exception": true,
+      "fault": true
+    },
+    "NonBlankString": {
+      "type": "string",
+      "pattern": "[\\s\\S]*"
+    },
+    "ThrottlingException": {
+      "type": "structure",
+      "members": {
+        "message": {
+          "shape": "NonBlankString"
+        }
+      },
+      "documentation": "<p>The number of requests exceeds the limit. Resubmit your request later.</p>",
+      "error": {
+        "httpStatusCode": 429,
+        "senderFault": true
+      },
+      "exception": true
+    },
+    "Timestamp": {
+      "type": "timestamp",
+      "timestampFormat": "iso8601"
+    },
+    "ValidationException": {
+      "type": "structure",
+      "members": {
+        "message": {
+          "shape": "NonBlankString"
+        }
+      },
+      "documentation": "<p>Input validation failed. Check your request parameters and retry the request.</p>",
+      "error": {
+        "httpStatusCode": 400,
+        "senderFault": true
+      },
+      "exception": true
+    }
+  }
+}

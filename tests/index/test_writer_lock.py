@@ -785,12 +785,12 @@ def _check_usage_is_reported_per_invocation(
     monkeypatch.setattr(
         sys.modules["palace.index.update"],
         "resolve_embedder",
-        lambda _store: (embedder(), resolve_identity(store)),
+        lambda _store, *, purpose: (embedder(), resolve_identity(store)),
     )
     monkeypatch.setattr(
         sys.modules["palace.index.build"],
         "resolve_embedder",
-        lambda _store: (embedder(), resolve_identity(store)),
+        lambda _store, *, purpose: (embedder(), resolve_identity(store)),
     )
     (root / "b.md").write_text("## S0\nvia the command line\n")
     capsys.readouterr()
@@ -825,7 +825,7 @@ def _check_usage_is_reported_per_invocation(
     monkeypatch.setattr(
         sys.modules["palace.index.update"],
         "resolve_embedder",
-        lambda _store: (embedder(max_attempts=2), resolve_identity(store)),
+        lambda _store, *, purpose: (embedder(max_attempts=2), resolve_identity(store)),
     )
     assert (
         main(
@@ -875,7 +875,7 @@ def _check_usage_is_reported_per_invocation(
     monkeypatch.setattr(
         sys.modules["palace.index.build"],
         "resolve_embedder",
-        lambda _store: (embedder(max_attempts=1), resolve_identity(store)),
+        lambda _store, *, purpose: (embedder(max_attempts=1), resolve_identity(store)),
     )
     assert main(["index", "build", "--store", str(store), "--watch-root", str(root), "--json"]) == 1
     printed = json.loads(capsys.readouterr().out)

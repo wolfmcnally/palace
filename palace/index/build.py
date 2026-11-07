@@ -42,6 +42,7 @@ import sqlite_vec
 
 from palace.index._errors import IndexError
 from palace.index.config import (
+    BEDROCK_EMBED_MAX_CONCURRENCY,
     EMBED_CONCURRENCY_DEFAULT,
     OLLAMA_BASE_URL,
     OPENROUTER_BASE_URL,
@@ -49,6 +50,7 @@ from palace.index.config import (
     WRITER_BUSY_TIMEOUT_SECONDS,
     WRITER_LOCK_TIMEOUT_SECONDS,
     EmbeddingIdentity,
+    chunks_db_path,
     prepare_chunks_db_path,
 )
 from palace.index.egress import (
@@ -58,6 +60,7 @@ from palace.index.egress import (
 )
 from palace.index.embedder import Embedder
 from palace.index.embedder_config import (
+    PROVIDER_BEDROCK,
     PROVIDER_ENDPOINT,
     PROVIDER_OPENROUTER,
     assert_remote_corpus_boundary,
@@ -66,9 +69,17 @@ from palace.index.embedder_config import (
     resolve_embedder,
     resolve_identity,
 )
-from palace.index.scheduler import BuildLimits, BuildProgress, RootStats, schedule
+from palace.index.scheduler import (
+    BuildLimits,
+    BuildProgress,
+    RequestShape,
+    RootStats,
+    request_shape,
+    schedule,
+)
 from palace.index.schema import (
     assert_identity,
+    assert_vector_width,
     init_db,
     read_data_version,
     stamp_identity,
@@ -131,6 +142,11 @@ def _resolve_concurrency(*, requested: int | None, embedder: Embedder, provider:
                 f"the OpenRouter embedder is configured for {capability} callers; palace has "
                 f"burst measurements only through {REMOTE_EMBED_MAX_CONCURRENCY}"
             )
+        elif provider == PROVIDER_BEDROCK:
+            reason = (
+                f"the Bedrock embedder is configured for {capability} callers, an unmeasured "
+                f"provider ceiling (default {BEDROCK_EMBED_MAX_CONCURRENCY})"
+            )
         else:
             reason = "local Ollama concurrency is measured slower than one caller"
         raise IndexError(
@@ -140,12 +156,25 @@ def _resolve_concurrency(*, requested: int | None, embedder: Embedder, provider:
     return requested
 
 
-def _render_batching(provider: str) -> str:
-    return (
-        "per-turn(max=1024,budget=30000)"
-        if provider == PROVIDER_OPENROUTER
-        else "per-turn(max=32,bytes=131072)"
-    )
+def _render_batching(shape: RequestShape | None) -> str:
+    if shape is None:
+        return "per-turn(max=32,bytes=131072)"
+    return f"per-turn(max={shape.max_inputs},budget={shape.max_units})"
+
+
+def _assert_existing_width(store: Path, dim: int) -> None:
+    """Read-only width check of an existing chunks database; never creates one."""
+    database = chunks_db_path(store).resolve()
+    if not database.exists():
+        return
+    try:
+        conn = sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)
+        try:
+            assert_vector_width(conn, dim, store=store)
+        finally:
+            conn.close()
+    except sqlite3.Error as exc:
+        raise IndexError(f"chunks database {database} could not be read: {exc}") from exc
 
 
 def _root_result(state: RootStats, concurrency: int, batching: str) -> BuildResult:
@@ -198,7 +227,7 @@ def build_root(
         limits=limits or BuildLimits(),
         log=log,
         progress=progress,
-        remote=identity.provider.startswith("openrouter:"),
+        shape=request_shape(identity.provider),
         verbose=verbose,
     )
     if not full:
@@ -308,6 +337,8 @@ def _build(
     base_url = (
         "configured-private-endpoint"
         if config.provider == PROVIDER_ENDPOINT
+        else f"bedrock-runtime {config.region}"
+        if config.provider == PROVIDER_BEDROCK
         else OPENROUTER_BASE_URL
         if config.provider == PROVIDER_OPENROUTER
         else OLLAMA_BASE_URL
@@ -318,12 +349,15 @@ def _build(
     # same convention `palace.search._vector_search` follows.
     owned_embedder = embedder is None
     if embedder is None:
-        embedder, identity = resolve_embedder(store)
+        embedder, identity = resolve_embedder(store, purpose="document")
     else:
         identity = resolve_identity(store)
     conn: sqlite3.Connection | None = None
     held_lock: contextlib.AbstractContextManager[None] | None = None
     try:
+        # Refuse a vector table declared at another width before any request; init_db
+        # rechecks it under the writer lock.
+        _assert_existing_width(store, identity.dim)
         embedder.probe()
         out_log(
             "palace index build: embedder OK "
@@ -334,7 +368,8 @@ def _build(
             embedder=embedder,
             provider=config.provider,
         )
-        embed_batching = _render_batching(config.provider)
+        shape = request_shape(identity.provider)
+        embed_batching = _render_batching(shape)
 
         if not walk_set:
             out_log("palace index build: no watch roots configured; nothing to build")
@@ -397,7 +432,7 @@ def _build(
             limits=limits,
             log=out_log,
             progress=progress,
-            remote=config.provider == PROVIDER_OPENROUTER,
+            shape=shape,
             verbose=verbose,
         )
         for state in scheduled.roots:

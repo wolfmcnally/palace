@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- A registered `bedrock` embedding provider for Cohere Embed v4 (`cohere.embed-v4:0`) on a direct regional Bedrock runtime endpoint: the AWS SDK credential chain only, a fail-closed same-Region `GetAccountDataRetention` check requiring `none` before the first request, `search_document` and `search_query` input types, batches of at most 96 inside a conservative 120,000-unit request budget, Palace-owned audited retries with SDK retries and endpoint-URL overrides disabled, and identity `bedrock:<region>`. It requires a published-corpus assertion. No live qualification has been performed; see `docs/bedrock.md`.
+- Composed settings: `palace.settings` validates a top-level `palace` section of a Conric composition through the same validator as the TOML selector, and initializes a store's selector once, refusing a different existing selector. `palace providers set --settings FILE` (repeatable) is the command-line entry point. Selector refusals now share one reason table and name the field path.
+- Per-store vector width: `chunks_vec` is declared at the store's selected dimension, readers compare the recorded dimension with the declared width, and a store whose table was created at another width is refused with a rebuild remedy. Existing 4096 stores keep byte-identical DDL.
+- Embedders are resolved for an explicit `document` or `query` purpose; the Python `resolve_embedder` requires the `purpose` keyword. Callers parsing `embed_batching` see `per-turn(max=96,budget=120000)` for Bedrock.
+- Conric is a Git-pinned runtime dependency; the release and CI procedures export hash-locked requirements without it and install it from the pinned commit.
+
 ## 0.2.0 — 2026-10-21
 
 - Fair, bounded synchronous indexing across large and small documents, durable source- and embedding-identity-bound receipts, atomic completed-document visibility, and structured progress. Existing chunk text, embedding inputs and provenance remain unchanged.
