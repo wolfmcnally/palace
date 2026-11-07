@@ -38,6 +38,16 @@ Observed provider behavior: one retention read per provider instance before any 
 
 Not established by this run: instance-role authentication, other Regions, per-model retention, cross-Region vector equality, throughput, or any property of a real corpus. The instance-role lane remains a separate operator-approved action.
 
+## Instance-role qualification observations
+
+As of 2026-11-07 (retrieved live, 16:27:42Z to 16:27:46Z). Route: the released 0.3.0 wheel (SHA-256 `78054425b403112c241d807fa230e0c9ab1ac6990c80b6933397d3f106a2785e`) installed with hash-locked dependencies and the pinned Conric commit on an arm64 EC2 instance in a private subnet with no public address, reaching Bedrock through VPC endpoints, authenticated only by its instance role; explicit Region us-east-1. The environment was stood up and torn down by a deployed multi-store consumer's integrated qualification workflow, which ran Palace's standalone lane as one of its lanes. Prechecks immediately before the run: the SDK credential method was `iam-role` (read from the SDK session, since the subnet had no STS endpoint; the instance-profile name came from instance metadata); `GetAccountDataRetention` in that Region reported mode `none` (last updated 2026-09-02); `GetFoundationModelAvailability` for `cohere.embed-v4:0` reported agreement AVAILABLE, authorization AUTHORIZED, entitlement AVAILABLE, Region AVAILABLE.
+
+Fixture: the same ten synthetic notes as the workstation lane, with the published-corpus assertion. Settings composed from two YAML files with no profile; stamped identity `bedrock:us-east-1` / `cohere.embed-v4:0` / 1536 / the shared text convention. `palace index build --full`: 10 documents, 11 chunks, 10 embedding requests, 0 failures, concurrency 4, 0.78 s. `palace search --mode vector --no-rerank`: the planted note ranked first of ten.
+
+Observed provider behavior: two retention reads (build probe and search), 10 `search_document` requests and 1 `search_query` request; all 13 audit records HTTP 200 on the first attempt with no retries, carrying provider, model, dimension and input type and no text, query or credential key; 11 stored vectors, all 1536-wide and finite. Cost is recorded unknown by the provider; the byte upper bound is under 3,000 billed tokens, inside the approved budget of 20 requests and 5,000 tokens.
+
+Not established by this run: other Regions, per-model retention, cross-Region vector equality, throughput, or any property of a real corpus. Both qualification lanes are dated observations of one account's configuration, not guarantees.
+
 ## Per-store vector width
 
 Before this work the vector table was declared at the local default's 4096 width and vector reads refused any other recorded dimension, so no provider could store a narrower vector without padding. Padding would preserve cosine distances but would put a second, false width into the identity. The table is now declared from the store's recorded identity dimension at initialization; a store whose existing table was created at another width is refused with the remedy of rebuilding from an empty chunks database. Existing 4096 stores create byte-identical DDL.
@@ -48,7 +58,7 @@ Conric is pinned by Git URL, so a hash-locked installation of Palace's dependenc
 
 ## What remains outside this brief
 
-The workstation lane of live qualification ran once under an operator-approved USD 1.00 cap (observations above); the instance-role lane remains a separate operator-approved paid action. Neither is performed by the repository gate. Marketplace agreements, the Region's retention configuration and the IAM grants `bedrock:InvokeModel` and `bedrock:GetAccountDataRetention` are administrator actions. Reranking through Bedrock, inference profiles, image inputs and other embedding types are not included.
+Both lanes of live qualification ran once each under operator-approved caps (observations above); neither is performed by the repository gate, and neither is repeated by a release. Marketplace agreements, the Region's retention configuration and the IAM grants `bedrock:InvokeModel` and `bedrock:GetAccountDataRetention` are administrator actions. Reranking through Bedrock, inference profiles, image inputs and other embedding types are not included.
 
 ## Sources
 

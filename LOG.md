@@ -939,3 +939,33 @@ Applied after the END block above: `plan/INDEX.md` Phase 23 row 🚧 → ✅ wit
 
 Lessons:
 - none beyond strange-ibis, filed above.
+
+## 2026-11-07 09:49 — END
+
+Palace 0.3.0 — release published and verified after instance-role qualification
+
+Execution trace: 45d1bcb5fefd489c89ea70a9fb2b560c (the Phase 23 source-preparation trace, accepted and closed above; this record covers the later qualification, CI and publication interval, which that trace does not measure)
+
+Palace 0.3.0 is published with a new annotated tag `v0.3.0` bound to the delivered Phase 23 commit. The historical v0.1.0 and v0.2.0 tags, commits and assets are unchanged.
+
+Qualification: the instance-role lane ran on 2026-11-07 (16:27:42Z to 16:27:46Z) inside a deployed multi-store consumer's integrated CDK qualification workflow, which staged Palace's standalone arm64 bundle (the exact 0.3.0 wheel, hash-locked dependencies, the pinned Conric commit, ten synthetic notes) onto a private EC2 instance with no public address, ran Palace's lane script through Session Manager under a scoped instance role, collected the results and tore the environment down. The orchestrator read the retained results directly: prechecks credential method `iam-role`, retention mode `none`, model availability AUTHORIZED/AVAILABLE; `palace index build --full` 10 documents, 11 chunks, 10 embedding requests, 0 failures; `palace search` ranked the planted note first; 13 audit records (2 retention reads, 10 `search_document`, 1 `search_query`), all HTTP 200 on the first attempt, no text, query or credential key; stamped identity `bedrock:us-east-1` / `cohere.embed-v4:0` / 1536; 11 stored finite 1536-wide vectors. Within the approved budget of 20 requests and 5,000 tokens: 11 requests, under 3,000 tokens by byte bound. Observations are recorded in `briefs/bedrock-embedding-provider.md` (instance-role section) and the operator guide's qualification sentence; the tagged tree's documentation predates this lane and says so by date.
+
+Publication, in order, all verified: master pushed through the pre-push guard (receipt hit); branch CI passed on macOS and Linux; two builds from a pristine export of the delivered commit reproduced the qualified archives byte for byte (sdist a33b538905f09d8afa4a3839a9626090517240a89ec696d73823444ffa733860, wheel 78054425b403112c241d807fa230e0c9ab1ac6990c80b6933397d3f106a2785e; uv 0.9.26); annotated tag pushed (the guard re-ran the full check and passed); tag CI passed on macOS and Linux; GitHub Release created as latest with both archives and SHA256SUMS; anonymous HTTPS downloads of all three assets verified against SHA256SUMS; fresh outside-checkout hash-locked installs of the downloaded wheel, with Conric from its pinned commit, passed the package smoke on macOS ARM64 and Linux ARM64 (uv 0.9.26 container). No registry upload, visibility change, production data, deployment or grant change occurred.
+
+Release: https://github.com/wolfmcnally/palace/releases/tag/v0.3.0
+
+Branch CI: https://github.com/wolfmcnally/palace/actions/runs/42391595184
+
+Tag CI: https://github.com/wolfmcnally/palace/actions/runs/42392417601
+
+Authority: the operator's direction relayed by the factotum ("When Palace is qualified on AWS do a release"), reaffirmed at 16:17Z as a conditional release authorization lifting the no-push restriction once real instance-role qualification and every gate passed, with no redundant go-ahead to be requested. The consumer has been given the tag and commit.
+
+Build warnings:
+- Local gates are warning-free apart from the pinned-script uv environment notices recorded for every gate. Hosted CI jobs completed successfully on both platforms; their setup notices were not reviewed line by line here and are available in the linked runs.
+
+Acceptance:
+- Objective: release, tag/commit binding, artifact reproducibility, hosted CI, public downloads, clean installation and synthetic behavior are verified; the instance-role qualification is verified from its retained evidence.
+- Parked for the user: the sanitization dispositions and the absence of a dedicated leak scanner (stated in the release notes); readability of the operator guide; the standing lesson graduations. One cosmetic defect in the lane script's own summary file (two fields labelled "utc" carry the instance's local offset; the instants are correct) is noted, not corrected, since the script is a scratch artifact outside the tree.
+
+Lessons:
+- none new; strange-ibis (filed in the Phase 23 END block) stands. The instance lane confirmed the design choice to derive principal evidence from instance metadata and the SDK credential method rather than STS in a subnet without an STS endpoint.

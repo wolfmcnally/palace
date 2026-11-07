@@ -1,6 +1,6 @@
 # Bedrock embedding and composed settings
 
-As of 2026-11-07. Palace can embed a store with Cohere Embed v4 through AWS Bedrock, selected either from a Palace-owned `palace` section of a composed [Conric](https://github.com/wolfmcnally/conric) configuration or from the store's TOML selector file. Both routes go through one validator and one schema. Bedrock is third-party inference: it is never selected implicitly and is available only for an already-published corpus. As of 2026-11-07, one bounded workstation-profile run against the real model in one Region with a synthetic ten-note corpus passed; instance-role authentication, other Regions, throughput and real-corpus behaviour are not established, and every repository proof is offline.
+As of 2026-11-07. Palace can embed a store with Cohere Embed v4 through AWS Bedrock, selected either from a Palace-owned `palace` section of a composed [Conric](https://github.com/wolfmcnally/conric) configuration or from the store's TOML selector file. Both routes go through one validator and one schema. Bedrock is third-party inference: it is never selected implicitly and is available only for an already-published corpus. As of 2026-11-07, two bounded runs against the real model in one Region with a synthetic ten-note corpus passed, one from a workstation profile and one from an EC2 instance role in a private subnet; other Regions, throughput and real-corpus behaviour are not established, and every repository proof is offline.
 
 ## The `palace` section
 
