@@ -50,6 +50,8 @@ class FileVectorSnapshot:
 
 _CHUNK_COLUMNS = tuple(field.name for field in fields(ChunkRecord))
 _FILE_COLUMNS = tuple(field.name for field in fields(FileRecord))
+_DEFAULT_MAX_BYTES = 64 * 1024 * 1024
+_MAX_CHUNKS = 16384
 
 
 def _byte_lengths(columns: tuple[str, ...]) -> str:
@@ -73,26 +75,24 @@ def _chunk_identity(chunk: ChunkRecord) -> str:
     )
 
 
-def read_file_vectors(
-    *,
-    conn: sqlite3.Connection,
-    watch_root: str | Path,
-    path: str,
-    expected_identity: EmbeddingIdentity,
-    max_chunks: int = 16384,
-    max_bytes: int = 67108864,
-) -> FileVectorSnapshot | None:
-    """Read exactly one committed file, refusing malformed or oversized evidence.
+@dataclass(frozen=True, slots=True)
+class FileVectorLimits:
+    """Finite encoded snapshot budget; not a bound on RSS or database size."""
 
-    Hold the same-store writer_lock before opening this idle connection until
-    after planning, embedding, publication and connection close, on one writer
-    thread. This reader never locks, mutates, commits or rolls back. After any
-    lock release, reread and revalidate before using vectors. Limits count rows
-    and encoded database payload bytes (not Python object overhead), and refuse
-    rather than truncate. No provider or caller eligibility check is performed.
-    """
-    if conn.in_transaction:
-        raise IndexError("read_file_vectors requires an idle connection, not an active transaction")
+    max_bytes: int = _DEFAULT_MAX_BYTES
+    max_chunks: int = _MAX_CHUNKS
+
+    def __post_init__(self) -> None:
+        if any(
+            isinstance(n, bool) or not isinstance(n, int) or n <= 0
+            for n in (self.max_chunks, self.max_bytes)
+        ):
+            raise IndexError("file vector limits must be positive integers")
+        if self.max_chunks > _MAX_CHUNKS:
+            raise IndexError("file vector limits exceed the supported maximum")
+
+
+def _validate_file_vector_path(path: str) -> None:
     if (
         not isinstance(path, str)
         or not path
@@ -104,13 +104,23 @@ def read_file_vectors(
         or "\x00" in path
     ):
         raise IndexError("file vector path must be a normalized relative POSIX file path")
-    if any(
-        isinstance(n, bool) or not isinstance(n, int) or n <= 0 for n in (max_chunks, max_bytes)
-    ):
-        raise IndexError("file vector limits must be positive integers")
-    if max_chunks > 16384 or max_bytes > 67108864:
-        raise IndexError("file vector limits exceed the supported maximum")
-    root = str(watch_root)
+
+
+def _check_file_vector_bounds(
+    *,
+    conn: sqlite3.Connection,
+    watch_root: str | Path,
+    path: str,
+    expected_identity: EmbeddingIdentity,
+    limits: FileVectorLimits,
+) -> bool:
+    """Measure the exact encoded payload in SQLite, without fetching it.
+
+    Internal writers may call this on their staged transaction. Public readers
+    require an idle connection. True means a file exists and fits the budget;
+    payload integrity remains the reader's responsibility.
+    """
+    max_bytes, max_chunks = limits.max_bytes, limits.max_chunks
     # Bound identity and schema text before the shared identity validators read it.
     identity_size = 0
     if conn.execute(
@@ -130,7 +140,7 @@ def read_file_vectors(
     assert_identity_readable(conn)
     assert_identity(conn, expected_identity)
     supplied = parse_representation(expected_identity.convention) is not None
-    key = (root, path)
+    key = (str(watch_root), path)
     file_size = conn.execute(
         f"SELECT {_byte_lengths(_FILE_COLUMNS)} FROM files WHERE watch_root=? AND path=?", key
     ).fetchone()
@@ -141,7 +151,7 @@ def read_file_vectors(
     if file_size is None:
         if count:
             raise IndexError("orphan committed chunks have no file record")
-        return None
+        return False
     if count > max_chunks or identity_size + file_size[0] > max_bytes:
         raise IndexError("file vector snapshot exceeds the requested bounds")
     if supplied and not has_input_evidence(conn):
@@ -164,6 +174,41 @@ def read_file_vectors(
     ).fetchone()[0]
     if identity_size + file_size[0] + byte_count > max_bytes:
         raise IndexError("file vector snapshot exceeds the requested bounds")
+    return True
+
+
+def read_file_vectors(
+    *,
+    conn: sqlite3.Connection,
+    watch_root: str | Path,
+    path: str,
+    expected_identity: EmbeddingIdentity,
+    max_chunks: int = _MAX_CHUNKS,
+    max_bytes: int = _DEFAULT_MAX_BYTES,
+) -> FileVectorSnapshot | None:
+    """Read exactly one committed file, refusing malformed or oversized evidence.
+
+    Hold the same-store writer_lock before opening this idle connection until
+    after planning, embedding, publication and connection close, on one writer
+    thread. This reader never locks, mutates, commits or rolls back. After any
+    lock release, reread and revalidate before using vectors. Limits count rows
+    and encoded database payload bytes (not Python object overhead), and refuse
+    rather than truncate. No provider or caller eligibility check is performed.
+    """
+    if conn.in_transaction:
+        raise IndexError("read_file_vectors requires an idle connection, not an active transaction")
+    limits = FileVectorLimits(max_bytes=max_bytes, max_chunks=max_chunks)
+    _validate_file_vector_path(path)
+    if not _check_file_vector_bounds(
+        conn=conn,
+        watch_root=watch_root,
+        path=path,
+        expected_identity=expected_identity,
+        limits=limits,
+    ):
+        return None
+    supplied = parse_representation(expected_identity.convention) is not None
+    key = (str(watch_root), path)
     file = FileRecord(
         *conn.execute(
             f"SELECT {','.join(_FILE_COLUMNS)} FROM files WHERE watch_root=? AND path=?", key

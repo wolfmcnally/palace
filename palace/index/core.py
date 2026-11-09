@@ -37,6 +37,11 @@ from palace.index.config import EMBED_CONVENTION, MAX_STALE_REPLANS, EmbeddingId
 from palace.index.egress import EgressContext, egress_context
 from palace.index.embedder import Embedder
 from palace.index.enrich import scored_text
+from palace.index.file_vectors import (
+    FileVectorLimits,
+    _check_file_vector_bounds,
+    _validate_file_vector_path,
+)
 from palace.index.jsonl import JsonlChunk, parse_jsonl_tail
 from palace.index.markdown import Section, parse_markdown
 from palace.index.representation import (
@@ -859,6 +864,7 @@ def commit_plan(
     embeddings: Sequence[Sequence[float]],
     identity: EmbeddingIdentity | None,
     log: Callable[[str], None],
+    snapshot_limits: FileVectorLimits | None = None,
 ) -> IndexOutcome:
     """Commit one plan transactionally on the calling writer thread.
 
@@ -870,7 +876,34 @@ def commit_plan(
     rebuild passes ``identity=None``: it holds the lock for its whole run and
     replaces a stale or missing certificate at its end, so its commits are
     the remedy for a mismatch rather than subject to it.
+
+    Optional snapshot_limits requires a full non-noop Markdown/code/text plan
+    and explicit matching identity. It measures the staged snapshot's encoded
+    payload before COMMIT; excess rolls back the entire write. Omission keeps
+    ordinary behavior. This is capacity admission after embedding, not proof
+    that a later read will succeed. Before reporting acceptance, the caller must
+    read_file_vectors with the same limits while still holding the writer lock;
+    failure after COMMIT does not undo the committed data.
     """
+    if snapshot_limits is not None:
+        if not isinstance(snapshot_limits, FileVectorLimits):
+            raise IndexError("snapshot_limits must be FileVectorLimits")
+        if conn.in_transaction:
+            raise IndexError("snapshot admission requires an idle connection")
+        if identity is None:
+            raise IndexError("snapshot admission requires an explicit identity")
+        if (
+            not plan.full_delete
+            or plan.noop is not None
+            or plan.file_row is None
+            or plan.kind not in {"markdown", "code", "text"}
+            or plan.jsonl_offset is not None
+        ):
+            raise IndexError(
+                "snapshot admission requires a full non-noop markdown, code or text plan"
+            )
+        _validate_file_vector_path(plan.stored)
+        _validate_supplied_plan(plan)
     if len(embeddings) != len(plan.rows):
         raise IndexError(
             f"embedder returned {len(embeddings)} vectors for {len(plan.rows)} planned rows"
@@ -901,9 +934,12 @@ def commit_plan(
             raise IndexError("embedding vector cannot be represented as float32") from exc
     ingest_time = _now_iso()
     removed_by_delete = 0
-    ensure_fts_rowid_map(conn)
+    if snapshot_limits is None:
+        ensure_fts_rowid_map(conn)
     conn.execute("BEGIN IMMEDIATE")
     try:
+        if snapshot_limits is not None:
+            ensure_fts_rowid_map(conn, in_transaction=True)
         if identity is not None:
             assert_identity(conn, identity)
         if representation is not None:
@@ -996,6 +1032,16 @@ def commit_plan(
                     """,
                     (plan.watch_root, plan.stored, plan.jsonl_offset, ingest_time),
                 )
+        if snapshot_limits is not None:
+            assert identity is not None
+            if not _check_file_vector_bounds(
+                conn=conn,
+                watch_root=plan.watch_root,
+                path=plan.stored,
+                expected_identity=identity,
+                limits=snapshot_limits,
+            ):
+                raise IndexError("staged snapshot has no file record")
         conn.execute("COMMIT")
     except Exception as error:
         if conn.in_transaction:

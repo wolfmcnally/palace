@@ -1002,10 +1002,340 @@ def _assert_supplied_inputs_and_snapshots(store: Path, root: Path) -> None:
             conn.close()
 
 
+def _assert_snapshot_budget_admission(store: Path, root: Path) -> None:
+    from dataclasses import FrozenInstanceError, fields, replace
+    from unittest.mock import patch
+
+    from palace.index import (
+        EmbeddingIdentity,
+        EmbeddingRepresentation,
+        FileVectorLimits,
+        read_file_vectors,
+        with_embedding_inputs,
+        writer_lock,
+    )
+    from palace.index.embedder_config import EmbedderConfig, save_embedder_config
+    from palace.index.schema import ChunkRecord, FileRecord
+
+    representation = EmbeddingRepresentation("literal-v1", "fake-v1", "sections-v1", "heading-v1")
+    save_embedder_config(
+        store,
+        EmbedderConfig("ollama", "qwen3-embedding:8b", EMBED_DIM, representation=representation),
+    )
+    identity = resolve_identity(store)
+    tables = (
+        "files",
+        "chunks",
+        "chunks_vec",
+        "chunks_fts",
+        "chunks_fts_rows",
+        "chunk_embedding_inputs",
+        "index_meta",
+        "jsonl_cursors",
+    )
+    with writer_lock(store, operation="synthetic snapshot budget", timeout=0):
+        conn = _open(store)
+        try:
+
+            def state() -> dict[str, Any]:
+                return {
+                    table: conn.execute(f"SELECT * FROM {table}").fetchall() for table in tables
+                }
+
+            def read(name: str, limits: FileVectorLimits | None = None) -> Any:
+                limits = limits or FileVectorLimits()
+                return read_file_vectors(
+                    conn=conn,
+                    watch_root=root,
+                    path=name,
+                    expected_identity=identity,
+                    max_bytes=limits.max_bytes,
+                    max_chunks=limits.max_chunks,
+                )
+
+            def plan_file(name: str, first_body: str = "first body") -> FilePlan:
+                note = root / name
+                note.write_text(
+                    '---\ntags: ["café", "雪"]\n---\n'
+                    f"## Body\n{first_body}\n## More\nsecond body\n# Name\n"
+                )
+                ordinary = plan_one(
+                    conn=conn,
+                    path=note,
+                    watch_root=root,
+                    file_kind="markdown",
+                    change_kind="created",
+                    full=True,
+                    log=_noop_log,
+                )
+                return with_embedding_inputs(
+                    ordinary,
+                    representation=representation,
+                    inputs=[r.body for r in ordinary.rows],
+                )
+
+            def write(
+                plan: FilePlan, limits: Any, *, selected: EmbeddingIdentity | None = identity
+            ) -> None:
+                with patch("palace.index.core._now_iso", return_value="2030-01-02T03:04:05+00:00"):
+                    commit_plan(
+                        conn=conn,
+                        plan=plan,
+                        embeddings=[[1.0] * identity.dim] * len(plan.rows),
+                        identity=selected,
+                        log=_noop_log,
+                        snapshot_limits=limits,
+                    )
+
+            limits = FileVectorLimits()
+            assert limits.max_bytes == 67108864 and limits.max_chunks == 16384
+            with pytest.raises(FrozenInstanceError):
+                # Deliberately violate the static type to prove runtime immutability.
+                limits.max_bytes = 1  # type: ignore[misc]
+            for field in ("max_bytes", "max_chunks"):
+                for bad in (True, False, 0, -1, 1.5, "100", None):
+                    # Deliberately bypass static input types to prove runtime refusal.
+                    invalid_kwargs: dict[str, Any] = {field: bad}
+                    with pytest.raises(PalaceIndexError, match="positive integers"):
+                        FileVectorLimits(**invalid_kwargs)
+                    with pytest.raises(PalaceIndexError, match="positive integers"):
+                        read_file_vectors(
+                            conn=conn,
+                            watch_root=root,
+                            path="absent.md",
+                            expected_identity=identity,
+                            **invalid_kwargs,
+                        )
+            with pytest.raises(PalaceIndexError, match="supported maximum"):
+                FileVectorLimits(max_chunks=16385)
+            assert read("absent.md", FileVectorLimits(max_bytes=10**100)) is None
+            plan = plan_file("small.md")
+            before = state()
+            for bad_plan, selected in (
+                (replace(plan, full_delete=False), identity),
+                (replace(plan, noop=IndexOutcome(kind="markdown", noop=True)), identity),
+                (replace(plan, kind="deleted", file_row=None), identity),
+                (replace(plan, kind="jsonl", jsonl_offset=1), identity),
+                (replace(plan, jsonl_offset=1), identity),
+                (plan, None),
+                (replace(plan, stored="../bad.md"), identity),
+            ):
+                statements: list[str] = []
+                conn.set_trace_callback(statements.append)
+                with pytest.raises(
+                    PalaceIndexError, match="snapshot admission|normalized relative"
+                ):
+                    write(bad_plan, limits, selected=selected)
+                conn.set_trace_callback(None)
+                assert statements == [] and state() == before
+            with pytest.raises(PalaceIndexError, match="must be FileVectorLimits"):
+                write(plan, {})
+            conn.execute("BEGIN")
+            with pytest.raises(PalaceIndexError, match="idle connection"):
+                write(plan, limits)
+            assert conn.in_transaction
+            conn.rollback()
+            for budget in (FileVectorLimits(max_bytes=1), FileVectorLimits(max_chunks=1)):
+                with pytest.raises(PalaceIndexError, match="bounds"):
+                    write(plan, budget)
+                assert not conn.in_transaction and state() == before
+            assert read("small.md") is None
+            write(plan, limits)
+            snapshot = read("small.md")
+            assert snapshot is not None and len(snapshot.chunks) == 3
+
+            # Independent oracle: materialize a SMALL fixture and count its DB
+            # scalar encodings in Python, not the production aggregate helper.
+            def encoded(value: Any) -> int:
+                if value is None:
+                    return 0
+                return len(value if isinstance(value, bytes) else str(value).encode("utf-8"))
+
+            total = sum(
+                encoded(value)
+                for row in conn.execute(
+                    "SELECT key,value FROM index_meta WHERE key IN "
+                    "('embed_convention','embed_model','embed_provider','embed_dim')"
+                )
+                for value in row
+            )
+            total += encoded(
+                conn.execute("SELECT sql FROM sqlite_master WHERE name='chunks_vec'").fetchone()[0]
+            )
+            for table, record in (("files", FileRecord), ("chunks", ChunkRecord)):
+                columns = ",".join(f.name for f in fields(record))
+                total += sum(
+                    encoded(value)
+                    for row in conn.execute(f"SELECT {columns} FROM {table}")
+                    for value in row
+                )
+            total += sum(
+                encoded(row[0]) for row in conn.execute("SELECT embedding FROM chunks_vec")
+            )
+            total += sum(
+                encoded(row[0])
+                for row in conn.execute("SELECT input_sha256 FROM chunk_embedding_inputs")
+            )
+            exact = FileVectorLimits(max_bytes=total, max_chunks=3)
+            assert read("small.md", exact) == snapshot
+            statements = []
+            conn.set_trace_callback(statements.append)
+            with pytest.raises(PalaceIndexError, match="bounds"):
+                read("small.md", replace(exact, max_bytes=total - 1))
+            conn.set_trace_callback(None)
+            assert not any(
+                sql.startswith("SELECT embedding FROM") or sql.startswith("SELECT chunk_id,")
+                for sql in statements
+            )
+            before = state()
+            replacement = plan_file("small.md", "a genuinely different replacement body")
+            assert replacement.rows[0].chunk_id != plan.rows[0].chunk_id
+            assert replacement.embed_inputs != plan.embed_inputs
+            with pytest.raises(PalaceIndexError, match="bounds"):
+                write(replacement, replace(exact, max_bytes=total - 1))
+            assert state() == before and not conn.in_transaction
+            assert read("small.md", exact) == snapshot
+            write(plan, exact)
+            assert read("small.md", exact) == snapshot
+
+            # A pending FTS-map repair is included in rollback, not published
+            # before snapshot capacity admission.
+            conn.execute("DELETE FROM chunks_fts_rows")
+            conn.execute("DELETE FROM index_meta WHERE key='fts_rowid_map'")
+            before = state()
+            with pytest.raises(PalaceIndexError, match="bounds"):
+                write(plan, FileVectorLimits(max_bytes=1))
+            assert state() == before and not conn.in_transaction
+            write(plan, exact)
+            assert read("small.md", exact) == snapshot
+
+            verify_fts_rowid_map(conn)
+            assert conn.execute(
+                "SELECT value FROM index_meta WHERE key='fts_rowid_map'"
+            ).fetchone() == ("complete",)
+            assert conn.execute("SELECT count(*) FROM chunks_fts").fetchone()[0] == 3
+
+            # A post-commit read failure is a committed state, not a rollback.
+            conn.execute("UPDATE chunk_embedding_inputs SET input_sha256='bad'")
+            with pytest.raises(PalaceIndexError, match="input digest"):
+                read("small.md", exact)
+            assert conn.execute("SELECT count(*) FROM files").fetchone()[0] == 1
+            write(plan, exact)
+        finally:
+            conn.close()
+
+    # Ordinary breadcrumb plans can opt in too; no identity or model-input change.
+    default_store, default_root = _isolated(store, root, "default-budget")
+    with writer_lock(default_store, operation="synthetic default snapshot", timeout=0):
+        conn = _open(default_store)
+        try:
+            note = default_root / "note.md"
+            note.write_text("## Body\nunchanged breadcrumb input\n")
+            plan = plan_one(
+                conn=conn,
+                path=note,
+                watch_root=default_root,
+                file_kind="markdown",
+                change_kind="created",
+                full=True,
+                log=_noop_log,
+            )
+            default_identity = resolve_identity(default_store)
+            commit_plan(
+                conn=conn,
+                plan=plan,
+                embeddings=FakeEmbedder().embed(plan.embed_inputs),
+                identity=default_identity,
+                log=_noop_log,
+                snapshot_limits=FileVectorLimits(),
+            )
+            assert (
+                read_file_vectors(
+                    conn=conn,
+                    watch_root=default_root,
+                    path="note.md",
+                    expected_identity=default_identity,
+                )
+                is not None
+            )
+        finally:
+            conn.close()
+
+
+def _assert_expanded_snapshot_budget(store: Path, root: Path) -> None:
+    from palace.index import FileVectorLimits, read_file_vectors, writer_lock
+
+    # One generic expanded document, real parser/4096-wide DB/commit/readback.
+    # Most boundaries use the small fixture above; no provider is invoked here.
+    note = root / "expanded.md"
+    note.write_text("\n\n".join(f"## Section {i}\n" + "expanded text " * 140 for i in range(3650)))
+    with writer_lock(store, operation="synthetic expanded snapshot", timeout=0):
+        conn = _open(store)
+        try:
+            identity = resolve_identity(store)
+            assert identity.dim == 4096
+            plan = plan_one(
+                conn=conn,
+                path=note,
+                watch_root=root,
+                file_kind="markdown",
+                change_kind="created",
+                full=True,
+                log=_noop_log,
+            )
+            assert len(plan.rows) == 3650
+            lower_bound = sum(
+                4 * identity.dim + len(row.body.encode()) + len(row.body_hash) for row in plan.rows
+            )
+            assert lower_bound > FileVectorLimits().max_bytes
+            vector = [1.0] + [0.0] * (identity.dim - 1)
+            with pytest.raises(PalaceIndexError, match="bounds"):
+                commit_plan(
+                    conn=conn,
+                    plan=plan,
+                    embeddings=[vector] * len(plan.rows),
+                    identity=identity,
+                    log=_noop_log,
+                    snapshot_limits=FileVectorLimits(),
+                )
+            assert (
+                not conn.in_transaction
+                and conn.execute("SELECT count(*) FROM files").fetchone()[0] == 0
+            )
+            limits = FileVectorLimits(max_bytes=80 * 1024 * 1024)
+            commit_plan(
+                conn=conn,
+                plan=plan,
+                embeddings=[vector] * len(plan.rows),
+                identity=identity,
+                log=_noop_log,
+                snapshot_limits=limits,
+            )
+            with pytest.raises(PalaceIndexError, match="bounds"):
+                read_file_vectors(
+                    conn=conn, watch_root=root, path=note.name, expected_identity=identity
+                )
+            snapshot = read_file_vectors(
+                conn=conn,
+                watch_root=root,
+                path=note.name,
+                expected_identity=identity,
+                max_bytes=limits.max_bytes,
+                max_chunks=limits.max_chunks,
+            )
+            assert snapshot is not None and len(snapshot.chunks) == len(plan.rows)
+            assert all(row.vector == tuple(vector) for row in snapshot.chunks)
+            assert tuple(row.chunk.chunk_id for row in snapshot.chunks) == plan.chunk_ids
+        finally:
+            conn.close()
+
+
 def test_plan_shapes_align_and_commit_rejects_vector_count_mismatch(
     tmp_store: Path, tmp_watch_root: Path
 ) -> None:
     _assert_supplied_inputs_and_snapshots(*_isolated(tmp_store, tmp_watch_root, "supplied"))
+    _assert_snapshot_budget_admission(*_isolated(tmp_store, tmp_watch_root, "budget"))
+    _assert_expanded_snapshot_budget(*_isolated(tmp_store, tmp_watch_root, "expanded"))
     note = tmp_watch_root / "plan.md"
     note.write_text("## A\nalpha\n## B\nbeta\n", encoding="utf-8")
     conn = _open(tmp_store)

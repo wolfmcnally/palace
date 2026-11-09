@@ -69,7 +69,12 @@ from palace.index.embedder_config import (
     resolve_embedder,
     resolve_identity,
 )
-from palace.index.file_vectors import CommittedChunkVector, FileVectorSnapshot, read_file_vectors
+from palace.index.file_vectors import (
+    CommittedChunkVector,
+    FileVectorLimits,
+    FileVectorSnapshot,
+    read_file_vectors,
+)
 from palace.index.jsonl import JsonlChunk, parse_jsonl_tail
 from palace.index.lifecycle import (
     PLIST_FILENAME,
@@ -119,6 +124,7 @@ __all__ = [
     "EmbeddingIdentity",
     "EmbeddingRepresentation",
     "CommittedChunkVector",
+    "FileVectorLimits",
     "FileVectorSnapshot",
     "read_file_vectors",
     "with_embedding_inputs",

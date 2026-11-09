@@ -1143,3 +1143,141 @@ Phase 24 close bookkeeping is applied after accepted implementation evidence. Th
 
 Lessons:
 - lovely-cricket remains filed; esoteric-hawk addendum applied. Graduation candidates caped-bonobo and esoteric-hawk remain for human judgment, without changing rules or machinery.
+
+## 2026-11-09 09:49 — PARK
+Phase 24 snapshot-budget correction — full typecheck refused the negative test fixture.
+
+Execution trace: 768c021a18a344e794eacb5768d85b98
+
+The first ordinary implementation gate failed before tests: two intentional invalid-input keyword dictionaries were inferred as a union incompatible with the integer-only public API. Runtime-only focused mypy omitted this changed test file. This is a test typing defect, not evidence of a snapshot transaction defect. Lint and format passed; later checks did not run. Four inherited temporary-environment warnings explicitly selected the locked project environment.
+
+Evidence: failed gate f7be442120cb7c97d13d21f5443127b91c550734033914296ace301dde4bc857; product495c3e4453bc60317bc6bd37db3d168ab2313e3235b130528051499c05cac66f and full8b0f5754c77fe8c66084e2572dcf1213fd01d6067c4135c2547ae0dd37fbdafd remained unchanged. The prior 268-test iteration pass is not final gate evidence. All review advice and eight primary dispositions remain preserved; two plan and two code allowances are spent. No process or resource remains active.
+
+The causal correction is to declare the intentionally invalid kwargs as dict[str, Any], with a comment explaining the runtime negative test. Every invalid value and refusal assertion stays unchanged. Classified direct fix: test typing only, no API or runtime behavior change. The failure signature is novel for this phase; policies/fail-closed-resume.md permits a fresh corrective trace with two self-resume units remaining. This failed run stays failed; no review reset or additional adviser.
+
+Lessons:
+- Filed: small-crane — include changed test code in focused typechecking and explicitly type intentional invalid-input fixtures.
+- Filed: nifty-quokka — make refused replacements observably different; both review proof controls detected their deliberate faults.
+- Existing graduation candidates caped-bonobo and esoteric-hawk remain human decisions; no rule graduation.
+
+Remaining: fresh correction validation, primary delta, both complete acceptance gates, accepted close and guarded delivery/CI. Existing manual API clarity remains pending. The earlier native watcher timeout remains unexplained. No release, tag, permission expansion or unrelated work.
+
+## 2026-11-09 09:55 — PARK
+Phase 24 snapshot-budget correction — execution report is stale after failed-trace finalization.
+
+Execution trace: ed2dfc55a27c46289fb20a38a814f2ce
+
+All 268 tests passed in 185.17 seconds, with lint, format, complete typecheck, CLI smoke and the first two policy checks passing. The full gate then refused stale reports/execution/index-data.js. Later checks did not run. Seven inherited temporary-environment warnings explicitly selected the locked project environment. No new watcher failure occurred.
+
+Evidence: gate64d73650de15b38575c383192cae2f6a93c105bf20688a13e5f015aaae670401; product1e0ba2931462b4a44d9131d2f98f2030d7dc7f85311b57aa623fc4cd21ea4f3a and full23ea87c9315b6dcbaf909be7b55844daea64ab3719e103f84ee1113ee0c84b0f remained unchanged. The prior typing failure and original unknown watcher failure remain preserved separately. No process or resource remains active.
+
+Source diagnosis: bin/check-execution-dashboards regenerates reports from the full finalized EXECUTION_LOG.jsonl and compares exact bytes. The preceding failed trace appended that ledger; its existing report was not regenerated. The renderer supports retaining the historical successful accepted trace and unchanged handoff while including later failed traces. The smallest proposed correction is regeneration after this failed trace is finalized, then the cheap dashboard check before a fresh direct correction run and both full gates. No report checker or policy change is proposed, and failed traces must never be selected as accepted.
+
+Lessons:
+- Filed: ethereal-weasel — refresh existing reports after failed-trace finalization before the next complete gate.
+- Retained: small-crane and nifty-quokka; original candidate evidence and eight primary dispositions preserved.
+- Existing graduation candidates remain human-owned; no rules changed.
+
+Remaining: coordinator-managed context compaction before another major segment; bounded report regeneration, fresh candidate/delta capture, both full gates, accepted close and guarded delivery/CI. Two self-resume units remain; this park consumes none. All two plan and two code advice allowances remain spent. API clarity stays manual. No release, tag, grants or scope expansion.
+
+## 2026-11-09 10:20 — END (correction)
+Phase 24 — explicit finite snapshot capacity (correction)
+
+Callers can declare a larger finite snapshot budget and have publication refuse an oversized full plan before COMMIT. The 64 MiB default and hard row ceiling remain unchanged. The implementation and its independent advice are complete; final bookkeeping, the handoff gate and delivery remain pending at this acceptance record.
+
+Files changed:
+- palace/index/file_vectors.py, palace/index/core.py and palace/index/__init__.py — shared exact encoded-payload accounting, public frozen limits and optional transactional admission.
+- palace/index/README.md and CHANGELOG.md — explicit limits, same-budget mandatory readback and truthful I/O outcomes.
+- tests/index/test_core.py — precise admission/rollback/integrity proofs and one synthetic 4096-dimensional commit/readback above 64 MiB.
+- EXECUTION_LOG.jsonl, LOG.md, reports/execution/2026-11-09/phase-24/data.js and reports/execution/index-data.js — preserved failed evidence and regenerated historical report; final accepted report pending.
+- lessons/nifty-quokka.md, lessons/small-crane.md and lessons/ethereal-weasel.md — proof, typing and report-refresh learning already filed.
+- user-actions/sandy-wolf.md — extension of the pending manual clarity review planned after accepted close.
+
+Build status:
+- Focused family, complete typecheck and changed-path full fallback passed during iteration; those executions are not final gates.
+- Current complete implementation gate: PASS, 268 tests in 208.52 seconds, lint, format, 139-source typecheck, CLI smoke and every policy check. Nine uv warnings state that the inherited temporary environment is ignored for the locked repository environment; no unexplained warnings.
+- Previous full runs remain FAILED: deliberate invalid-type fixtures needed explicit test kwargs typing; a subsequent run passed 268 tests but failed stale derived-report validation. Supported regeneration passed the cheap report checker before this full gate. No assertion, deadline, runtime checker or policy was weakened.
+- Original native watcher timeout remains unexplained. Its failure and bounded stage diagnostics remain retained; later passes do not identify its cause.
+- Handoff gate: runs after this tracked END block; completion is contingent on the ignored receipt from the final bare ./bin/check all.
+
+Review lane: full.
+Evidence lane: full.
+Follow-up route: full cycle for the public API and transaction change, followed by bounded direct fixes for test typing and derived-report bookkeeping. Completed Phase 24 remains complete; no phase or advice allowance reset.
+
+Role model/venue — orchestrated by Codex:
+- Primary planning/coding stays on the retained Astra/high author. Prior qualified preflight and independent advice were carried; no new role invocation in this continuation.
+- Original plan and first code advice used the expressly authorized fresh same-provider fallback during the other provider's quota hold; observed model/effort were unreported.
+- Second code advice requested Opus/high via fresh Claude. Observed Claude Code 2.1.319 and claude-opus-5-5; observed effort unreported. Its read-only shell request was denied before execution, with no retry or bypass; the reviewer used permitted file reads and disclosed the absence of actual diff/tests. The primary inspected the diff and executed validation.
+- Two plan and two code launches are spent. Eight stable primary dispositions remain: seven adopted, one optional diagnostic/duplicate-validation suggestion declined. No established implementation defect was inferred from the proof gaps.
+- No role timing belongs to this direct-fix run; original measured timings and observation gaps remain in their original finalized traces.
+
+Candidate-bound evidence:
+- Product e1e6aea23eb83ec279dbe444ba7ef3402bd6852c64280be8dfd11bd3095a38fb and full tree 38731bda47977b04d69524ad6f43b79eeaa01dc007865916da65a0925deb6b1a were unchanged through the implementation gate and independent recapture.
+- One current managed final gate, zero new focused gate records; diagnostics reviewed and acceptance validation passed. Original advice identities and eight dispositions are carried, not relabeled as fresh review.
+- Gate 0ed2d76574ed28aa9fe28428b21cd8983fedf6ef88b88b0fa61aef03b0e6168d; manifest c2b7df0035a9f7f67dfb7d036335909077d450145ab882ee6da0ad76da84b382.
+
+Acceptance:
+- Objective: original composition/identity/default invariants; strict finite limits; exact SQL aggregate measurement before payload; pre-COMMIT full-plan budget admission; unsupported opt-in refusal before mutation; successful rollback preserving eight relevant tables; independently verified keyword-map repair; one actual expanded 4096-dimensional snapshot crossing 64 MiB with explicit admission/readback and default refusal. Independent advice, primary delta decisions and the complete gate cover these criteria.
+- Parked for the user: API clarity and caller responsibilities, including uninterrupted writer-lock lifetime, exact input mapping, always-fresh destination names, same-budget mandatory readback and truthful committed-but-unaccepted or uncertain I/O outcomes. Existing action stays pending.
+
+Delivery:
+- default — guarded commit and fast-forward push only after the handoff gate. No release or tag publication.
+
+Ripple:
+- AUTO: none — no downstream sketches. No phase marker change.
+- DECIDE: none blocking this correction.
+
+Lessons:
+- filed: nifty-quokka — changed replacement data makes rollback proof discriminating (local); small-crane — changed negative fixtures need complete typing checks (local); ethereal-weasel — refresh derived reports after failed trace finalization, before another gate (methodology).
+- occurrences added: none for this continuation of the same incidents.
+- graduation DECIDE: caped-bonobo (3 occurrences, methodology) and esoteric-hawk (4, local) remain optional human judgments at their proposed surfaces; no rules changed.
+- recalibration: prior recommendation ignored 317 incomplete historical rows, with no target reaching the 30-sample minimum. No new role sample or configuration change.
+
+Wall-clock observations:
+- Used the cheap report checker before another expensive full gate. Both ordinary full gates remain required; iteration evidence does not replace either.
+
+User Demo: N/A — this is a library composition seam with deterministic synthetic proofs, without a new interactive surface.
+
+Remaining:
+- Accepted-close bookkeeping, final report, second full gate and guarded delivery/CI are pending at this record. Manual API clarity and the original watcher cause remain open. No dependency change or editable-tool reinstall is needed.
+- Test protocol: skipped (reason: this correction introduces only invariants enforced by automated gates); the report retains the exact synthetic proof command and documentation review steps.
+
+### Execution timing
+
+Execution trace: 80a967eebc974e429cec90f18716c036
+- Outcome: `success`
+- Makespan: 872036499250 ns (872.036499250 s)
+- Intelligence: 0 ns (0.000000000 s)
+- Gates: 214296870750 ns (214.296870750 s)
+- Orchestration: 862791476083 ns (862.791476083 s)
+- Wait: 0 ns (0.000000000 s)
+- Retry/rework: 0 ns (0.000000000 s)
+- Failed work: 0 ns (0.000000000 s)
+- Unattributed: 9245023167 ns (9.245023167 s)
+- Category totals are interval unions and may overlap.
+
+#### Slowest material spans
+
+- `orchestration.acceptance` — category `reconciliation`, attempt 1, outcome `success`: 787626934791 ns (787.626934791 s)
+- `gate.full` — category `gate`, attempt 1, outcome `success`: 214296870750 ns (214.296870750 s)
+- `orchestration.setup` — category `reconciliation`, attempt 1, outcome `success`: 38860409750 ns (38.860409750 s)
+- `orchestration.implementation` — category `reconciliation`, attempt 1, outcome `success`: 23632951417 ns (23.632951417 s)
+- `orchestration.close` — category `reconciliation`, attempt 1, outcome `success`: 12671180125 ns (12.671180125 s)
+
+Awaiting user input:
+- 2026-11-09T07:44:57.983713Z → 2026-11-09T07:48:46.576379Z: 228593479584 ns (decision; exact monotonic).
+- 2026-11-09T07:55:59.320879Z → 2026-11-09T07:59:19.947953Z: 200625956166 ns (decision; exact monotonic).
+- Phase total: 429219435750 ns (exact monotonic union); all input parks closed. No new operator-input park in this continuation.
+
+Timing scope: the generated timing above covers only this direct-fix run, including the coordinator-managed compaction interval within acceptance. Earlier failed and reviewed runs retain their own finalized measurements; zero failed/retry work in this run does not erase them.
+
+## 2026-11-09 10:20 — END (correction bookkeeping)
+
+Phase 24 — accepted correction bookkeeping
+
+The accepted close is recorded. The existing manual API clarity action now includes finite resource limits, same-budget mandatory readback, uninterrupted lock lifetime and truthful uncertain I/O outcomes; it remains pending. Phase 24 stays complete, with no downstream sketches or blocking ripple decisions. Three previously filed lessons validate; caped-bonobo and esoteric-hawk remain optional graduation judgments. No new occurrence, rule, dependency or runtime change was made during bookkeeping.
+
+The next and final tracked write regenerates the report from the current accepted trace and every preserved finalized failure. The separate bare handoff gate, guarded delivery and remote CI remain pending. The original watcher failure remains unexplained.
+
+Lessons:
+- Existing three lessons retained and validated; no additional incident or graduation.
