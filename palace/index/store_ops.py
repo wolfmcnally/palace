@@ -30,6 +30,12 @@ import sqlite_vec
 from palace.index._errors import IndexError
 from palace.index.config import WRITER_BUSY_TIMEOUT_SECONDS, chunks_db_path
 from palace.index.core import _delete_rows, _insert_fts_chunk
+from palace.index.representation import (
+    INPUTS_DDL,
+    has_input_evidence,
+    parse_representation,
+    validate_input_digest,
+)
 from palace.index.schema import (
     RecordedIdentity,
     assert_schema_version,
@@ -301,6 +307,11 @@ def _copy_in_transaction(
         if doc.document_id not in incoming_ids
     ]
     ensure_fts_rowid_map(conn, in_transaction=True)
+    supplied = parse_representation(source_identity.convention) is not None
+    if supplied:
+        if not has_input_evidence(conn, source=True):
+            raise IndexError("source store has no committed embedding input evidence")
+        conn.execute(INPUTS_DDL)
     copied = removed = 0
     for rel in targets:
         key = (root, rel)
@@ -329,6 +340,13 @@ def _copy_in_transaction(
                 "SELECT chunk_id, embedding FROM source.chunks_vec WHERE chunk_id = ?",
                 (chunk_id,),
             )
+            if supplied:
+                evidence = conn.execute(
+                    "SELECT input_sha256 FROM source.chunk_embedding_inputs WHERE chunk_id=?",
+                    (chunk_id,),
+                ).fetchone()
+                digest = validate_input_digest(None if evidence is None else evidence[0])
+                conn.execute("INSERT INTO chunk_embedding_inputs VALUES (?, ?)", (chunk_id, digest))
             _insert_fts_chunk(conn, chunk_id, body, rowid=_source_rowid(conn, chunk_id))
         conn.execute(
             "INSERT INTO main.jsonl_cursors SELECT * FROM source.jsonl_cursors "

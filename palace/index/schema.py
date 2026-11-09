@@ -50,6 +50,7 @@ from palace.index.config import (
     schema_version_path,
 )
 from palace.index.embedder_config import resolve_identity
+from palace.index.representation import INPUTS_DDL, parse_representation
 from palace.metadata import MetadataError, initialize_metadata
 
 __all__ = [
@@ -170,6 +171,7 @@ CHUNKS_ROOT_PATH_INDEX = (
 def _ddl_statements(dim: int) -> tuple[str, ...]:
     """The schema DDL, run once on bootstrap, with the vector table at ``dim``."""
     return (
+        INPUTS_DDL,
         # Canonical row store. Every promoted fact about a chunk lives
         # here; the two virtual tables below are derived indexes.
         """
@@ -396,7 +398,9 @@ def readable_divergences(found: RecordedIdentity, *, declared_dim: int | None) -
     The recorded dimension must equal the width the vector table was declared at.
     """
     divergences: list[str] = []
-    if found.convention != EMBED_CONVENTION:
+    try:
+        parse_representation(found.convention)
+    except IndexError:
         value = found.convention if found.convention is not None else "none"
         divergences.append(f"convention found='{value}' expected='{EMBED_CONVENTION}'")
     if found.model is None:

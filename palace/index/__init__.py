@@ -58,6 +58,7 @@ from palace.index.core import (
     delete_path,
     index_one,
     plan_one,
+    with_embedding_inputs,
 )
 from palace.index.cursor import TailCursor, today_default
 from palace.index.daemon_state import DaemonState, daemon_state_path
@@ -68,6 +69,7 @@ from palace.index.embedder_config import (
     resolve_embedder,
     resolve_identity,
 )
+from palace.index.file_vectors import CommittedChunkVector, FileVectorSnapshot, read_file_vectors
 from palace.index.jsonl import JsonlChunk, parse_jsonl_tail
 from palace.index.lifecycle import (
     PLIST_FILENAME,
@@ -80,6 +82,7 @@ from palace.index.lifecycle import (
 )
 from palace.index.markdown import ParsedMarkdown, Section, chunk_sections, parse_markdown
 from palace.index.pipeline import classify_kind, process_change_event
+from palace.index.representation import EmbeddingRepresentation
 from palace.index.scheduler import BuildLimits, BuildProgress
 from palace.index.schema import (
     ChunkRecord,
@@ -114,6 +117,11 @@ __all__ = [
     "Embedder",
     "EmbedderConfig",
     "EmbeddingIdentity",
+    "EmbeddingRepresentation",
+    "CommittedChunkVector",
+    "FileVectorSnapshot",
+    "read_file_vectors",
+    "with_embedding_inputs",
     "EventsTail",
     "FileKind",
     "FilePlan",

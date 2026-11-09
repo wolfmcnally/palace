@@ -969,3 +969,177 @@ Acceptance:
 
 Lessons:
 - none new; strange-ibis (filed in the Phase 23 END block) stands. The instance lane confirmed the design choice to derive principal evidence from instance metadata and the SDK credential method rather than STS in a subnet without an STS endpoint.
+
+## 2026-11-08 23:55 — START
+Phase 24 — Compatible file-vector reuse
+
+Execution trace: 1c11cfae5d9f4c898a288df89aab4f4d
+Baseline: 2e860673e1c5929eb9d4325bf3ae8836682820e5 — default breadcrumb behavior remains unchanged
+
+Planned work:
+- A supported bounded nominated-file reader returning committed ordered chunks/vectors and matching file/index identity observations, without exposing arbitrary SQL or private tables as the caller API.
+- Explicit body/name representation admission and verification that binds exact ordered inputs/digests, provider, model, dimension, implementation, chunker, name policy and actual view, preserving existing defaults and refusing incompatible stored identities.
+- Documented composition through the existing FilePlan and commit_plan transaction under one same-store writer lock acquired before connection and donor read and held through publication and connection close.
+- Hermetic synthetic proofs of reuse, independently generated destination identity/name rows, identity/input/view mismatches, bounded read refusal, missing versus corrupt donor behavior and atomic failure; operator-facing API documentation and changelog notes.
+
+## 2026-11-09 00:46 — PARK
+Phase 24: compatible file-vector reuse
+
+The vector composition implementation and focused proofs are complete, but delivery is blocked by a native filesystem-watcher test in the full gate. No committed or published result is claimed. Phase 24 remains in progress.
+
+Build status:
+- The retained index, copy, search and selector families passed: 37 tests in 6.14 seconds after advice corrections. Lint, formatting and type checks passed.
+- The complete implementation gate failed: 267 passed and one failed in 160.03 seconds. test_serve_skips_missing_on_disk_root received no alive.md event before its existing two-second deadline; records were empty. The daemon reported one observed root after skipping the removed root. Reindex source and test files are unchanged in this candidate.
+- The observation cannot distinguish readiness, native delivery or subsequent processing as its cause. No repeated gate, timeout relaxation or unrelated watcher edit was attempted. Six uv warnings report an inherited temporary environment ignored in favor of the repository environment; no provider or dependency environment was substituted.
+- The optional requested gate artifact did not exist after execution, so the evidence tool truthfully recorded no artifact digest. Complete diagnostics remain in the authoritative check-all receipt log. The gate and its diagnostic review remain failed evidence.
+- Handoff gate, guarded delivery and CI were not run.
+
+Review and candidate evidence:
+- Full review/evidence lane; primary inline plan/code with independent same-model advice after quota-constrained cross-provider fallback. The original plan advice, artifact-only re-emission and code advice remain preserved. Review allowances are not reset.
+- Plan advice adopted idle-connection refusal and kind-aware JSONL observations with JSONL supplied-input composition excluded. Code advice identified a proof gap, not an established implementation defect; the retained fixture now uses two distinct body rows and caller-side rejection of reordered, fully prefixed or changed-view reuse under the same identity.
+- Primary self-inspection bounded index identity and vector schema payloads before shared validators read them. Focused verification passed afterward. Public API signatures, default breadcrumbs and caller-owned mapping/lock duties remain unchanged.
+- Product candidate before and after the failed gate: cc0e0f2a628ab2416adfe0fc9e017695c29684d487065dae2ae73622393a7ebf. Full-tree candidate before and after: e8b8a3c02af5c71266f3ab6ef749d78d1de8e9c761dfc56c95070328117cd395. Subsequent changes are only this park and lesson bookkeeping.
+- Gate: 451aa364417dfb5cd9b8e19ca034831055a5b3c7a7b1353343e2cbb267953a9b. Review: 471d0fb53539720f55c40fd89aafbaf257d6c4dc842579da95fb10e4afeddf51. All owned gate/test processes and role watchers are terminal; known gate/test processes and direct descendants were absent at park.
+
+Execution trace: 1c11cfae5d9f4c898a288df89aab4f4d
+
+The root and acceptance stage closed with error and the trace was finalized. Timing-summary correctly refused because no successful acceptance stage exists; no accepted execution summary or report is claimed. Required-input time is recorded separately. No self-resume allowance was consumed; a causal correction and scoped direction are needed before another implementation gate. Preserve the same work and independent advice in any supported corrective continuation.
+
+Acceptance:
+- Objective completion remains unproved because the full gate failed. Focused evidence establishes the new API behaviors but does not substitute for the gate.
+- Manual API clarity and caller-responsibility review remains the operator's judgment.
+
+Lessons:
+- Filed lovely-cricket: supply semantic advisory path constraints before launch; methodology candidate, no rule change.
+- Recurred esoteric-hawk: exact-target native event timeout remains unresolved; now four observations. Validation passed.
+- Graduation decisions remain with the operator: caped-bonobo has three observations and esoteric-hawk has four. No graduation applied.
+- Timeout recommendations had insufficient successful samples; no model, timeout, permission or configuration change.
+
+Remaining: diagnose the watcher gate failure within explicitly authorized scope, preserve failed evidence, then complete both full gates and normal guarded delivery. No release or tag is authorized. No downstream sketches or ripple decisions exist.
+
+## 2026-11-09 00:56 — PARK (diagnosis)
+
+Phase 24: bounded watcher diagnosis
+
+Authorized bounded diagnosis completed without a source or test correction. Delivery remains parked because the original full-gate failure is unexplained; diagnostic passes do not replace that evidence.
+
+Evidence:
+- Eight isolated instrumented target trials passed. The complete reindex server module passed ten tests. One instrumented whole-suite run using the ordinary pytest temporary layout passed 268 tests in 158.75 seconds. These were controlled diagnostic reproductions, not acceptance gates.
+- Native registration preceded the target write in all natural observations. In the isolated/module trials, durable target writes completed 0.111–0.412 seconds after the write returned; the whole-suite target callback arrived after 0.0206 seconds and fsync completed after 0.1451 seconds.
+- Two deliberately faulty controls failed at the original exact-target two-second timeout with empty records. A 2.5-second startup hold placed the write before native registration. Handler suppression showed native and handler arrival but no debounce or fsync. The instrument distinguished these mechanisms even though the original assertion could not.
+- The original gate has no such stage timestamps. No natural failure was reproduced, and instrumentation can affect scheduling. A fixed readiness sleep is a weak proxy, but this does not prove it caused the original timeout. No readiness handshake, runtime redesign, deadline relaxation or replacement passing gate was introduced.
+- All twelve diagnostic invocations terminated with no surviving test threads; the whole-suite process was absent after completion. Exact logs, observations, scripts, source hashes and a byte-verified manifest are retained under the ignored diagnostics surface. Manifest SHA-256: a089b61a4b2745af07bde3502825614d3eb2c6e0faa2323c3519ab18860ba2d2.
+
+The prior failed evidence run stays finalized and parked. Its supported advice-source validation passed; any future corrective run must carry the original advice and consumed allowances, then record a new primary delta decision and both complete gates. The product candidate remains cc0e0f2a628ab2416adfe0fc9e017695c29684d487065dae2ae73622393a7ebf. No code review was repeated and no self-resume allowance was consumed. This off-trace investigation does not claim accepted execution timing.
+
+Lessons:
+- Updated esoteric-hawk with the bounded investigation and competing controlled mechanisms; this is additional evidence for the same occurrence, so the count stays four. Ledger validation passed.
+- Existing adequate verification rules require distinguishing the observed symptom from its mechanism; no new rule or speculative fix was added.
+
+Remaining: a scoped decision to retain failure-stage diagnostics with a fixed-budget original-workload qualification, or a separately owned watcher investigation. The coordinator received the exact result and smallest next decision. Manual API clarity remains open. No commit, push, CI, release or tag occurred.
+
+## 2026-11-09 01:00 — START (resumed)
+
+Phase 24: compatible file-vector reuse, resumed with bounded watcher diagnostics
+
+Execution trace: 98fb5d84ec8c4c4a8e91c159e3222810
+
+The operator authorized failure-only stage diagnostics in the existing missing-root watcher test and up to three complete-suite qualifications, stopping on a new failure for causal assessment. Preserve the exact target assertion and two-second timeout. No readiness/deadline relaxation, skipped checks, broader watcher redesign or other weakening is authorized. The original failed gate and later diagnostic passes remain distinct; the original cause is still unknown.
+
+Follow-up route: direct fix — test-only bounded observation around the unchanged native path, with no product behavior or new collected family. Prior independent advice and allowances are carried through the supported source validation. Required focused checks, one standalone complete-suite qualification and both normal complete gates remain; the qualification is not relabeled as a normal gate. A new failure stops further runs. No new review is required for this local test correction under primary-mode delta assessment.
+
+Planned work retains the original phase deliverables:
+- A supported bounded nominated-file reader returning committed ordered chunks/vectors and matching file/index identity observations, without exposing arbitrary SQL or private tables as the caller API.
+- Explicit body/name representation admission and verification that binds exact ordered inputs/digests, provider, model, dimension, implementation, chunker, name policy and actual view, preserving existing defaults and refusing incompatible stored identities.
+- Documented composition through the existing FilePlan and commit_plan transaction under one same-store writer lock acquired before connection and donor read and held through publication and connection close.
+- Hermetic synthetic proofs of reuse, independently generated destination identity/name rows, identity/input/view mismatches, bounded read refusal, missing versus corrupt donor behavior and atomic failure; operator-facing API documentation and changelog notes.
+
+## 2026-11-09 01:20 — END
+Phase 24: Compatible file-vector reuse
+
+Callers can now read one committed file's vectors and compose compatible body vectors into independent destination rows. The destination name remains the caller's fresh embedding responsibility. Existing breadcrumb inputs remain unchanged. The implementation is accepted on independent advice, primary dispositions and the complete implementation gate; bookkeeping and the separate handoff gate remain pending below.
+
+Files changed:
+- palace/index/representation.py, file_vectors.py, __init__.py — explicit representation descriptor, bounded committed snapshot and public exports.
+- palace/index/core.py, schema.py, embedder_config.py, build.py, store_ops.py — supplied-input admission, atomic input evidence, configured identity and maintained copy/remove behavior.
+- tests/index/test_core.py, tests/index/test_store_ops.py, tests/test_bedrock_provider.py, tests/test_search.py — existing proof families extended for reuse, refusal, storage consistency and configured search.
+- tests/reindex/test_server.py — bounded failure-only stage evidence, with the original assertion and deadline retained.
+- palace/index/README.md, CHANGELOG.md, plan/phase-24.md, plan/INDEX.md — contract, scope and phase ledger; completion marker pending accepted close.
+- EXECUTION_LOG.jsonl, LOG.md — preserved failed attempt, diagnosis, resumed work and finalized execution evidence.
+- lessons/lovely-cricket.md, lessons/esoteric-hawk.md, user-actions/sandy-wolf.md — captured learning and pending manual API clarity review.
+- reports/execution/ — sanitized report generation pending after accepted close and bookkeeping.
+
+Build status:
+- Focused composition checks: 37 passed; watcher module: 10 passed. Lint, formatting and type checks passed.
+- Original implementation gate: failed, 267 passed and one exact-target watcher timeout. Its cause remains unknown; the failed evidence is retained.
+- Controlled diagnosis: eight target trials, the watcher module and one complete suite passed; two deliberately faulty controls reproduced the same assertion at different stages. These are diagnostic observations, not normal gates or proof of the original cause.
+- Authorized standalone qualification 1 after failure-only instrumentation: 268 passed in 191.20 seconds, full-tree identity unchanged. No remaining qualification is required merely to exhaust the allowance.
+- Current normal implementation gate: ./bin/check all passed; 268 tests in 169.98 seconds, plus lint, format, types, CLI smoke and all policy checks. Nine warnings reported that an inherited temporary VIRTUAL_ENV was ignored in favor of the locked repository environment; none were unexplained.
+- Handoff gate: runs after this tracked END block and all bookkeeping; completion is contingent on the ignored receipt from the final bare ./bin/check all.
+
+Review lane: full, product primary mode with independent plan and code advice; carried into the bounded direct-fix continuation without resetting allowances.
+Evidence lane: full.
+Follow-up route: direct fix — authorized bounded failure-only instrumentation in one existing synthetic watcher test. No production watcher change, readiness relaxation or timeout extension. No causal repair of the earlier failure is claimed.
+
+Role model/venue — orchestrated by Codex:
+- Preflight: validated Codex read-only advisory targets and configuration-bound receipt. Configured Opus/high advisers were unavailable at measured weekly usage of 100%; the authorized independent Astra/default fallback was used. No Claude probe or model/settings change occurred.
+- Planner and coder: invoking primary, configured Astra; role effort default/inherited. Observed model, effort and harness version unreported by the run contract; no separate delegated role duration claimed.
+- Plan reviewer: requested Astra/default, independent Codex; two launches, the second an authorized artifact-only re-emission because the first used an inadmissible absolute affected path. Substantive advice was preserved. Observed harness codex-cli 0.166.0; observed model and effort unreported; observation diagnostic: primary model unreported.
+- Code critic: requested Astra/default, independent Codex; one launch. Observed harness codex-cli 0.166.0; observed model and effort unreported; observation diagnostic: primary model unreported.
+- Role timings from exact source spans: first plan report 92340909667 ns, first event 0.632 seconds, longest idle 33.999 seconds; artifact-only re-emission 16765082125 ns, first event 0.983 seconds, longest idle 13.882 seconds; code advice 134062690709 ns, first event 0.643 seconds, longest idle 34.741 seconds. Each process succeeded; the first plan artifact's semantic ingestion failed and remains preserved.
+
+Execution trace: 98fb5d84ec8c4c4a8e91c159e3222810
+Execution timing:
+- Finalized continuation makespan: 1171647569375 ns; gates: 174728288250 ns; reconciliation: 1155591858958 ns; unattributed: 16055710417 ns. Category unions may overlap and must not be added as elapsed time. This includes a coordinator-owned continuity pause; it is not a CPU-work estimate.
+- Current trace intelligence, wait, retry and failed-span totals: 0 ns. Earlier advice and the failed predecessor are retained separately, not erased by these current-trace totals. Combined chronological/exclusive accounting will be generated from both finalized traces in the report.
+- Timing validation: exact monotonic trace joins passed through the pinned timing-summary in JSON and Markdown; no incomplete telemetry reported.
+
+Awaiting user input:
+- 2026-11-09T07:44:57.983713Z → 2026-11-09T07:48:46.576379Z: 228593479584 ns (decision; exact monotonic).
+- 2026-11-09T07:55:59.320879Z → 2026-11-09T07:59:19.947953Z: 200625956166 ns (decision; exact monotonic).
+- Total: 429219435750 ns (exact monotonic union from phase-summary); none open.
+
+Candidate-bound evidence:
+- Current-run initial product: cc0e0f2a628ab2416adfe0fc9e017695c29684d487065dae2ae73622393a7ebf. Accepted product: 28f14100db261c0001c0e9b0c3aecb7d3579c3dfc6a89df682ec53d4adb54877.
+- Implementation full tree before and after: fa53d655a14dfbfe5eb9c32d08fb1cd5ff70ea529b36ca4b1319c62a3a9a1b6e. Final delivery tree will include bookkeeping and is not claimed here.
+- Independent code-reviewed product: 105ce701d2979edc53e338bc84c1497d4d28d291d6438909592b0d99ae8029bb. Primary delta assessment covers stronger ordered-input/view proofs, metadata read bounds and the authorized test diagnostic correction.
+- Accepted plan advice has two findings; code advice has one proof gap, not an established implementation defect. All three were adopted and verified by retained tests. No unresolved blocking finding. Current continuation has zero revision packets and no new adviser launches, as recorded in its packet and role ledgers.
+- Managed gate: 17fc1623bc6eb2a4dffa3f63f8358b751e8c744800f746966ab20cf831c3a6cf. Manifest: c2b7df0035a9f7f67dfb7d036335909077d450145ab882ee6da0ad76da84b382. Current gate ledger contains one implementation-final execution; diagnostic review is a separate observation, not another run.
+- Command zero and acceptance evidence validation passed. The retained preflight config digest is 0c684e37b465cc475e46df683b2ee28ca29bd122b19afbacd1f58d678b722d98; read-only probe digest is 80e07aaf4b4fe4e4349e429acde58522da73a7a5c83551579df86dfc06adcf69.
+
+Wall-clock observations:
+- Focused families were used during iteration; no repeated full qualification is needed after success. Both normal full gates remain mandatory. No optimization tangent or assertion weakening was taken.
+
+Acceptance:
+- Objective: nominated-only bounded committed reads, complete representation identity and exact ordered input evidence, multiple reused body rows with independent destination identities and fresh names, search after donor removal, input/view mismatch refusals, idle-connection refusal and atomic rollback, unchanged default breadcrumbs. Independent advice and primary decisions are bound to the implementation and its complete gate.
+- Parked for the user: API clarity and documented caller responsibilities, tracked in user-actions/sandy-wolf.md. This manual judgment remains open after delivery. The separate handoff gate is still required before completion.
+
+Delivery:
+- Default — guarded ordinary commit and fast-forward push after the handoff gate. No public release or tag publication is authorized.
+
+Ripple:
+- None — no downstream sketches. Completion marker and final report are pending accepted close; no next phase is selected.
+
+Lessons:
+- Filed: lovely-cricket — give advisory reviewers semantic artifact constraints before launch (methodology candidate).
+- Recurred: esoteric-hawk, four total occurrences — distinguish native delivery from later processing and preserve unknown causes (local candidate). A bounded qualification addendum is pending; no additional occurrence will be invented.
+- Graduation DECIDE: caped-bonobo (three occurrences) → bin; esoteric-hawk (four occurrences) → test. These optional human learning judgments remain pending; no rule or machinery is changed here.
+- Recalibration: no target has the required 30 successful samples. Historical malformed/incomplete records were excluded with diagnostics; no timeout configuration changed.
+
+User Demo: N/A — this is a library composition seam with deterministic synthetic proofs, without a new interactive surface.
+
+Test protocol:
+- Run ./bin/test tests/index/test_core.py -q to exercise synthetic composition and refusals without a live corpus or model service.
+- Read the caller-supplied embedding inputs section in palace/index/README.md and return API clarity feedback through the pending manual action.
+
+Remaining:
+- Apply the completion marker, append actual lesson/bookkeeping outcomes and generate the report, then pass the bare handoff gate and guarded delivery. None of these future outcomes is claimed by this block.
+- Original watcher failure cause remains unknown. Future natural failures must preserve stage evidence and stop for causal assessment.
+- Manual API clarity and optional lesson graduation remain the user's judgment. No dependency change or tool reinstall is required.
+
+## 2026-11-09 01:22 — CLOSE BOOKKEEPING
+
+Phase 24 close bookkeeping is applied after accepted implementation evidence. The phase ledger now marks the work complete, with no downstream phase or arrow. The watcher lesson addendum records qualified failure-only diagnostics without attributing the original failure; its occurrence count remains four. Lesson validation and append-only log checks passed. The manual API clarity action remains pending. Sanitized report generation and the bare handoff gate follow this record; delivery remains contingent on that gate.
+
+Lessons:
+- lovely-cricket remains filed; esoteric-hawk addendum applied. Graduation candidates caped-bonobo and esoteric-hawk remain for human judgment, without changing rules or machinery.

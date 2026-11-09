@@ -350,6 +350,83 @@ def test_copy_and_remove_named_files(tmp_path: Path, monkeypatch: pytest.MonkeyP
         (tmp_path / part).mkdir()
     _copy_and_equality(tmp_path / "first", monkeypatch)
     _refusals_atomicity_and_removal(tmp_path / "second", monkeypatch)
+    _supplied_evidence_copy(tmp_path / "supplied")
+
+
+def _supplied_evidence_copy(base: Path) -> None:
+    from palace.index import (
+        EmbeddingRepresentation,
+        commit_plan,
+        plan_one,
+        read_file_vectors,
+        with_embedding_inputs,
+    )
+    from palace.index.config import EMBED_DIM
+    from palace.index.embedder_config import EmbedderConfig, resolve_identity, save_embedder_config
+
+    root = base / "root"
+    root.mkdir(parents=True)
+    note = root / "note.md"
+    note.write_text("shared body\n\n# Filename\n")
+    representation = EmbeddingRepresentation("sections-v1", "fake-v1", "md-v1", "heading-v1")
+    source, target = base / "source", base / "target"
+    for store in (source, target):
+        save_embedder_config(
+            store,
+            EmbedderConfig(
+                "ollama", "qwen3-embedding:8b", EMBED_DIM, representation=representation
+            ),
+        )
+        _empty(store, root)
+    identity = resolve_identity(source)
+    with writer_lock(source, operation="fixture", timeout=0), closing(_connect(source)) as conn:
+        plan = plan_one(
+            conn=conn,
+            file_kind="markdown",
+            change_kind="created",
+            path=note,
+            watch_root=root,
+            full=True,
+            log=lambda _: None,
+        )
+        plan = with_embedding_inputs(
+            plan, representation=representation, inputs=[r.body for r in plan.rows]
+        )
+        commit_plan(
+            conn=conn,
+            plan=plan,
+            embeddings=FakeEmbedder().embed(plan.embed_inputs),
+            identity=identity,
+            log=lambda _: None,
+        )
+        original = read_file_vectors(
+            conn=conn, watch_root=root, path="note.md", expected_identity=identity
+        )
+    assert (
+        copy_paths(source=source, destination=target, watch_root=root, paths=["note.md"]).copied
+        == 1
+    )
+    with writer_lock(target, operation="fixture", timeout=0), closing(_connect(target)) as conn:
+        assert (
+            read_file_vectors(
+                conn=conn, watch_root=root, path="note.md", expected_identity=identity
+            )
+            == original
+        )
+    with writer_lock(source, operation="fixture", timeout=0), closing(_connect(source)) as conn:
+        conn.execute("DELETE FROM chunk_embedding_inputs")
+    with pytest.raises(IndexError, match="input digest"):
+        copy_paths(source=source, destination=target, watch_root=root, paths=["note.md"])
+    with writer_lock(target, operation="fixture", timeout=0), closing(_connect(target)) as conn:
+        assert (
+            read_file_vectors(
+                conn=conn, watch_root=root, path="note.md", expected_identity=identity
+            )
+            == original
+        )
+    remove_paths(store=target, watch_root=root, paths=["note.md"])
+    with closing(_connect(target)) as conn:
+        assert conn.execute("SELECT count(*) FROM chunk_embedding_inputs").fetchone()[0] == 0
 
 
 @contextmanager

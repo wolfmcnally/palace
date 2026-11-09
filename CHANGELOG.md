@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Explicit caller-supplied embedding representations and ordered input views for full per-file plans, with transactional exact-input digests. Existing breadcrumb inputs remain the default. The caller owns rendering, filename policy and fresh filename embedding; changing representation requires rebuilding incompatible derived state.
+- Bounded `read_file_vectors` snapshots of one nominated committed file, including chunk/vector rows, complete embedding identity, input digests and an actual file-view digest. Composition holds one same-store writer lock through connection close. Cross-store copying preserves input evidence; removal deletes it atomically.
+
 ## 0.3.0 — 2026-11-07
 
 - A registered `bedrock` embedding provider for Cohere Embed v4 (`cohere.embed-v4:0`) on a direct regional Bedrock runtime endpoint: the AWS SDK credential chain only, a fail-closed same-Region `GetAccountDataRetention` check requiring `none` before the first request, `search_document` and `search_query` input types, batches of at most 96 inside a conservative 120,000-unit request budget, Palace-owned audited retries with SDK retries and endpoint-URL overrides disabled, and identity `bedrock:<region>`. It requires a published-corpus assertion. As of 2026-11-07, one bounded workstation-profile run in one Region with a synthetic ten-note corpus passed; instance-role authentication, other Regions, throughput and real-corpus behaviour are not established. See `docs/bedrock.md`.

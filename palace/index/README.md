@@ -38,6 +38,40 @@ for `uv run palace index install` / `uninstall` and the operator
 
 ## Bounded synchronous builds
 
+### Caller-supplied embedding inputs
+
+The public `palace.index` API admits an explicit `EmbeddingRepresentation(convention, implementation, chunker, name_policy)`. Each label is a nonblank string of at most 256 UTF-8 bytes. Its canonical `marker` is stored in `EmbeddingIdentity.convention`; provider, model and dimension remain separate identity axes. Configure it with `EmbedderConfig.representation` using `save_embedder_config`, or the same four-field `representation` table in TOML or composed settings. Omitting it retains `breadcrumb-path-heading-v1` and its exact existing model inputs.
+
+Use `plan_one(..., full=True)` on a prepared Markdown, code or text file, then `with_embedding_inputs(plan, representation=descriptor, inputs=ordered_texts)`. It returns a frozen `FilePlan` with the same destination-generated rows and IDs, and exactly one supplied string per row in plan order. JSONL composition is excluded because record IDs can intentionally belong to the record across paths. Ordinary `build`, `build_root` and `index_one` refuse explicit representations before inference: they cannot choose the caller's mapping. Search uses the configured identity and provider as usual.
+
+Embed the returned `plan.embed_inputs` with the declared implementation and pass vectors in that exact order to `commit_plan(..., identity=expected_identity)`. The write validates the complete plan and convention, vector count, dimension and finite float32 values. It publishes UTF-8 SHA-256 input digests in the same transaction as chunks, vectors, keyword rows and file state. Palace records the supplied-input claim; it cannot establish what an external model actually received. Changing descriptor, provider, model or dimension requires an explicit rebuild of incompatible derived state. Never stamp a new identity over old vectors. The ordinary default full-build bypass is unavailable for supplied-input commits; initialize a genuinely empty index with the intended selector before composing its rows.
+
+`read_file_vectors(conn=..., watch_root=..., path=..., expected_identity=..., max_chunks=16384, max_bytes=67108864)` reads exactly one normalized watch-root-relative POSIX path. It returns `None` for an absent file without orphan rows, otherwise a frozen `FileVectorSnapshot(file, identity, chunks, view_sha256)`. Each `CommittedChunkVector` contains its `ChunkRecord`, a tuple of float32 values and `input_sha256`. Default input digests include the full path/heading breadcrumb. Explicit input digests are the evidence committed with each vector. Missing, inconsistent or corrupt evidence refuses. The snapshot validates the file manifest, kind-aware chunk identities, bodies and vectors; the view digest binds the actual observed file, ordered rows, inputs, vectors and complete identity. It is not a whole-store checkpoint or a reservation.
+
+The reader requires an idle connection with no active transaction. Hold one same-store `writer_lock` **before opening that connection and until after donor read, planning, embedding, publication and connection close**, on one writer thread. Neither the reader nor `commit_plan` takes the lock. Do not invoke a second lock-taking writer in that interval. If the lock is released, reacquire it and reread/revalidate before reuse. The reader does not commit or roll back caller state. Limits may be lowered, must be positive integers, and may not exceed the stated maxima. They bound row count and encoded database payload bytes before payload retrieval, not Python object overhead, RSS or on-disk database size; excess refuses rather than truncates.
+
+The caller selects an eligible donor, compares complete identity and exact ordered body-input digests, freshly embeds every destination filename input even when names match, and supplies the combined vectors in destination plan order. Palace does not identify body/name rows or authorize donors. Equal body bytes alone are insufficient when model inputs contain a destination-dependent prefix. Reuse copies vector values into independent destination rows; donor deletion leaves those rows searchable. `copy_paths` instead preserves unchanged IDs between distinct stores, and is not the same-store composition API.
+
+```python
+from contextlib import closing
+from palace.index import commit_plan, plan_one, read_file_vectors, with_embedding_inputs, writer_lock
+
+# `open_initialized_connection`, the mapping and eligibility checks belong to
+# the caller. The connection loads sqlite-vec and uses the configured identity.
+with writer_lock(store, operation="compose file"):
+    with closing(open_initialized_connection(store)) as conn:
+        donor = read_file_vectors(
+            conn=conn, watch_root=root, path=donor_path, expected_identity=identity,
+        )
+        plan = plan_one(
+            conn=conn, file_kind="markdown", change_kind="created",
+            path=destination, watch_root=root, full=True, log=log,
+        )
+        plan = with_embedding_inputs(plan, representation=descriptor, inputs=map_inputs(plan))
+        vectors = compose_verified_body_and_fresh_name_vectors(donor, plan, identity)
+        commit_plan(conn=conn, plan=plan, embeddings=vectors, identity=identity, log=log)
+```
+
 As of 2026-10-20, `palace index build` rotates embedding turns across a bounded, sorted multi-root manifest. Completed documents become searchable while earlier large documents are still embedding. Publication remains a whole-document transaction: readers see the previous document or its complete replacement. The build keeps the store writer lock throughout reconciliation; readers can continue using the same-identity index. Identity-changing full rebuilds remain an offline maintenance operation.
 
 Default supported ceilings are 8 MiB per ordinary source or unconsumed JSONL tail, 16,384 changed chunks per document, 64 MiB per serialized plan, 100,000 admitted files per invocation and 1 GiB of logical private staging bytes. Local turns contain at most 32 inputs and 128 KiB; OpenRouter retains its existing 1,024-input and 30,000 normalized-byte/framing request ceiling, with an additional 128 KiB raw ceiling on each input. A remote single input must also fit the stricter 30,000 conservative normalized-byte/framing request budget. These are engineering admission limits, not measured throughput, RSS, allocated filesystem space, SQLite/WAL size or monetary guarantees. Existing parsers can amplify input memory. The Python `BuildLimits` value permits deliberate adjustments; invalid or insufficient budgets refuse before inference. The CLI uses these defaults.

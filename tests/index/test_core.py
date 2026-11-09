@@ -161,6 +161,42 @@ def _assert_markdown_input_reconstruction(
         path_str, heading, body = conn.execute(
             "SELECT path, heading, body FROM chunks WHERE kind = 'markdown'"
         ).fetchone()
+        import hashlib
+        from dataclasses import replace
+
+        from palace.index import read_file_vectors
+
+        # The default remains readable without an optional supplied-input table.
+        conn.execute("DROP TABLE chunk_embedding_inputs")
+        snapshot = read_file_vectors(
+            conn=conn,
+            watch_root=tmp_watch_root,
+            path="notes.md",
+            expected_identity=resolve_identity(tmp_store),
+        )
+        assert snapshot is not None
+        assert embedder.last_batch is not None
+        assert (
+            snapshot.chunks[0].input_sha256
+            == hashlib.sha256(embedder.last_batch[0].encode()).hexdigest()
+        )
+        full = plan_one(
+            conn=conn,
+            file_kind="markdown",
+            change_kind="created",
+            path=note,
+            watch_root=tmp_watch_root,
+            full=True,
+            log=_noop_log,
+        )
+        with pytest.raises(PalaceIndexError, match="complete breadcrumb"):
+            commit_plan(
+                conn=conn,
+                plan=replace(full, embed_inputs=("body alone",)),
+                embeddings=[[0.0] * EMBED_DIM],
+                identity=resolve_identity(tmp_store),
+                log=_noop_log,
+            )
     finally:
         conn.close()
     assert embedder.last_batch == [scored_text(path=path_str, heading=heading, body=body)]
@@ -689,9 +725,287 @@ def _assert_delete_path_keys_on_relative_path(
     assert gone == 0
 
 
+def _assert_supplied_inputs_and_snapshots(store: Path, root: Path) -> None:
+    import hashlib
+    from dataclasses import replace
+
+    from palace.index import (
+        EmbeddingRepresentation,
+        FileVectorSnapshot,
+        read_file_vectors,
+        with_embedding_inputs,
+    )
+    from palace.index.build import build
+    from palace.index.embedder_config import EmbedderConfig, save_embedder_config
+    from palace.writer_lock import WriterLockTimeout, writer_lock
+
+    representation = EmbeddingRepresentation(
+        "literal-sections-v1", "fake-v1", "markdown-v1", "closing-heading-v1"
+    )
+    save_embedder_config(
+        store,
+        EmbedderConfig("ollama", "qwen3-embedding:8b", EMBED_DIM, representation=representation),
+    )
+    identity = resolve_identity(store)
+    calls: list[str] = []
+
+    def embed(text: str) -> list[float]:
+        calls.append(text)
+        axis = 0 if text == "shared body" else 2 if "shared second" in text else 1
+        return [1.0 if i == axis else 0.0 for i in range(EMBED_DIM)]
+
+    def reuse_body(
+        observed: FileVectorSnapshot,
+        current: FileVectorSnapshot,
+        inputs: tuple[str, ...],
+    ) -> list[tuple[float, ...]]:
+        # Caller-side admission: these two rows are body; the last row is a name.
+        if current.identity != identity or current.view_sha256 != observed.view_sha256:
+            raise ValueError("donor view changed")
+        if tuple(row.input_sha256 for row in current.chunks[:2]) != tuple(
+            hashlib.sha256(text.encode()).hexdigest() for text in inputs
+        ):
+            raise ValueError("ordered body inputs differ")
+        return [row.vector for row in current.chunks[:2]]
+
+    with writer_lock(store, operation="synthetic composition", timeout=0):
+        with (
+            pytest.raises(WriterLockTimeout),
+            writer_lock(store, operation="competing writer", timeout=0),
+        ):
+            pytest.fail("a second writer entered the donor/publication interval")
+        conn = _open(store)
+        try:
+
+            def read(name: str, **limits: Any) -> Any:
+                return read_file_vectors(
+                    conn=conn, watch_root=root, path=name, expected_identity=identity, **limits
+                )
+
+            assert read("absent.md") is None
+            snapshots: list[FileVectorSnapshot] = []
+            for name, title in (
+                ("donor.md", "Original"),
+                ("a/dest.md", "Destination"),
+                ("b/dest.md", "Destination"),
+            ):
+                note = root / name
+                note.parent.mkdir(exist_ok=True)
+                note.write_text(f"shared body\n\n## Shared section\nshared second\n\n# {title}\n")
+                ordinary = plan_one(
+                    conn=conn,
+                    file_kind="markdown",
+                    change_kind="created",
+                    path=note,
+                    watch_root=root,
+                    full=True,
+                    log=_noop_log,
+                )
+                plan = with_embedding_inputs(
+                    ordinary,
+                    representation=representation,
+                    inputs=[row.body for row in ordinary.rows],
+                )
+                assert plan.rows == ordinary.rows and plan.chunk_ids == ordinary.chunk_ids
+                assert len(plan.rows) == 3
+                digest = hashlib.sha256(plan.embed_inputs[0].encode()).hexdigest()
+                if snapshots:
+                    donor = snapshots[0]
+                    assert donor.identity == identity and donor.chunks[0].input_sha256 == digest
+                    calls_before = list(calls)
+                    for bad_inputs in (
+                        tuple(reversed(plan.embed_inputs[:2])),
+                        ordinary.embed_inputs[:2],
+                    ):
+                        bad = with_embedding_inputs(
+                            ordinary,
+                            representation=representation,
+                            inputs=(*bad_inputs, plan.embed_inputs[-1]),
+                        )
+                        assert bad.convention == plan.convention
+                        with pytest.raises(ValueError, match="ordered body inputs differ"):
+                            reuse_body(donor, read("donor.md"), bad.embed_inputs[:2])
+                        assert read(name) is None and calls == calls_before
+                    vectors = [
+                        *reuse_body(donor, read("donor.md"), plan.embed_inputs[:2]),
+                        embed(plan.embed_inputs[-1]),
+                    ]
+                else:
+                    vectors = [embed(text) for text in plan.embed_inputs]
+                with pytest.raises(PalaceIndexError, match="representation does not match"):
+                    commit_plan(
+                        conn=conn,
+                        plan=replace(plan, convention=ordinary.convention),
+                        embeddings=vectors,
+                        identity=identity,
+                        log=_noop_log,
+                    )
+                with pytest.raises(PalaceIndexError, match="explicit identity"):
+                    commit_plan(
+                        conn=conn, plan=plan, embeddings=vectors, identity=None, log=_noop_log
+                    )
+                with pytest.raises(PalaceIndexError, match="dimension and finite"):
+                    commit_plan(
+                        conn=conn,
+                        plan=plan,
+                        embeddings=[[float("nan")] * EMBED_DIM] * 3,
+                        identity=identity,
+                        log=_noop_log,
+                    )
+                commit_plan(
+                    conn=conn, plan=plan, embeddings=vectors, identity=identity, log=_noop_log
+                )
+                snapshot = read(name)
+                assert snapshot is not None and len(snapshot.chunks) == 3
+                assert snapshot.chunks[0].input_sha256 == digest
+                assert [row.vector for row in snapshot.chunks] == [tuple(v) for v in vectors]
+                assert snapshot == read(name)
+                assert not any(
+                    set(plan.chunk_ids) & {row.chunk.chunk_id for row in old.chunks}
+                    for old in snapshots
+                )
+                snapshots.append(snapshot)
+            assert calls == [
+                "shared body",
+                "## Shared section\nshared second",
+                "# Original",
+                "# Destination",
+                "# Destination",
+            ]
+            donor = snapshots[0]
+            assert (
+                donor.chunks[0].input_sha256
+                != hashlib.sha256(b"donor.md\n\nshared body").hexdigest()
+            )
+            for axis in ("convention", "implementation", "chunker", "name_policy"):
+                changed = replace(representation, **{axis: "different"})
+                with pytest.raises(PalaceIndexError, match="embedding-identity mismatch"):
+                    read_file_vectors(
+                        conn=conn,
+                        watch_root=root,
+                        path="donor.md",
+                        expected_identity=replace(identity, convention=changed.marker),
+                    )
+            for limits in ({"max_chunks": 1}, {"max_bytes": 1}, {"max_bytes": 20000}):
+                with pytest.raises(PalaceIndexError, match="bounds"):
+                    read("donor.md", **limits)
+            conn.execute("UPDATE index_meta SET value=? WHERE key='embed_model'", ("x" * 70000,))
+            with pytest.raises(PalaceIndexError, match="bounds"):
+                read("donor.md", max_bytes=65536)
+            conn.execute("UPDATE index_meta SET value=? WHERE key='embed_model'", (identity.model,))
+            assert read("donor.md", max_bytes=65536) == donor
+            for name in ("../donor.md", "/donor.md", "a//dest.md", "."):
+                with pytest.raises(PalaceIndexError, match="normalized relative"):
+                    read(name)
+            conn.execute("BEGIN")
+            conn.execute("UPDATE chunks SET body='uncommitted' WHERE path='donor.md'")
+            with pytest.raises(PalaceIndexError, match="idle connection"):
+                read("donor.md")
+            assert conn.in_transaction
+            conn.rollback()
+            assert read("donor.md") == donor
+
+            cid = donor.chunks[0].chunk.chunk_id
+            for table, column, key, original, corrupt_value, message in (
+                ("chunks", "body", cid, "shared body", "tampered", "integrity"),
+                ("files", "sections_json", "donor.md", donor.file.sections_json, "[]", "manifest"),
+                (
+                    "chunk_embedding_inputs",
+                    "input_sha256",
+                    cid,
+                    donor.chunks[0].input_sha256,
+                    "bad",
+                    "input digest",
+                ),
+            ):
+                key_column = "path" if table == "files" else "chunk_id"
+                sql = f"UPDATE {table} SET {column}=? WHERE {key_column}=?"
+                conn.execute(sql, (corrupt_value, key))
+                with pytest.raises(PalaceIndexError, match=message):
+                    read("donor.md")
+                conn.execute(sql, (original, key))
+            blob = conn.execute(
+                "SELECT embedding FROM chunks_vec WHERE chunk_id=?", (cid,)
+            ).fetchone()[0]
+            conn.execute("DELETE FROM chunks_vec WHERE chunk_id=?", (cid,))
+            with pytest.raises(PalaceIndexError, match="missing or wrong-width"):
+                read("donor.md")
+            conn.execute("INSERT INTO chunks_vec VALUES (?, ?)", (cid, blob))
+            conn.execute(
+                "UPDATE files SET last_indexed_at='changed observation' WHERE path='donor.md'"
+            )
+            changed_view = read("donor.md")
+            assert changed_view.identity == donor.identity
+            calls_before = list(calls)
+            with pytest.raises(ValueError, match="donor view changed"):
+                reuse_body(donor, changed_view, plan.embed_inputs[:2])
+            assert calls == calls_before and read("a/dest.md") == snapshots[1]
+            conn.execute(
+                "UPDATE files SET last_indexed_at=? WHERE path='donor.md'",
+                (donor.file.last_indexed_at,),
+            )
+            assert read("donor.md") == donor
+
+            # A fault after vector insertion rolls back replacement and input evidence together.
+            before = {
+                table: conn.execute(f"SELECT * FROM {table}").fetchall()
+                for table in (
+                    "files",
+                    "chunks",
+                    "chunks_vec",
+                    "chunks_fts",
+                    "chunks_fts_rows",
+                    "chunk_embedding_inputs",
+                )
+            }
+            conn.execute(
+                "CREATE TEMP TRIGGER fail_evidence BEFORE INSERT ON chunk_embedding_inputs "
+                "BEGIN SELECT RAISE(ABORT, 'evidence fault'); END"
+            )
+            with pytest.raises(sqlite3.IntegrityError, match="evidence fault"):
+                commit_plan(
+                    conn=conn, plan=plan, embeddings=vectors, identity=identity, log=_noop_log
+                )
+            assert not conn.in_transaction
+            assert before == {
+                table: conn.execute(f"SELECT * FROM {table}").fetchall() for table in before
+            }
+            conn.execute("DROP TRIGGER fail_evidence")
+            delete_path(conn=conn, watch_root=str(root), path_str="donor.md")
+            assert read("donor.md") is None
+            assert read("a/dest.md") == snapshots[1] and read("b/dest.md") == snapshots[2]
+            assert conn.execute("SELECT count(*) FROM chunk_embedding_inputs").fetchone()[0] == 6
+            assert (
+                len(
+                    conn.execute(
+                        "SELECT chunk_id FROM chunks_fts WHERE chunks_fts MATCH 'shared'"
+                    ).fetchall()
+                )
+                == 4
+            )
+
+            with pytest.raises(PalaceIndexError, match="requires plan_one"):
+                index_one(
+                    conn=conn,
+                    embedder=FakeEmbedder(),
+                    identity=identity,
+                    file_kind="markdown",
+                    change_kind="created",
+                    path=root / "a/dest.md",
+                    watch_root=root,
+                    store=store,
+                    log=_noop_log,
+                )
+            with pytest.raises(PalaceIndexError, match="requires plan_one"):
+                build(store=store, full=True, embedder=FakeEmbedder())
+        finally:
+            conn.close()
+
+
 def test_plan_shapes_align_and_commit_rejects_vector_count_mismatch(
     tmp_store: Path, tmp_watch_root: Path
 ) -> None:
+    _assert_supplied_inputs_and_snapshots(*_isolated(tmp_store, tmp_watch_root, "supplied"))
     note = tmp_watch_root / "plan.md"
     note.write_text("## A\nalpha\n## B\nbeta\n", encoding="utf-8")
     conn = _open(tmp_store)
@@ -724,7 +1038,7 @@ def test_full_plan_bypasses_hash_short_circuit_and_resets_jsonl_cursor(
     note = tmp_watch_root / "note.md"
     note.write_text("## A\nalpha\n", encoding="utf-8")
     events = tmp_watch_root / "events.jsonl"
-    events.write_text('{"body":"one"}\n', encoding="utf-8")
+    events.write_text('{"id":"synthetic-record","body":"one"}\n', encoding="utf-8")
     conn = _open(tmp_store)
     try:
         _index_markdown(
@@ -737,7 +1051,18 @@ def test_full_plan_bypasses_hash_short_circuit_and_resets_jsonl_cursor(
             watch_root=tmp_watch_root,
             log=_noop_log,
         )
-        events.write_text('{"body":"one"}\n{"body":"two"}\n', encoding="utf-8")
+        from palace.index import EmbeddingRepresentation, read_file_vectors, with_embedding_inputs
+
+        snapshot = read_file_vectors(
+            conn=conn,
+            watch_root=tmp_watch_root,
+            path="events.jsonl",
+            expected_identity=resolve_identity(tmp_store),
+        )
+        assert snapshot is not None and len(snapshot.chunks) == 1
+        events.write_text(
+            '{"id":"synthetic-record","body":"one"}\n{"body":"two"}\n', encoding="utf-8"
+        )
         markdown_plan = plan_one(
             conn=conn,
             file_kind="markdown",
@@ -761,6 +1086,21 @@ def test_full_plan_bypasses_hash_short_circuit_and_resets_jsonl_cursor(
         assert jsonl_plan.full_delete is True
         assert len(jsonl_plan.embed_inputs) == 2
         assert jsonl_plan.jsonl_offset == events.stat().st_size
+        with pytest.raises(PalaceIndexError, match="markdown, code and text"):
+            with_embedding_inputs(
+                jsonl_plan,
+                representation=EmbeddingRepresentation("x", "x", "x", "x"),
+                inputs=jsonl_plan.embed_inputs,
+            )
+        assert (
+            read_file_vectors(
+                conn=conn,
+                watch_root=tmp_watch_root,
+                path="events.jsonl",
+                expected_identity=resolve_identity(tmp_store),
+            )
+            == snapshot
+        )
     finally:
         conn.close()
 

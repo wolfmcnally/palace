@@ -465,6 +465,7 @@ def test_query_embedding_is_not_breadcrumbed(
     tmp_watch_root: Path,
     embedder: FakeEmbedder,
 ) -> None:
+    _assert_supplied_search(tmp_store / "supplied", tmp_watch_root, embedder)
     _seed(
         store=tmp_store,
         watch_root=tmp_watch_root,
@@ -1450,3 +1451,72 @@ def test_bedrock_store_builds_and_searches_at_its_own_width(
     with pytest.raises(PalaceError, match="chunks vector table width 4096 differs"):
         build(store=relative, watch_root_filter=root, full=True, log=lambda _line: None)
     assert len(stub.requests) == before
+
+
+def _assert_supplied_search(store: Path, root: Path, embedder: FakeEmbedder) -> None:
+    import sqlite_vec
+
+    from palace.index import (
+        EmbeddingRepresentation,
+        commit_plan,
+        init_db,
+        plan_one,
+        with_embedding_inputs,
+        writer_lock,
+    )
+    from palace.index._errors import IndexError as PalaceIndexError
+    from palace.index.config import EMBED_DIM, prepare_chunks_db_path
+    from palace.index.embedder_config import EmbedderConfig, save_embedder_config
+
+    representation = EmbeddingRepresentation("sections-v1", "fixture-v1", "md-v1", "heading-v1")
+    save_embedder_config(
+        store,
+        EmbedderConfig("ollama", "qwen3-embedding:8b", EMBED_DIM, representation=representation),
+    )
+    with (
+        writer_lock(store, operation="fixture", timeout=0),
+        closing(sqlite3.connect(prepare_chunks_db_path(store), isolation_level=None)) as conn,
+    ):
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
+        init_db(conn, store=store)
+        note = root / "supplied.md"
+        note.write_text("independent literal body\n\n# Display name\n")
+        plan = plan_one(
+            conn=conn,
+            file_kind="markdown",
+            change_kind="created",
+            path=note,
+            watch_root=root,
+            full=True,
+            log=lambda _: None,
+        )
+        plan = with_embedding_inputs(
+            plan, representation=representation, inputs=[row.body for row in plan.rows]
+        )
+        commit_plan(
+            conn=conn,
+            plan=plan,
+            embeddings=embedder.embed(plan.embed_inputs),
+            identity=resolve_identity(store),
+            log=lambda _: None,
+        )
+    hits = search(
+        query="independent literal body",
+        store=store,
+        mode="vector",
+        embedder=embedder,
+    )
+    assert hits and Path(hits[0].path) == note
+    assert embedder.last_batch == ["independent literal body"]
+    before = embedder.call_count
+    save_embedder_config(store, EmbedderConfig("ollama", "qwen3-embedding:8b", EMBED_DIM))
+    with pytest.raises(PalaceIndexError, match="embedding-identity mismatch"):
+        search(
+            query="independent literal body",
+            store=store,
+            mode="vector",
+            embedder=embedder,
+        )
+    assert embedder.call_count == before

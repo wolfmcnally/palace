@@ -69,6 +69,7 @@ from palace.index.embedder_config import (
     resolve_embedder,
     resolve_identity,
 )
+from palace.index.representation import require_default_inputs
 from palace.index.scheduler import (
     BuildLimits,
     BuildProgress,
@@ -211,6 +212,7 @@ def build_root(
     A file-backed chunks database is required for its private derived staging.
     Full callers retain completion receipts until they certify the full store.
     """
+    require_default_inputs(identity.convention)
     database = next(
         (row[2] for row in conn.execute("PRAGMA database_list") if row[1] == "main"), ""
     )
@@ -324,6 +326,7 @@ def _build(
 
     config = load_embedder_config(store)
     identity = identity_for(config)
+    require_default_inputs(identity.convention)
     store_resolved = store.expanduser().resolve()
     watch_config = WatchRootsConfig.load(default_config_path(store))
 

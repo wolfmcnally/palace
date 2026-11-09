@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import sqlite3
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
@@ -32,13 +33,26 @@ from palace.daemons.capture.config import BOISE_TZ
 from palace.daemons.capture.ids import compute_record_id
 from palace.index._errors import IndexError, StalePlanError
 from palace.index.code import CodeChunk, parse_code
-from palace.index.config import MAX_STALE_REPLANS, EmbeddingIdentity
+from palace.index.config import EMBED_CONVENTION, MAX_STALE_REPLANS, EmbeddingIdentity
 from palace.index.egress import EgressContext, egress_context
 from palace.index.embedder import Embedder
 from palace.index.enrich import scored_text
 from palace.index.jsonl import JsonlChunk, parse_jsonl_tail
 from palace.index.markdown import Section, parse_markdown
-from palace.index.schema import assert_identity, compute_chunk_id, ensure_fts_rowid_map
+from palace.index.representation import (
+    INPUTS_DDL,
+    EmbeddingRepresentation,
+    delete_input_evidence,
+    input_digest,
+    parse_representation,
+    require_default_inputs,
+)
+from palace.index.schema import (
+    assert_identity,
+    compute_chunk_id,
+    declared_vector_dim,
+    ensure_fts_rowid_map,
+)
 from palace.index.text import looks_binary, parse_text
 from palace.reindex.config import ChangeKind
 from palace.writer_lock import WRITER_LOCK_TIMEOUT_SECONDS, writer_lock
@@ -50,6 +64,7 @@ __all__ = [
     "delete_path",
     "index_one",
     "plan_one",
+    "with_embedding_inputs",
 ]
 
 
@@ -117,10 +132,61 @@ class FilePlan:
     # is nothing to verify: full plans replace unconditionally, delete plans
     # verify the file's absence instead, and noop plans never commit.
     prior_signature: str | None
+    convention: str = EMBED_CONVENTION
 
     def __post_init__(self) -> None:
         if not (len(self.embed_inputs) == len(self.chunk_ids) == len(self.rows)):
             raise ValueError("file plan embed inputs, chunk ids, and rows must have equal lengths")
+
+
+def _validate_supplied_plan(plan: FilePlan) -> None:
+    if not plan.full_delete or plan.noop is not None or plan.file_row is None:
+        raise IndexError("supplied embedding inputs require a full non-noop file plan")
+    if plan.kind not in {"markdown", "code", "text"}:
+        raise IndexError("supplied embedding inputs support markdown, code and text plans only")
+    file = plan.file_row
+    if (file.path, file.watch_root, file.kind) != (plan.stored, plan.watch_root, plan.kind):
+        raise IndexError("supplied embedding plan file identity mismatch")
+    manifest = []
+    for row in plan.rows:
+        if row.body_hash != input_digest(row.body) or row.chunk_id != compute_chunk_id(
+            watch_root=plan.watch_root,
+            path=plan.stored,
+            section_index=row.section_index,
+            window_index=row.window_index,
+            body_hash=row.body_hash,
+        ):
+            raise IndexError("supplied embedding plan chunk identity mismatch")
+        manifest.append([row.section_index, row.window_index, row.body_hash, row.chunk_id])
+    positions = [(row.section_index, row.window_index) for row in plan.rows]
+    if (
+        tuple(row.chunk_id for row in plan.rows) != plan.chunk_ids
+        or len(set(positions)) != len(positions)
+        or positions != sorted(positions)
+        or json.loads(file.sections_json) != manifest
+    ):
+        raise IndexError("supplied embedding inputs require the complete ordered file plan")
+
+
+def with_embedding_inputs(
+    plan: FilePlan, *, representation: EmbeddingRepresentation, inputs: Sequence[str]
+) -> FilePlan:
+    """Bind exact ordered caller inputs to a full destination plan, preserving its rows.
+
+    The caller embeds these exact strings using the declared implementation and
+    supplies vectors in this order to commit_plan. Filename selection and fresh
+    filename embedding belong to the caller. JSONL record IDs are intentionally
+    not destination-owned, so JSONL composition is excluded.
+    """
+    _validate_supplied_plan(plan)
+    values = tuple(inputs)
+    if (
+        isinstance(inputs, str)
+        or len(values) != len(plan.rows)
+        or any(not isinstance(value, str) for value in values)
+    ):
+        raise IndexError("supply exactly one embedding input string per planned row")
+    return replace(plan, embed_inputs=values, convention=representation.marker)
 
 
 def _now_iso() -> str:
@@ -811,6 +877,28 @@ def commit_plan(
         )
     if plan.noop is not None and not plan.full_delete:
         return plan.noop
+    representation = parse_representation(plan.convention)
+    if identity is not None and plan.convention != identity.convention:
+        raise IndexError("file plan embedding representation does not match identity")
+    if representation is not None:
+        if identity is None:
+            raise IndexError("supplied embedding inputs require an explicit identity")
+        _validate_supplied_plan(plan)
+    elif plan.embed_inputs != tuple(
+        scored_text(path=plan.stored, heading=row.heading, body=row.body) for row in plan.rows
+    ):
+        raise IndexError("default embedding inputs must equal the complete breadcrumb text")
+    dim = declared_vector_dim(conn)
+    if dim is None or (identity is not None and dim != identity.dim):
+        raise IndexError("embedding vector table width does not match identity")
+    vector_blobs = []
+    for vector in embeddings:
+        if len(vector) != dim or any(not math.isfinite(value) for value in vector):
+            raise IndexError("embedding vectors must have the declared dimension and finite values")
+        try:
+            vector_blobs.append(sqlite_vec.serialize_float32(vector))
+        except (OverflowError, ValueError) as exc:
+            raise IndexError("embedding vector cannot be represented as float32") from exc
     ingest_time = _now_iso()
     removed_by_delete = 0
     ensure_fts_rowid_map(conn)
@@ -818,6 +906,8 @@ def commit_plan(
     try:
         if identity is not None:
             assert_identity(conn, identity)
+        if representation is not None:
+            conn.execute(INPUTS_DDL)
         if plan.prior_signature is not None:
             current = _current_signature(conn, plan)
             if current != plan.prior_signature:
@@ -828,13 +918,14 @@ def commit_plan(
             )
         if plan.noop is None and plan.kind != "deleted":
             _delete_fts_chunks(conn, plan.stale_chunk_ids)
+            delete_input_evidence(conn, plan.stale_chunk_ids)
             for stale in plan.stale_chunk_ids:
                 conn.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (stale,))
                 conn.execute("DELETE FROM chunks WHERE chunk_id = ?", (stale,))
             file_row = plan.file_row
             if file_row is None:
                 raise IndexError(f"file plan for {plan.rel} has no files row")
-            for row, vector in zip(plan.rows, embeddings, strict=True):
+            for row, vector, text in zip(plan.rows, vector_blobs, plan.embed_inputs, strict=True):
                 conn.execute(
                     """
                     INSERT INTO chunks (
@@ -865,8 +956,13 @@ def commit_plan(
                 )
                 conn.execute(
                     "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
-                    (row.chunk_id, sqlite_vec.serialize_float32(vector)),
+                    (row.chunk_id, vector),
                 )
+                if representation is not None:
+                    conn.execute(
+                        "INSERT INTO chunk_embedding_inputs (chunk_id, input_sha256) VALUES (?, ?)",
+                        (row.chunk_id, input_digest(text)),
+                    )
                 _insert_fts_chunk(conn, row.chunk_id, row.body)
             conn.execute(
                 """
@@ -947,6 +1043,7 @@ def index_one(
     plan, makes the plan stale. An identity mismatch is not stale; it is a
     terminal refusal for this embedder and propagates.
     """
+    require_default_inputs(identity.convention)
     rel = _log_relative_path(path, watch_root)
     effective_kind = change_kind
     for attempt in range(1, MAX_STALE_REPLANS + 1):
@@ -1050,6 +1147,7 @@ def _delete_rows(*, conn: sqlite3.Connection, watch_root: str, path_str: str) ->
         ).fetchall()
     ]
     _delete_fts_chunks(conn, chunk_ids)
+    delete_input_evidence(conn, chunk_ids)
     for chunk_id in chunk_ids:
         conn.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (chunk_id,))
     conn.execute("DELETE FROM chunks WHERE watch_root = ? AND path = ?", (watch_root, path_str))

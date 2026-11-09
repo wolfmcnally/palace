@@ -186,6 +186,7 @@ def test_bedrock_settings_and_selector_refuse_before_any_request(
     # A two-file composition parses to the Bedrock selector and its Region-qualified identity.
     settings = load_palace_settings([defaults, site], root=tmp_path)
     expected = EmbedderConfig(provider="bedrock", model=MODEL, dim=DIM, region=REGION)
+    _assert_representation_selector(tmp_path / "representation", expected)
     assert settings == PalaceSettings(embedding=expected)
     identity = identity_for(settings.embedding)
     assert (identity.provider, identity.model, identity.dim, identity.convention) == (
@@ -533,3 +534,42 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
     with pytest.raises(pytest.fail.Exception, match="real outbound AWS request"):
         unstubbed.invoke_model(modelId=MODEL, body=b"{}")
     unstubbed.close()
+
+
+def _assert_representation_selector(base: Path, ordinary: EmbedderConfig) -> None:
+    from dataclasses import asdict, replace
+
+    from conric import SchemaError
+
+    from palace.index import EmbeddingRepresentation
+    from palace.index.embedder_config import (
+        load_embedder_config,
+        save_embedder_config,
+        selector_from_mapping,
+    )
+    from palace.index.representation import parse_representation
+
+    descriptor = EmbeddingRepresentation("literal-v1", "fixture-v1", "md-v1", "heading-v1")
+    selected = replace(ordinary, representation=descriptor)
+    save_embedder_config(base, selected)
+    assert load_embedder_config(base) == selected
+    assert parse_representation(identity_for(selected).convention) == descriptor
+    assert identity_for(ordinary).convention == EMBED_CONVENTION
+    config_file = write(
+        base / "composed.yaml",
+        "palace:\n  embedding:\n    provider: ollama\n    representation:\n"
+        "      convention: literal-v1\n      implementation: fixture-v1\n"
+        "      chunker: md-v1\n      name_policy: heading-v1\n",
+    )
+    assert load_palace_settings([config_file], root=base).embedding.representation == descriptor
+    for wrong in (
+        {},
+        {**asdict(descriptor), "extra": "x"},
+        {**asdict(descriptor), "chunker": ""},
+        {**asdict(descriptor), "implementation": "x" * 257},
+        {**asdict(descriptor), "name_policy": False},
+    ):
+        with pytest.raises(SchemaError, match="invalid_representation"):
+            selector_from_mapping({"provider": "ollama", "representation": wrong})
+    with pytest.raises(PalaceError, match="descriptor"):
+        parse_representation(identity_for(selected).convention + " ")

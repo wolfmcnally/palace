@@ -13,6 +13,7 @@ import json
 import platform
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -185,8 +186,87 @@ def test_serve_with_all_roots_missing_idles_until_signal(
     assert result.get("rc") == 0
 
 
+def _watcher_stage_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Callable[[str], None], Callable[[], str]]:
+    """Bounded stage counters/times, displayed only when the target assertion fails."""
+    import watchdog.observers.fsevents as native
+
+    from palace.reindex import observer, writer
+    from palace.reindex.debounce import PathDebouncer
+
+    origin = time.monotonic_ns()
+    lock = threading.Lock()
+    stages: dict[str, dict[str, int]] = {}
+
+    def mark(stage: str) -> None:
+        now = time.monotonic_ns() - origin
+        with lock:
+            row = stages.setdefault(stage, {"first_ns": now, "last_ns": now, "count": 0})
+            row["last_ns"] = now
+            row["count"] += 1
+
+    def observe(owner: Any, name: str, label: str, selected: Callable[..., bool]) -> None:
+        original = getattr(owner, name)
+
+        def call(*args: Any, **kwargs: Any) -> Any:
+            wanted = selected(*args, **kwargs)
+            if wanted:
+                mark(label + ".enter")
+            value = original(*args, **kwargs)
+            if wanted:
+                mark(label + ".return")
+            return value
+
+        monkeypatch.setattr(owner, name, call)
+
+    # The native registration boundary is intentionally private to watchdog.
+    observe(native._fsevents, "add_watch", "native.register", lambda *a, **k: True)  # type: ignore[attr-defined]
+    observe(
+        native.FSEventsEmitter,
+        "events_callback",
+        "native.target",
+        lambda self, paths, *a: any(
+            Path(p.decode() if isinstance(p, bytes) else p).name == "alive.md" for p in paths
+        ),
+    )
+    observe(
+        observer.ChangeHandler,
+        "dispatch",
+        "handler.target",
+        lambda self, event: Path(event.src_path).name == "alive.md",
+    )
+    observe(
+        PathDebouncer,
+        "submit",
+        "debounce.submit",
+        lambda self, **k: k["relative_path"].as_posix() == "alive.md",
+    )
+    observe(
+        PathDebouncer,
+        "_emit",
+        "debounce.emit",
+        lambda self, accumulator: accumulator.relative_path.as_posix() == "alive.md",
+    )
+    observe(
+        writer,
+        "_append_line_fsynced",
+        "writer.fsync",
+        lambda path, line: json.loads(line)["relative_path"] == "alive.md",
+    )
+
+    def describe() -> str:
+        with lock:
+            return "watcher stage observations (relative ns): " + json.dumps(stages, sort_keys=True)
+
+    return mark, describe
+
+
 def test_serve_skips_missing_on_disk_root(
-    tmp_store: Path, tmp_watch_root: Path, capfd: pytest.CaptureFixture[str]
+    tmp_store: Path,
+    tmp_watch_root: Path,
+    capfd: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Add two roots: one that exists, one that we'll remove from disk.
     config = WatchRootsConfig().with_added(tmp_watch_root, store_root=tmp_store)
@@ -197,13 +277,20 @@ def test_serve_skips_missing_on_disk_root(
     # Now make missing_root disappear.
     missing_root.rmdir()
 
+    mark, describe = _watcher_stage_diagnostics(monkeypatch)
     thread, shutdown, result = _start_serve(store=tmp_store)
     try:
         _wait_for_observer(_today_events_path(tmp_store))
         # The live root still emits.
         deadline = time.monotonic() + 2.0
+        mark("target.write.enter")
         (tmp_watch_root / "alive.md").write_text("alive\n")
+        mark("target.write.return")
         _poll_for_event(_today_events_path(tmp_store), relative_path="alive.md", deadline=deadline)
+    except AssertionError as exc:
+        mark("assertion.failed")
+        exc.add_note(describe())
+        raise
     finally:
         shutdown.set()
         thread.join(timeout=5.0)

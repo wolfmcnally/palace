@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -23,6 +23,7 @@ from palace.index.config import (
     EmbeddingIdentity,
 )
 from palace.index.embedder import Embedder, OllamaEmbedder, OpenRouterEmbedder
+from palace.index.representation import EmbeddingRepresentation
 from palace.vault import resolve_vault_root
 
 if TYPE_CHECKING:
@@ -77,6 +78,9 @@ _REASON_TEXT = {
     "unregistered_provider": "provider must be one of "
     + ", ".join(tuple(_SELECTOR_FIELDS)[:-1])
     + f" or {PROVIDER_BEDROCK}",
+    "invalid_representation": (
+        "representation requires convention, implementation, chunker and name_policy labels"
+    ),
     "invalid_string": "must be a non-empty string",
     "invalid_dimension": "dim must be a positive integer",
     "unsupported_dimension": f"dim must be one of {_dimensions} or {BEDROCK_DIMENSIONS[-1]}",
@@ -105,6 +109,7 @@ class EmbedderConfig:
     endpoint: EndpointConfig | None = None
     region: str | None = None
     profile: str | None = None
+    representation: EmbeddingRepresentation | None = None
 
 
 def embedder_config_path(store: Path) -> Path:
@@ -169,21 +174,36 @@ def selector_from_mapping(value: Value) -> EmbedderConfig:
     if provider not in _SELECTOR_FIELDS:
         raise SchemaError("unregistered_provider", path=("provider",))
     required, optional = _SELECTOR_FIELDS[provider]
+    optional = (*optional, "representation")
     for key in value:
         if key not in required and key not in optional:
             raise SchemaError("unknown_field", path=(key,))
     for key in required:
         if key not in value:
             raise SchemaError("missing_field", path=(key,))
+    representation = None
+    if "representation" in value:
+        raw = value["representation"]
+        try:
+            if not isinstance(raw, dict) or any(not isinstance(v, str) for v in raw.values()):
+                raise TypeError
+            labels = {key: child for key, child in raw.items() if isinstance(child, str)}
+            representation = EmbeddingRepresentation(**labels)
+        except (TypeError, IndexError) as exc:
+            raise SchemaError("invalid_representation", path=("representation",)) from exc
     if provider == PROVIDER_OLLAMA:
-        return _default_config()
+        return replace(_default_config(), representation=representation)
     model = _string(value, "model")
     dim = value["dim"]
     if isinstance(dim, bool) or not isinstance(dim, int) or dim <= 0:
         raise SchemaError("invalid_dimension", path=("dim",))
     if provider == PROVIDER_ENDPOINT:
         return EmbedderConfig(
-            provider=provider, model=model, dim=dim, endpoint=_endpoint(value["endpoint"])
+            provider=provider,
+            model=model,
+            dim=dim,
+            endpoint=_endpoint(value["endpoint"]),
+            representation=representation,
         )
     published = value.get("published_corpus", False)
     if not isinstance(published, bool):
@@ -196,6 +216,7 @@ def selector_from_mapping(value: Value) -> EmbedderConfig:
             model=model,
             dim=dim,
             upstream=_string(value, "upstream"),
+            representation=representation,
             published_corpus=published,
             published_corpus_note=note,
             published_corpus_asserted_at=asserted_at,
@@ -217,6 +238,7 @@ def selector_from_mapping(value: Value) -> EmbedderConfig:
         model=model,
         dim=dim,
         region=region,
+        representation=representation,
         profile=_optional_string(value, "profile"),
         published_corpus=published,
         published_corpus_note=note,
@@ -292,6 +314,8 @@ def save_embedder_config(store: Path, config: EmbedderConfig) -> None:
             document["published_corpus_note"] = config.published_corpus_note
         if config.published_corpus_asserted_at is not None:
             document["published_corpus_asserted_at"] = config.published_corpus_asserted_at
+    if config.representation is not None:
+        document["representation"] = asdict(config.representation)
     write_selector(file_path, document)
 
 
@@ -311,7 +335,9 @@ def identity_for(config: EmbedderConfig) -> EmbeddingIdentity:
             raise IndexError("bedrock embedder config requires a region")
         provider = f"bedrock:{config.region}"
     return EmbeddingIdentity(
-        convention=index_config.EMBED_CONVENTION,
+        convention=(
+            config.representation.marker if config.representation else index_config.EMBED_CONVENTION
+        ),
         model=config.model,
         provider=provider,
         dim=config.dim,
