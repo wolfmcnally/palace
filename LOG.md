@@ -1281,3 +1281,83 @@ The next and final tracked write regenerates the report from the current accepte
 
 Lessons:
 - Existing three lessons retained and validated; no additional incident or graduation.
+
+## 2026-11-09 16:20 — START (correction)
+Phase 24 — ordinary 0.4.0 release follow-up
+
+The operator authorized the normal forward release of the delivered capability and requires published dependencies to name published upstream releases. Direct-fix route: mechanical version, changelog, release documentation and exact-source dependency reference changes; no runtime API, representation, transaction, default or assertion changes. Existing Phase 24 advice and spent allowances carry forward. Both normal gates and release artifact qualification remain required; the completed phase and its original failed evidence stay intact. The new explicit release authorization supersedes the historical no-publication restriction only for this ordinary forward tag and existing GitHub release destination. No history rewrite or permission change is authorized.
+
+## 2026-11-09 16:36 — END (correction)
+
+Phase 24 — ordinary 0.4.0 release preparation
+
+Palace 0.4.0 packages are prepared and reproducible. Clean installations on macOS ARM64 and Linux ARM64 pass synthetic indexing, retrieval and identity-refusal checks. The release names the published upstream dependency tag while retaining its exact locked source. Runtime code and public API behavior are unchanged by this release preparation.
+
+Authority: the operator explicitly authorized the ordinary forward release through the existing destination. The relayed direction, “Complete the ordinary Palace release first”, supersedes the earlier no-publication restriction for this release only. Historical tags, permissions and the experimental compatibility policy remain unchanged.
+
+Files changed:
+- pyproject.toml and uv.lock — version 0.4.0 and published dependency tag with unchanged resolved source.
+- .github/package-smoke.py, .github/workflows/ci.yml and tests/test_smoke.py — coherent version and artifact names, with the same assertions.
+- README.md, RELEASE.md and CHANGELOG.md — release version, installation instructions and dated capability notes.
+- LOG.md — append-only release preparation evidence. The final execution report is pending.
+
+Build status:
+- Focused CLI smoke: 3 passed in 1.78 seconds.
+- Two package builds: wheel and source archive byte-identical; all 245 archive members inspected.
+- Outside-checkout hash-locked installation and synthetic package smoke: passed on macOS ARM64 (CPython 3.12.14, uv 0.9.26) and Linux ARM64 (CPython 3.12.12, uv 0.9.26).
+- Bounded disclosure assessment: 535 tracked files, 680 reachable blobs and 245 archive members scanned. No known consumer, credential or bearer matches; no artifact matches. Documented private-path placeholders and numeric telemetry/fixture examples were inspected and dispositioned. This is not proof of universal absence; dedicated secret scanners were unavailable, as in the prior release qualification.
+- First ordinary full gate: 268 passed in 301.74 seconds, with lint, format, type checking, CLI smoke and policy checks passing. Nine inherited temporary-environment notices explain that the pinned wrappers select the repository environment; no compiler or test warning remains unexplained. Linux installation reported three harmless hardlink-to-copy fallbacks.
+- Handoff gate: pending after final tracked bookkeeping. Guarded delivery, remote CI, pristine committed-source artifact comparison, new tag publication and downloaded-artifact installation remain pending.
+
+Review lane: full; evidence lane: full. Follow-up route: direct fix — mechanical release metadata and exact-source dependency reference only. The primary inspected the complete delta. Prior two plan and two code advice launches and eight dispositions remain retained; no new review or allowance reset occurred. Planning and coding stayed inline on the retained Codex Astra author; no new delegated role observation or timing sample is claimed.
+
+Candidate-bound evidence:
+- Approved product: 45aa66d0e4fef8d5ee71c7e0a0b66e9db4c67fdfb9a28f5e5e68dbb9e965da03.
+- Full implementation tree: 3006f0f1eea9d157875db6bce3138ec379c2f669c97eacee3f003419e4dbf9cc.
+- Three managed final gates and their reviewed diagnostics are recorded; acceptance validation passed. Historical code and failure evidence remains unchanged.
+
+Acceptance:
+- Objective: version and dependency-source coherence, reproducible scoped packages, clean installations and deterministic synthetic behavior on the two claimed platforms, and the first full gate are proved for this candidate. Earlier library correctness proofs remain carried, not rerun or reclassified as fresh advice.
+- Parked for the user: API clarity and documented caller responsibilities remain open in the existing action. Packaging checks do not settle subjective walkthroughs, provider quality, production latency or x86 support.
+
+Delivery: ordinary guarded commit and fast-forward push after the handoff gate, followed by the separately authorized new version tag and existing GitHub release destination. Nothing has been published at this record.
+
+Ripple: none — no downstream sketches or blocking decisions. The completed phase and ledger remain unchanged.
+
+Lessons:
+- No new lesson or occurrence: prelaunch executable/path mistakes were corrected before work began, using existing executable-discovery rules. The initial Linux bare-python invocation never started; the successful qualification used the already-installed managed interpreter.
+- Existing lessons validate. Optional graduation judgments remain caped-bonobo (3 occurrences) and esoteric-hawk (4 occurrences); no rule was graduated.
+- Recalibration: 317 incomplete historical telemetry rows were ignored; no target reached the 30-successful-sample minimum. No timeout or configuration change.
+
+Wall-clock observations: reused the already-proved runtime implementation and qualified package outputs; both ordinary full gates and publication-specific custody checks remain required. No new stress survey or paid provider call was added.
+
+User Demo: N/A — this is a library composition seam with deterministic synthetic proofs, without a new interactive surface.
+
+Remaining:
+- Final report, second full gate, delivery, CI, pristine artifact comparison, publication and download verification remain pending. The original watcher failure remains unexplained; later passing runs do not establish its cause.
+- Dependency source is unchanged, so no system-wide editable tool reinstall is needed.
+- Test protocol: inspect `palace --version` for 0.4.0 and `palace --help` after installation; the release checklist documents a clean installation. No daemon or personal-store operation is part of this protocol.
+
+### Execution timing
+
+Execution trace: 74e4ddfda8ff4a3b97760dc6f7e0d82a
+- Outcome: `success`
+- Makespan: 1013122080875 ns (1013.122080875 s)
+- Intelligence: 0 ns (0.000000000 s)
+- Gates: 328626919709 ns (328.626919709 s)
+- Orchestration: 1000636332710 ns (1000.636332710 s)
+- Wait: 0 ns (0.000000000 s)
+- Retry/rework: 0 ns (0.000000000 s)
+- Failed work: 0 ns (0.000000000 s)
+- Unattributed: 12485748165 ns (12.485748165 s)
+- Category totals are interval unions and may overlap.
+
+#### Slowest material spans
+
+- `orchestration.acceptance` — category `reconciliation`, attempt 1, outcome `success`: 859664510709 ns (859.664510709 s)
+- `gate.full` — category `gate`, attempt 1, outcome `success`: 311280563542 ns (311.280563542 s)
+- `orchestration.implementation` — category `reconciliation`, attempt 1, outcome `success`: 110897267292 ns (110.897267292 s)
+- `orchestration.setup` — category `reconciliation`, attempt 1, outcome `success`: 16461146459 ns (16.461146459 s)
+- `orchestration.close` — category `reconciliation`, attempt 1, outcome `success`: 13613408250 ns (13.613408250 s)
+
+Timing scope: this release preparation run only, including coordinator-managed compaction within acceptance. Earlier failed runs remain failed in their own records. All historical operator-input parks are closed; their phase union is 429219435750 ns, as verified by phase-summary. No new operator-input park occurred.

@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-11-09
 
 - Explicit finite byte budgets above the unchanged 64 MiB file-vector snapshot default, with the existing hard row ceiling. Optional `commit_plan(snapshot_limits=FileVectorLimits(...))` admits the staged snapshot within the existing transaction and rolls back an oversized publication; callers verify the committed snapshot with the same budget before acceptance.
 - Explicit caller-supplied embedding representations and ordered input views for full per-file plans, with transactional exact-input digests. Existing breadcrumb inputs remain the default. The caller owns rendering, filename policy and fresh filename embedding; changing representation requires rebuilding incompatible derived state.
 - Bounded `read_file_vectors` snapshots of one nominated committed file, including chunk/vector rows, complete embedding identity, input digests and an actual file-view digest. Composition holds one same-store writer lock through connection close. Cross-store copying preserves input evidence; removal deletes it atomically.
+- The Conric runtime requirement names its published v0.1.0 tag; the lockfile retains the same resolved source commit.
 
 ## 0.3.0 — 2026-11-07
 

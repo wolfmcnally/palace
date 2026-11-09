@@ -1,6 +1,6 @@
 # Preparing a release
 
-This checklist governs the 0.3.0 packages; building them alone does not publish a release. Preserve the historical v0.1.0 tag and assets. The MIT license covers this package's code, not separate model weights, dependencies or operator content. Publication, tagging, stable-compatibility policy and disclosure decisions remain with the owner. No command below uploads artifacts or changes a remote.
+This checklist governs the 0.4.0 packages; building them alone does not publish a release. Preserve the historical v0.1.0 tag and assets. The MIT license covers this package's code, not separate model weights, dependencies or operator content. Publication, tagging, stable-compatibility policy and disclosure decisions remain with the owner. No command below uploads artifacts or changes a remote.
 
 ## Build and inspect
 
@@ -28,7 +28,7 @@ Rebuild into another fresh output directory and compare artifacts. Record actual
 
 ## Clean installation
 
-Export exact runtime requirements from the committed lockfile. Conric is pinned by Git commit, which a hash-checked requirements file cannot carry, so it is excluded here and installed separately below from the same pinned commit:
+Export exact runtime requirements from the committed lockfile. Conric names its published Git release tag, which a hash-checked requirements file cannot carry, so it is excluded here and installed separately below. The lockfile retains the resolved commit as its integrity anchor:
 
 ```bash
 uv export --frozen --no-dev --no-emit-project --no-emit-package conric --format requirements-txt --output-file "$PALACE_RELEASE_DIR/requirements.txt"
@@ -46,14 +46,14 @@ Install the hash-bound runtime dependencies, then the inspected wheel without re
 uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --require-hashes -r "$PALACE_RELEASE_DIR/requirements.txt"
 ```
 
-Install Conric from its pinned commit without dependency resolution; the commit SHA is its integrity anchor, and its only dependency, PyYAML, is already hash-installed above:
+Install Conric from its published v0.1.0 tag without dependency resolution; verify the tag still resolves to the lockfile commit. Its only dependency, PyYAML, is already hash-installed above:
 
 ```bash
-uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "conric @ git+https://github.com/wolfmcnally/conric.git@ed9286297e92b8c049f70eb15a3b5556ed107ff0"
+uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "conric @ git+https://github.com/wolfmcnally/conric.git@v0.1.0"
 ```
 
 ```bash
-uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "$PALACE_RELEASE_DIR/dist/palace-0.3.0-py3-none-any.whl"
+uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "$PALACE_RELEASE_DIR/dist/palace-0.4.0-py3-none-any.whl"
 ```
 
 Move outside the checkout before checking import provenance:
@@ -66,7 +66,7 @@ cd "$PALACE_RELEASE_DIR"
 ./venv/bin/python -c 'import palace; print(palace.__version__, palace.__file__)'
 ```
 
-Expect version `0.3.0` and a module path inside this new environment. Inspect the installed CLI and provider registry:
+Expect version `0.4.0` and a module path inside this new environment. Inspect the installed CLI and provider registry:
 
 ```bash
 ./venv/bin/palace --help
