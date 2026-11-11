@@ -8,6 +8,7 @@ credential, bearer-token and endpoint source. Credentials are synthetic fixtures
 from __future__ import annotations
 
 import hashlib
+import http.client
 import io
 import json
 import os
@@ -40,6 +41,7 @@ from tests.conftest import aws_env_credential_names
 REGION = "us-east-1"
 INHERITED_TOKEN = "SYNTHETICINHERITEDTOKEN"
 INHERITED_ACCOUNT = "999999999999"
+BEARER_TOKEN = "SYNTHETICBEDROCKAPIKEYFIXTURE"
 MODEL = "cohere.embed-v4:0"
 DIM = 1536
 CONTROL_HOST = "https://bedrock.us-east-1.amazonaws.com"
@@ -80,6 +82,8 @@ class BedrockStub:
         self.requests: list[Any] = []
         self.mode = "none"
         self.errors: list[tuple[int, str]] = []
+        self.retention_errors: list[tuple[int, str]] = []
+        self.error_message = "fixture"
         self.shape = "list"
         self.body: Callable[[list[str], int], object] | None = None
 
@@ -96,6 +100,11 @@ class BedrockStub:
     def answer(self, request: Any, **_: Any) -> Any:
         self.requests.append(request)
         if urlsplit(request.url).path == "/data-retention":
+            if self.retention_errors:
+                status, code = self.retention_errors.pop(0)
+                return _response(
+                    request, status, {"message": self.error_message}, {"x-amzn-ErrorType": code}
+                )
             return _response(request, 200, {"mode": self.mode})
         if self.errors:
             status, code = self.errors.pop(0)
@@ -355,7 +364,9 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
         aws_env_credential_names()
     )
     assert boto3.Session(region_name=REGION).get_credentials() is None
-    with pytest.raises(PalaceError, match="bedrock credentials unavailable"):
+    with pytest.raises(
+        PalaceError, match="bedrock credentials unavailable.*a Bedrock API key in AWS_BEARER_TOKEN"
+    ):
         embedder(store).probe()
     assert stub.requests == [] and audit(store) == []
 
@@ -526,6 +537,85 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
         query.embed(["invalid"])
     assert len(stub.invokes()) - before_sends == 1 and sleeps == [1.0]
     query.close()
+
+    # Bearer admission: a Bedrock API key alone is admitted, and the real SDK signs both the
+    # retention read and InvokeModel with it. Admission is not authorization: retention
+    # still decides, and the token never reaches an error or the audit.
+    for name in aws_env_credential_names():
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", BEARER_TOKEN)
+    assert boto3.Session(region_name=REGION).get_credentials() is None
+    bearer_store = tmp_path / "bearer-store"
+    before = len(stub.requests)
+    token_only = embedder(bearer_store)
+    assert token_only.embed(["bearer text"]) == [vector_for("bearer text")]
+    signed = stub.requests[before:]
+    assert [(r.url.split("/")[2], urlsplit(r.url).path) for r in signed] == [
+        ("bedrock.us-east-1.amazonaws.com", "/data-retention"),
+        ("bedrock-runtime.us-east-1.amazonaws.com", "/model/cohere.embed-v4%3A0/invoke"),
+    ]
+    assert [header(r, "Authorization") for r in signed] == [f"Bearer {BEARER_TOKEN}"] * 2
+    token_only.close()
+    # A service message echoing the token is redacted before it reaches the refusal.
+    stub.retention_errors = [(403, "AccessDeniedException")]
+    stub.error_message = f"key {BEARER_TOKEN} may not read retention"
+    before = len(stub.requests)
+    with pytest.raises(
+        PalaceError, match="GetAccountDataRetention failed in us-east-1: AccessDeniedException"
+    ) as denied:
+        embedder(bearer_store).embed(["denied"])
+    assert BEARER_TOKEN not in str(denied.value) and "key <redacted> may not" in str(denied.value)
+    stub.error_message = "fixture"
+    for mode in ("default", "provider_data_share"):
+        stub.mode = mode
+        with pytest.raises(PalaceError, match=f"retention mode in us-east-1 is '{mode}'"):
+            embedder(bearer_store).embed(["shared"])
+    stub.mode = "none"
+    assert [urlsplit(r.url).path for r in stub.requests[before:]] == ["/data-retention"] * 3
+    assert [r["status"] for r in audit(bearer_store)][-3:] == ["AccessDeniedException", "ok", "ok"]
+
+    # Keys and a token together: the SDK prefers the token (its own precedence, documented).
+    fixture_credentials(monkeypatch)
+    before = len(stub.requests)
+    both = embedder(bearer_store)
+    both.embed(["both"])
+    assert [header(r, "Authorization") for r in stub.requests[before:]] == [
+        f"Bearer {BEARER_TOKEN}"
+    ] * 2
+    both.close()
+    assert BEARER_TOKEN not in json.dumps(audit(bearer_store))
+
+    # A set-but-blank token refuses before any request even when keys resolve; the control
+    # shows an ordinary client would otherwise sign with the blank token.
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", " ")
+    blank: list[str] = []
+
+    def record_blank(request: Any, **_: Any) -> Any:
+        blank.append(header(request, "Authorization"))
+        return _response(request, 200, {"mode": "none"})
+
+    control_client = boto3.Session(region_name=REGION).client("bedrock")
+    control_client.meta.events.register("before-send", record_blank)
+    control_client.get_account_data_retention()
+    control_client.close()
+    assert blank == ["Bearer  "]
+    before = len(stub.requests)
+    with pytest.raises(PalaceError, match="AWS_BEARER_TOKEN_BEDROCK is set but blank"):
+        embedder(bearer_store).probe()
+    assert len(stub.requests) == before
+
+    # A token outside the bearer grammar (here newline-terminated) refuses before any request
+    # without echoing it; the control shows the HTTP library would echo it in its error.
+    newline_token = BEARER_TOKEN + "\n"
+    connection = http.client.HTTPConnection("example.invalid")
+    connection.putrequest("GET", "/")
+    with pytest.raises(ValueError, match=BEARER_TOKEN):
+        connection.putheader("Authorization", f"Bearer {newline_token}")
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", newline_token)
+    with pytest.raises(PalaceError, match="is not a valid bearer token") as invalid_token:
+        embedder(bearer_store).probe()
+    assert BEARER_TOKEN not in str(invalid_token.value) and len(stub.requests) == before
+    monkeypatch.delenv("AWS_BEARER_TOKEN_BEDROCK")
 
     # Guard witness: an unstubbed real request fails the test instead of leaving the machine.
     monkeypatch.undo()

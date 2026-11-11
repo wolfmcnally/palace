@@ -564,7 +564,7 @@ wheels = [
 
 [[package]]
 name = "palace"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
@@ -594,7 +594,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "boto3", specifier = ">=1.39.9" },
+    { name = "boto3", specifier = ">=1.43.26" },
     { name = "conric", git = "https://github.com/wolfmcnally/conric.git?rev=v0.1.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.0" },

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 — 2026-11-11
+
+- The `bedrock` embedding provider admits a Bedrock API key supplied through the AWS SDK's `AWS_BEARER_TOKEN_BEDROCK` variable when no SigV4 credentials resolve. The SDK signs both the same-Region `GetAccountDataRetention` read and `InvokeModel` with the token, and prefers it over credentials when both are present. The retention check is unchanged and still mandatory: the key must also be authorized to read the account's retention mode, and a denied read or any mode other than `none` refuses before the first embedding request. A set-but-blank token variable, or one outside the RFC 6750 bearer-token syntax (for example with a trailing newline, which the HTTP library would echo in its error), now refuses before any request without showing the value, and token values are redacted from Bedrock error messages. Signing is proved offline with synthetic values; server-side acceptance of a real key is not.
+- The declared minimum is now `boto3>=1.43.26`. Earlier SDK releases (including the previously declared 1.39.9 floor, through 1.43.25) lack the `GetAccountDataRetention` operation the provider requires, so the old floor could install an environment that could never pass the retention check. Installers pinned below 1.43.26 must upgrade; the locked resolution is unchanged at boto3/botocore 1.43.104.
+
 ## 0.4.0 — 2026-11-09
 
 - Explicit finite byte budgets above the unchanged 64 MiB file-vector snapshot default, with the existing hard row ceiling. Optional `commit_plan(snapshot_limits=FileVectorLimits(...))` admits the staged snapshot within the existing transaction and rolls back an oversized publication; callers verify the committed snapshot with the same budget before acceptance.

@@ -4,10 +4,11 @@ Bedrock is third-party inference: the store's published-corpus assertion and the
 personal-store and personal-vault refusals are applied by the caller through
 :func:`palace.index.embedder_config.assert_remote_corpus_boundary` before an embedder
 is used. Construction is inert. The first :meth:`BedrockEmbedder.probe` or
-:meth:`BedrockEmbedder.embed` resolves the AWS SDK credential chain, then reads the
-selector Region's ``GetAccountDataRetention`` mode and refuses unless it is exactly
-``none``. That check reads one Region's configured mode at one moment; it does not
-observe what the service retains (``briefs/bedrock-embedding-provider.md``).
+:meth:`BedrockEmbedder.embed` resolves the AWS SDK credential chain or a Bedrock API
+key (bearer token), then reads the selector Region's ``GetAccountDataRetention`` mode
+with that same authentication and refuses unless it is exactly ``none``. That check
+reads one Region's configured mode at one moment; it does not observe what the service
+retains (``briefs/bedrock-embedding-provider.md``).
 
 SDK retries are disabled and configured endpoint-URL overrides are ignored, so every
 request goes to the selector Region's standard endpoint and every attempt is palace's:
@@ -19,6 +20,8 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import re
 import threading
 import time
 from collections.abc import Sequence
@@ -58,14 +61,20 @@ BEDROCK_RETRYABLE_CODES = frozenset(
     }
 )
 _REQUIRED_RETENTION_MODE = "none"
+# RFC 6750 section 2.1 ``b64token`` (token68): the only bearer credential syntax Palace admits.
+_TOKEN68 = re.compile(r"[A-Za-z0-9\-._~+/]+=*")
 _sleep = time.sleep  # the retry backoff; a test replaces this seam, not the time module
 
 
 def open_bedrock_client(service: str, *, profile: str | None, region: str) -> Any:
     """Open a ``bedrock`` or ``bedrock-runtime`` client bound to ``region``'s endpoint.
 
-    Refuses before any request when the SDK credential chain resolves nothing. SDK
-    retries are off (one total attempt) and ambient endpoint-URL overrides
+    The client authenticates however the SDK resolves it: SigV4 from the credential
+    chain, or a Bedrock API key in the SDK's bearer-token variable for the service's
+    signing name (``AWS_BEARER_TOKEN_BEDROCK``), which the SDK prefers when present.
+    Refuses before any request when neither resolves, or when that variable is set but
+    blank. Admission is not authorization: the caller's retention read still decides.
+    SDK retries are off (one total attempt) and ambient endpoint-URL overrides
     (``AWS_ENDPOINT_URL*`` and a profile's endpoint setting) are ignored.
     """
     import boto3
@@ -74,20 +83,77 @@ def open_bedrock_client(service: str, *, profile: str | None, region: str) -> An
 
     try:
         session = boto3.Session(profile_name=profile, region_name=region)
-        if session.get_credentials() is None:
-            raise IndexError(
-                "bedrock credentials unavailable: configure the AWS SDK credential chain "
-                "(profile, environment or instance role)"
-            )
-        return session.client(
+        client = session.client(
             service,
             config=Config(
                 retries={"mode": "standard", "total_max_attempts": 1},
                 ignore_configured_endpoint_urls=True,
             ),
         )
+        try:
+            token = _bearer_token_state(client)
+            if token == "blank":
+                raise IndexError(
+                    f"bedrock bearer token variable {_bearer_variable(client)} is set but "
+                    "blank; unset it or provide a Bedrock API key"
+                )
+            if token == "malformed":
+                raise IndexError(
+                    f"bedrock bearer token in {_bearer_variable(client)} is not a valid "
+                    "bearer token (RFC 6750 token68 characters only, no whitespace); "
+                    "the value is not shown"
+                )
+            if token == "absent" and session.get_credentials() is None:
+                raise IndexError(
+                    "bedrock credentials unavailable: configure the AWS SDK credential chain "
+                    "(profile, environment or instance role) or a Bedrock API key in "
+                    f"{_bearer_variable(client)}"
+                )
+        except BaseException:
+            client.close()
+            raise
+        return client
     except BotoCoreError as exc:
-        raise IndexError(f"bedrock {service} client could not be opened: {exc}") from None
+        raise IndexError(f"bedrock {service} client could not be opened: {_message(exc)}") from None
+
+
+def _bearer_variable(client: Any) -> str:
+    """The SDK's bearer-token environment variable for this client's signing name."""
+    signing_name = str(client.meta.service_model.signing_name)
+    return "AWS_BEARER_TOKEN_" + signing_name.replace("-", "_").replace(" ", "_").upper()
+
+
+def _bearer_token_state(client: Any) -> str:
+    """``present``, ``blank``, ``malformed`` or ``absent``: the SDK bearer token this client
+    would sign with.
+
+    The SDK signs with an environment bearer token only for a service whose model admits
+    ``smithy.api#httpBearerAuth``; for any other service the variable is irrelevant. A
+    token outside the RFC 6750 ``token68`` grammar is refused here because the SDK would
+    copy it verbatim into the ``Authorization`` header, and an invalid header value is
+    echoed in the HTTP library's error. The token value never leaves this function.
+    """
+    from botocore.utils import get_token_from_environment
+
+    model = client.meta.service_model
+    if "smithy.api#httpBearerAuth" not in (model.metadata.get("auth") or ()):
+        return "absent"
+    token = get_token_from_environment(model.signing_name)
+    if token is None:
+        return "absent"
+    if not token.strip():
+        return "blank"
+    return "present" if _TOKEN68.fullmatch(token) else "malformed"
+
+
+def _redact_bearer_tokens(text: str) -> str:
+    """Replace any SDK bearer-token environment value that appears in ``text``."""
+    for name, value in os.environ.items():
+        if name.startswith("AWS_BEARER_TOKEN_"):
+            for candidate in {value, value.strip()}:
+                if candidate and candidate in text:
+                    text = text.replace(candidate, "<redacted>")
+    return text
 
 
 def _error_code(exc: BaseException) -> str | None:
@@ -111,12 +177,13 @@ def _http_status(source: object) -> int | None:
 
 
 def _message(exc: BaseException) -> str:
+    """The failure's message with any bearer-token value redacted."""
     response = getattr(exc, "response", None)
     if isinstance(response, dict):
         error = response.get("Error")
         if isinstance(error, dict) and error.get("Message"):
-            return str(error["Message"])
-    return str(exc)
+            return _redact_bearer_tokens(str(error["Message"]))
+    return _redact_bearer_tokens(str(exc))
 
 
 class BedrockEmbedder:

@@ -5949,9 +5949,9 @@ families:
   - palace/bedrock.py
   - palace/settings.py
   - palace/index/**
-  contract: The Bedrock embedder refuses without credentials, fails closed on any retention mode but none before an embedding request, stays on the Region's standard endpoints under every ambient override, sends exact SigV4 Embed v4 bodies in batches of at most 96 inside the request budget, validates both response shapes, retries only retryable codes and audits every attempt.
+  contract: The Bedrock embedder refuses without credentials or a Bedrock API key and on a blank or syntactically invalid token without echoing it, fails closed on any retention mode but none and on a denied retention read before an embedding request under SigV4 or bearer signing, stays on the Region's standard endpoints under every ambient override, sends exact SigV4- or bearer-signed Embed v4 bodies in batches of at most 96 inside the request budget, validates both response shapes, retries only retryable codes, audits every attempt, redacts a service-echoed token from refusals and never writes the token to the audit.
   risk_class: remote-egress
-  oracle: Real boto3 clients answered by before-send stubs that record every prepared request; decoy credential files and an unflagged client as positive controls; parsed audit records; the suite transport guard.
+  oracle: Real boto3 clients answered by before-send stubs that record every prepared, signed request; decoy credential files, an unflagged client and an ordinary client signing a blank token and the HTTP library echoing a newline-bearing header as positive controls; parsed audit records; the suite transport guard.
   admission: Phase 22 compensated admission; offline stubbed qualification only, no live Bedrock run.
   nearest_overlap: OpenRouter and private-endpoint families prove HTTP providers; S3 Vectors proves a boto3 vector store; none checks retention, endpoint binding or Embed v4 request shape.
   historical_evidence: []

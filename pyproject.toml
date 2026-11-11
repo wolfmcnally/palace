@@ -1,6 +1,6 @@
 [project]
 name = "palace"
-version = "0.4.0"
+version = "0.4.1"
 description = "Local-first memory and identity-bound multi-store retrieval."
 readme = "README.md"
 license = "MIT"
@@ -22,7 +22,7 @@ dependencies = [
     "tree-sitter-typescript>=0.23",
     "onnxruntime>=1.28.0",
     "tokenizers>=0.23.1",
-    "boto3>=1.39.9",
+    "boto3>=1.43.26",
     "conric @ git+https://github.com/wolfmcnally/conric.git@v0.1.0",
 ]
 

@@ -1361,3 +1361,163 @@ Execution trace: 74e4ddfda8ff4a3b97760dc6f7e0d82a
 - `orchestration.close` — category `reconciliation`, attempt 1, outcome `success`: 13613408250 ns (13.613408250 s)
 
 Timing scope: this release preparation run only, including coordinator-managed compaction within acceptance. Earlier failed runs remain failed in their own records. All historical operator-input parks are closed; their phase union is 429219435750 ns, as verified by phase-summary. No new operator-input park occurred.
+
+## 2026-11-11 00:24 — START (correction)
+Phase 22 — Bedrock API-key (bearer) authentication admission and 0.4.1 release
+
+Execution trace: efedb460639a459188b0b446149fa422
+
+The operator asked to fix Palace's Bedrock authentication with a release so a dependent consumer can pin it. The provider refuses before any request whenever the SDK resolves no AWS credentials, although the pinned SDK signs both the control-plane retention read and runtime InvokeModel with a Bedrock API key from AWS_BEARER_TOKEN_BEDROCK. Full-cycle follow-up route: authentication is security-sensitive, so the primary implements inline and one independent advisory code critique runs; no plan or architecture error is exposed, so planning is not re-run. Phase 22 stays complete; its delegated plan-review and critique history is preserved and is not relabeled as primary-mode advice.
+
+Planned work:
+- Admit a non-empty SDK-resolvable Bedrock bearer token as an alternative to SDK credentials; keep the mandatory same-Region GetAccountDataRetention check, retention mode none, endpoint binding, retries, audit and dimension semantics unchanged; refuse a set-but-blank token before any request.
+- Real-SDK offline proofs with synthetic values: bearer-signed retention and InvokeModel requests, fail-closed retention denial and non-none modes under a bearer token, documented SDK precedence when both are present, and no token in errors or audit.
+- Raise the declared boto3 floor to 1.43.26, the first SDK release carrying GetAccountDataRetention (1.43.25 lacks it); lock unchanged at 1.43.104. Verify signing and clean installation at the floor and the lock.
+- Operator documentation distinguishing SDK bearer signing from server-side authorization, including permission to read retention; changelog and 0.4.1 release metadata.
+- No live AWS call, paid inference, real token, Phase 24 change or unrelated dependency upgrade.
+
+## 2026-11-11 00:44 — END (correction)
+Phase 22 — Bedrock API-key (bearer) authentication and 0.4.1 release preparation
+
+Palace's Bedrock provider now works with a Bedrock API key. A key in the AWS SDK's AWS_BEARER_TOKEN_BEDROCK variable is admitted when no SigV4 credentials resolve. The SDK signs both the same-Region retention read and every InvokeModel request with it. The retention check is unchanged and still mandatory, so a key that may not read the account's retention mode, or a mode other than none, refuses before the first embedding request. The declared AWS SDK minimum is corrected to boto3 1.43.26, because earlier releases lack the retention operation. Packages for 0.4.1 are built, reproducible and qualified on macOS and Linux at both the minimum and the locked SDK. Accepted close is recorded here; bookkeeping, the handoff gate, delivery, CI and publication remain pending at this record.
+
+Authority: the operator asked to fix Palace's authentication with a release so a dependent consumer can pin it (relayed through the authenticated coordinator, which also approved the boto3>=1.43.26 floor as a bounded necessary correction and forbade unrelated dependency upgrades). This settles the bearer-precedence question in the pending Bedrock qualification action in favour of admission. Phase 22 stays complete; its historical END and delegated review history are unchanged.
+
+Files changed:
+- palace/bedrock.py — admits SDK credentials or a non-blank RFC 6750 token68 bearer token for the client's signing name where the service model allows bearer auth; refuses blank or malformed tokens before any request without showing the value; redacts bearer-token values from every Bedrock error message; retention, endpoints, retries and audit unchanged.
+- tests/test_bedrock_provider.py and tests/proof-estate.yaml — the existing provider family extended (no new test, zero-growth estate) with real-SDK bearer-signed retention and InvokeModel requests, denied and non-none retention under a bearer token, keys-plus-token precedence, blank and malformed refusals with positive controls, service-echo redaction and token absence from audit.
+- pyproject.toml and uv.lock — version 0.4.1 and boto3>=1.43.26; the lock changes only those two lines and still resolves boto3/botocore 1.43.104.
+- docs/bedrock.md, CHANGELOG.md, README.md, RELEASE.md — operator contract separating SDK signing from server authorization, retention-read permission for the key's identity, the floor's compatibility impact, and 0.4.1 release text.
+- .github/package-smoke.py, .github/workflows/ci.yml, tests/test_smoke.py — 0.4.1 version and artifact names with the same assertions.
+- LOG.md and EXECUTION_LOG.jsonl — append-only START/END evidence and the finalized trace.
+
+Build status:
+- Phase 22 acceptance family plus version smoke: OK, 40 passed in 34.03 s of gate time.
+- Declared-minimum SDK: the provider proofs pass at boto3/botocore 1.43.26 with s3transfer 0.18.0. Preserved negative control, outside the gate ledger: the same proofs fail at 1.43.25 with AttributeError: 'Bedrock' object has no attribute 'get_account_data_retention'. A PyPI bisection over 295 botocore releases from 1.39.9 to 1.43.104 found 1.43.26 (uploaded 2026-06-09) first to carry the operation.
+- Packages: OK. Wheel and source archive byte-identical across two builds (and two earlier qualification builds); every archive member allowlisted. Hash-locked macOS ARM64 install and the floor install each passed the package smoke and an installed-package bearer signing smoke. Wheel SHA-256 8baedea851b8bb530749c516c69eea97473a4a2a5254860301509d244075c33b; source archive SHA-256 256cb7d96726190e37d4307201c77ab4978895b0aed16d5020d56d575af30d72, prepublication values.
+- Linux ARM64: OK, fresh exact-wheel installs at the lock and the floor passed both smokes; six uv hardlink-to-copy fallback warnings from the container filesystem are harmless.
+- Disclosure scan: OK. Zero consumer, credential or bearer matches across 535 tracked files, 693 reachable blobs and 245 archive members. New tree matches are only nanosecond durations in logs and reports. This is a named-pattern screen, not proof of universal absence; dedicated secret scanners remain unavailable.
+- Full gate ./bin/check all: OK, 268 passed in 202.06 s, with lint, format, typecheck, smoke and every policy check; nine uv notices that the inherited temporary environment is ignored for the locked project environment.
+- One manual qualification attempt before the gate sequence FAILED, outside any gate span, so telemetry records zero failed work. A scratch evidence script named bisect.py in the qualification directory shadowed the standard-library module and broke a fresh environment's imports. Its outputs are preserved separately; the helpers were moved and the run passed unchanged.
+- Handoff gate: runs after the tracked bookkeeping; completion is contingent on the final bare ./bin/check all.
+
+Review lane: full. Evidence lane: full. Follow-up route: full cycle — authentication is security-sensitive; no plan or architecture error was exposed, so planning was not re-run.
+
+Role model/venue — orchestrated by Claude Code, primary mode:
+- Preflight: OK (codex gpt-6-astra high, read-only, for reviewer and critic). Codex secondary weekly usage measured 95.0%, at but not above the switch threshold.
+- Planner and coder: inline on the primary, Claude Opus 5.5 at high effort (session model and effort observed from the harness).
+- Reviewer (plan review): not run — full-cycle follow-up without a plan error.
+- Critic (code review): requested astra effort=high venue=codex; pass 1 of Phase 22's primary-mode advisory allowance, which had no earlier launches. Phase 22's delegated plan-review and critique rounds remain preserved and are not relabeled as primary advice. harness_version=unreported, observed_model=unreported, observed_effort=unreported.
+- Dispositions: CODE-F001 (medium) adopted — a newline-terminated key would have been echoed through the HTTP library's invalid-header error; now refused as malformed and redacted. CODE-F002 (low) deferred — the design brief still says SDK credential chain only; brief wording is the owner's, filed with proposed text. No second pass.
+
+Role timing: critic 167.09 s intelligence, 166.54 s wait; success.
+
+Candidate-bound evidence:
+- Candidate: initial 9ec3d7e779b0851d335ee814d46d2a16ebd93a6ca7e66bf15edbd776d6856ca9; advised d75d555bda718c9a469a472a99579087833d37d9f9d8a2ae0fa40387e6a28789; accepted and gated 7e29e4a5341319c92b28c46274250211216965734d8e8752d07a3089147a6c77; full tree e6cf204ca08bb51924cc298cb470de806a76189165404f8b7cedb3d84e4828d9 unchanged through every gate.
+- Six managed final gates with reviewed diagnostics under manifest 10b181cc018074c495b74a2f5c29ad394570f4194a45593388bf897c103e5b41; acceptance validation passed.
+
+Acceptance:
+- Objective: bearer admission only where the SDK signs with the token; real-SDK offline signing of GetAccountDataRetention and InvokeModel; fail-closed retention under bearer; precedence documented; blank and malformed refusals; no token in errors or audit; unchanged SigV4, endpoint, retry, audit, model, Region and dimension behavior; floor support with a below-floor control; reproducible packages and clean installs on both platforms at lock and floor; full gate.
+- Parked for the user: whether a real Bedrock API key is accepted by the service for GetAccountDataRetention and InvokeModel is not proved; live use is a paid, operator-approved action in the existing Bedrock qualification item. Brief wording for authentication (new pending action). Existing Bedrock refusal-text and documentation clarity review.
+
+Delivery: ordinary guarded commit and fast-forward push after the handoff gate, then the authorized new v0.4.1 tag and GitHub release on the existing destination. Earlier tags and releases are preserved. Nothing is published at this record.
+
+Ripple: none — no downstream sketches and no blocking decisions; phase markers unchanged.
+
+Lessons:
+- filed (pending write): celestial-oryx — keep scratch helper scripts named after standard-library modules out of a qualification script's working directory (local).
+- occurrences added: none.
+- graduation DECIDE: caped-bonobo and esoteric-hawk remain optional human judgments; no rule changed.
+- recalibration: not run for this record; no timeout or configuration change.
+
+Wall-clock observations: the uv cache made package and Linux qualification gates take seconds; the full gate dominated. Both full gates remain required.
+
+User Demo: N/A — library authentication path with deterministic offline proofs; live key use is the existing paid operator qualification.
+
+Remaining:
+- Bookkeeping (new lesson, new brief-wording action, update to the existing Bedrock qualification action), report regeneration, second full gate, delivery, branch CI, pristine committed-source rebuild, tag and release, tag CI, anonymous download and fresh macOS/Linux installs of the published wheel.
+- The original native watcher failure remains unexplained. No editable tool reinstall is needed; dependencies resolve unchanged.
+- Test protocol: after installation, palace --version reports 0.4.1; with AWS_BEARER_TOKEN_BEDROCK set to an operator's real key and a Bedrock store, palace's first build or search performs the audited retention read before any embedding. That live step costs money and is the operator's.
+
+### Execution timing
+
+Execution trace: efedb460639a459188b0b446149fa422
+- Outcome: `success`
+- Makespan: 1216743765917 ns (1216.743765917 s)
+- Intelligence: 167088827916 ns (167.088827916 s)
+- Gates: 262270697001 ns (262.270697001 s)
+- Orchestration: 1211389863750 ns (1211.389863750 s)
+- Wait: 166538797042 ns (166.538797042 s)
+- Retry/rework: 0 ns (0.000000000 s)
+- Failed work: 0 ns (0.000000000 s)
+- Unattributed: 5353902167 ns (5.353902167 s)
+- Category totals are interval unions and may overlap.
+
+#### Slowest material spans
+
+- `orchestration.implementation` — category `reconciliation`, attempt 1, outcome `success`: 787986930875 ns (787.986930875 s)
+- `orchestration.acceptance` — category `reconciliation`, attempt 1, outcome `success`: 361804883875 ns (361.804883875 s)
+- `gate.full` — category `gate`, attempt 1, outcome `success`: 207106906333 ns (207.106906333 s)
+- `role.code-review` — category `intelligence`, attempt 1, outcome `success`: 167088827916 ns (167.088827916 s)
+- `role.code-review` — category `wait`, attempt 1, outcome `success`: 166538797042 ns (166.538797042 s)
+
+## 2026-11-11 00:45 — END (correction bookkeeping)
+
+Phase 22 — accepted bearer-authentication correction bookkeeping
+
+The accepted close is recorded. Filed lesson celestial-oryx (local: keep helper scripts named after standard-library modules out of a qualification script's working directory). Filed pending user action vague-warthog with proposed design-brief wording for authentication, the deferred advisory finding. Updated pending action undetectable-serval: the bearer-precedence question is settled by the operator's request, and live qualification may use an API key whose identity can read the retention mode. Lessons validate; caped-bonobo (3) and esoteric-hawk (4) remain optional graduation judgments. Timeout recommendation: no target has 30 successful samples; no configuration change. No phase marker, runtime, dependency or test change was made during bookkeeping.
+
+The next and final tracked write regenerates the execution report from this accepted trace. The bare handoff gate, guarded delivery, CI and the v0.4.1 publication sequence remain pending. The original watcher failure remains unexplained.
+
+Lessons:
+- Filed: celestial-oryx (local). No occurrence added to existing lessons; no rule graduated.
+
+## 2026-11-11 00:50 — PARK
+Phase 22 bearer-authentication correction — bare handoff gate failed on the intermittent native watcher test.
+
+Execution trace: efedb460639a459188b0b446149fa422
+
+The accepted implementation is unchanged and nothing has been committed, pushed, tagged or published. The second full gate on the final bookkeeping tree ran 268 tests: 267 passed and tests/reindex/test_server.py::test_serve_sigterm_drains_inflight_debouncer failed in 204.84 seconds. After the observer was reported ready, the exact burst.md file event did not reach the debouncer within its two-second deadline. The candidate-bound implementation gate passed all 268 tests on the same product candidate minutes earlier. Neither reindex source nor its tests changed, and every Bedrock and package proof passed. Lint, format and typecheck passed; checks after the test step did not run.
+
+This matches the unresolved native file-event delivery failures recorded in lesson esoteric-hawk, so policy treats it as recurring: no self-resume, no retry until green, no deadline relaxation and no watcher change. The test has no failure-only stage instrumentation, so the stall stage is unknown. Failure signature b33b2959cf2c42c09315ebaf43de6421 is recorded with resume not permitted and the self-resume budget unchanged at 3. The failing gate output and its receipt log are preserved outside the tree.
+
+Resume condition: an operator decision. The choices are a single authorized rerun of the bare handoff gate on this unchanged tree, or a bounded watcher investigation first. Any later tracked write requires a fresh handoff gate before delivery. Release publication waits for a passing handoff gate, guarded delivery and branch CI.
+
+Lessons:
+- Occurrence added: esoteric-hawk (5 occurrences, local) — shutdown witness received no exact burst submission within two seconds; graduation remains a human decision.
+- Retained: celestial-oryx (filed this run); no rule graduated.
+
+## 2026-11-11 00:55 — END (correction resume)
+Phase 22 bearer-authentication correction — one directed rerun of the bare handoff gate
+
+The authenticated coordinator directed exactly one fresh bare ./bin/check all on the preserved tree, under the existing release authorization and routine validation authority. No new operator response was sought or received. If it passes, ordinary guarded delivery and publication continue; if it fails, work stops for diagnosis with no further attempt. The watcher, its deadlines and every guard are unchanged. The failed handoff receipt, the PARK record above, failure signature b33b2959cf2c42c09315ebaf43de6421 and the unresolved causal diagnosis are preserved; a passing rerun would not explain or erase that failure.
+
+Custody verified before the rerun: HEAD and origin/master unchanged at the prior release commit; no gate or test process running. The product identity differs from the accepted candidate only by the execution report the pinned dashboard tool regenerated as the final close write; the accepted implementation and bookkeeping are otherwise unchanged. This record is the last tracked write before the gate. The gate's result is carried by its ignored receipt and coordinator reporting, not by a later log write.
+
+Lessons:
+- none new; esoteric-hawk (5) and celestial-oryx remain as recorded.
+
+## 2026-11-11 00:59 — PARK
+Phase 22 bearer-authentication correction — handoff-gate rerun refused a stale earlier Phase 22 report.
+
+Execution trace: efedb460639a459188b0b446149fa422
+
+The single directed rerun of the bare handoff gate passed lint, format, typecheck, all 268 tests in 196.69 seconds (including the watcher test that failed before), CLI smoke and the first two policy checks. It then failed the execution-dashboard check: reports/execution/2026-11-07/phase-22/data.js is stale. That earlier report is regenerated from every finalized Phase 22 trace. This correction's accepted trace changed that set, but close regenerated only the new 2026-11-11 report and did not run the cheap dashboard check before the gate. This is the report-refresh failure already recorded in lesson ethereal-weasel. The first handoff gate never reached this check because its watcher test failed first.
+
+Nothing has been committed, pushed, tagged or published. As directed, there is no further gate attempt and no repair in the tree. In a scratch copy, regenerating the 2026-11-07 Phase 22 report from its historical accepted trace and unchanged handoff, and then the 2026-11-11 report, made the dashboard checker pass and changed only that one old data file. Failure signature 0aacae9490db49db95c2c1c41001d4fa records the park; the self-resume budget is unchanged at 3. The watcher failure, its signature and its unknown cause remain preserved separately.
+
+Resume condition: coordinator or operator direction to apply that bounded regeneration, run the dashboard checker and then one bare handoff gate before guarded delivery.
+
+Lessons:
+- Occurrence added: ethereal-weasel (2 occurrences, methodology) — a new accepted trace also stales an existing phase report; refresh and run the cheap checker before the handoff gate.
+- Retained: esoteric-hawk (5), celestial-oryx; no rule graduated.
+
+## 2026-11-11 01:03 — END (correction repair)
+Phase 22 bearer-authentication correction — stale earlier Phase 22 report regenerated; one bare handoff gate follows
+
+The authenticated coordinator accepted the diagnosis and directed the demonstrated mechanical repair under existing routine correction authority. No new operator ruling was involved. The 2026-11-07 Phase 22 report was regenerated from its own historical accepted trace and unchanged archived handoff, and then the 2026-11-11 report from this correction's accepted trace and archived handoff. The net tracked change is exactly reports/execution/2026-11-07/phase-22/data.js. It is byte-identical to the scratch-validated result; the new report and the index are unchanged. The dashboard checker now passes for six phases. Trace history, accepted evidence, source, tests, the watcher and its deadlines are unchanged. The failed receipt and the original generated artifacts are preserved outside the tree.
+
+This record is the last tracked write before one bare handoff gate. If the gate passes, guarded delivery and the authorized v0.4.1 publication follow; if it fails, work stops for diagnosis. The gate's result is carried by its ignored receipt and coordinator reporting.
+
+Lessons:
+- none new; ethereal-weasel (2), esoteric-hawk (5) and celestial-oryx remain as recorded.
