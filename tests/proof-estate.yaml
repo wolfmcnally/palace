@@ -4426,14 +4426,16 @@ families:
   covers:
   - tests/test_search.py
   - palace/search.py
+  - palace/multistore.py
   - palace/retrieval/**
-  contract: Executable proof for test query embedding is not breadcrumbed.
+  contract: Query embeddings use the literal query bytes, one call per distinct input per recorded identity across stores, with expansion reused. Prepared multi-store search makes every expansion and embedding call in preparation and none in execution, which returns the single call's result. A query whose BM25 leg refuses, or whose pool exceeds sqlite-vec's k limit (text matched to the real extension), is never embedded, and a remote-corpus boundary failure wins over that bound. Preparation closes every snapshot it opened and every provider it constructed, on success and on refusal, and never closes an injected one. Execution searches current rows, so a file indexed or removed after preparation, or a newly indexed watch root, is found or gone. It refuses an altered, hand-made or foreign prepared value before admission, any unprepared embedding or expansion input, and a changed recorded identity or embedder selector.
   risk_class: retrieval
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: A content-hashed fake embedder and a scripted expander count every call and its inputs; prepared and single-call results are compared by value; store admission is patched to fail for unsealed values; retrieval is patched to request an unprepared input; patched constructors count close calls and every opened snapshot must refuse use afterwards.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
-  mutation_evidence: []
+  mutation_evidence:
+  - '2026-11-11 Phase 25 construction: removing the prepared-binding comparison, the seal check, the prepared-vector or prepared-expansion refusal, or the BM25 term check before embedding, the sqlite-vec bound or its placement after security admission, the admission snapshot close or an owned provider close, or binding row counts or the watch-root set, each fails this family. Each restored byte for byte.'
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0
@@ -4532,14 +4534,16 @@ families:
   covers:
   - tests/test_search.py
   - palace/search.py
+  - palace/multistore.py
   - palace/retrieval/**
-  contract: Executable proof for test search limit respected.
+  contract: Search limits are respected, and multi-store results are order-independent with one union rerank whose strict failure raises and whose permitted failure returns fused order. Prepared execution requires the reranker injection declared at preparation, keeps strict failure, and refuses a store whose database vanished after preparation.
   risk_class: retrieval
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Patched incomparable per-store scores and a counting fixture reranker; refusals are matched by text with reranker call counts unchanged.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
-  mutation_evidence: []
+  mutation_evidence:
+  - '2026-11-11 Phase 25 construction: removing the reranker-injection check fails this family. Restored byte for byte.'
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0
@@ -5569,13 +5573,14 @@ families:
   - palace/private_demo.py
   - docs/private-providers.md
   - bin/palace-private-demo
-  contract: Configured private build and search preserve identity and refuse forbidden stores before network, without provider substitution.
+  contract: Configured private build and search preserve identity and refuse forbidden stores before network, without provider substitution. Prepared multi-store search sends only the query embedding in preparation and only the rerank in execution; execution refuses a reranker reconfigured since preparation, and checks the boundary against the store's current watch roots, before any request.
   risk_class: security
   oracle: A real local TLS server records exact operations; build/search results bind configured identities while patched substitute constructors fail.
   admission: Two existing help families consolidated with all assertions retained; one retirement funds this family.
   nearest_overlap: Existing local and published-corpus tests do not exercise the private adapter or its TLS boundary.
   historical_evidence: []
-  mutation_evidence: []
+  mutation_evidence:
+  - '2026-11-11 Phase 25 construction: removing the prepared-binding comparison fails this family. Restored byte for byte.'
   tier: vital
   duration_seconds: 1.0
   flake_rate: 0.0
@@ -5815,14 +5820,15 @@ families:
   - palace/multistore.py
   - palace/index/s3vectors.py
   - palace/index/cli.py
-  contract: A store that selects its published S3 Vectors index searches through it without reading its local vector table; sqlite-vec stays the default. The index's ranking arrives complete across result pages and fuses with BM25 exactly by rank; a match with no local row is shown, reranked and merged across stores from its published metadata. Metadata filters, a receipt with another embedding identity, an interrupted or missing receipt are refused before any query. Every query page is audited and counted in the scope and in the reranked and multi-store results; the command line keeps hit lines on stdout and reports usage on stderr.
+  contract: A store that selects its published S3 Vectors index searches through it without reading its local vector table; sqlite-vec stays the default. The index's ranking arrives complete across result pages and fuses with BM25 exactly by rank; a match with no local row is shown, reranked and merged across stores from its published metadata. Metadata filters, a receipt with another embedding identity, an interrupted or missing receipt are refused before any query. Every query page is audited and counted in the scope and in the reranked and multi-store results; the command line keeps hit lines on stdout and reports usage on stderr. A prepared multi-store query adopts a republished receipt checkpoint and refuses a different published index or vector-backend selector before any query. An S3 top-K beyond 10,000 or a receipt dimension mismatch refuses before any embedding or request, after the publishing opt-in.
   risk_class: retrieval
-  oracle: The in-memory service returns a scripted ranking in pages of two; RRF scores are recomputed from independent BM25 ranks and the scripted ranks; the local vector table is emptied before querying; audit records are parsed.
+  oracle: The in-memory service returns a scripted ranking in pages of two; RRF scores are recomputed from independent BM25 ranks and the scripted ranks; the local vector table is emptied before querying; audit records are parsed; embedding and request counts are compared across each refusal.
   admission: Two trivial search families consolidated into their neighbors with all assertions retained; one retirement funds this family.
   nearest_overlap: The hybrid-fusion family proves sqlite-vec retrieval and fusion; none routes the vector leg to a remote index.
   historical_evidence: []
   mutation_evidence:
   - '2026-09-28 Phase 20 construction: reading only the first query page, dropping remote-only candidate hydration, skipping the receipt identity check, or dropping the published-metadata display fallback each fails the family. Each restored byte for byte.'
+  - '2026-11-11 Phase 25 construction: removing the prepared-binding comparison, the S3 index bound, or placing a vector-leg bound before security admission, each fails this family. Each restored byte for byte.'
   tier: vital
   duration_seconds: 1.0
   flake_rate: 0.0

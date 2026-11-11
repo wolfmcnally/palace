@@ -307,6 +307,19 @@ class PublicationReceipt:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class PublishedIndex:
+    """A published index's stable identity, without its publication checkpoint."""
+
+    region: str
+    bucket: str
+    index: str
+    index_arn: str
+    dimension: int
+    text_metadata: bool
+    embedder: EmbeddingIdentity
+
+
 def _receipt_from(value: object) -> PublicationReceipt:
     if not isinstance(value, dict):
         raise ValueError("not an object")
@@ -1028,6 +1041,7 @@ class S3VectorsBackend:
 
     def __init__(self, *, store: Path, receipt: PublicationReceipt, profile: str | None) -> None:
         self._receipt = receipt
+        self.profile = profile
         self._client = _AuditedClient(
             open_client(profile, receipt.region),
             store=store,
@@ -1041,14 +1055,32 @@ class S3VectorsBackend:
     def usage(self) -> VectorUsageSummary:
         return self._client.usage.summary()
 
-    def query(self, vector: Sequence[float], top_k: int) -> list[VectorMatch]:
+    @property
+    def published_index(self) -> PublishedIndex:
+        """The stable identity of the receipt this backend was resolved from."""
+        receipt = self._receipt
+        return PublishedIndex(
+            region=receipt.region,
+            bucket=receipt.bucket,
+            index=receipt.index,
+            index_arn=receipt.index_arn,
+            dimension=receipt.dimension,
+            text_metadata=receipt.text_metadata,
+            embedder=receipt.embedder,
+        )
+
+    def check_query(self, *, dimension: int, top_k: int) -> None:
+        """Refuse a query this index cannot answer, before any request or embedding."""
         if top_k <= 0 or top_k > MAX_TOP_K:
             raise IndexError(f"S3 Vectors top-K must be 1..{MAX_TOP_K}, not {top_k}")
-        if len(vector) != self._receipt.dimension:
+        if dimension != self._receipt.dimension:
             raise IndexError(
-                f"query vector has {len(vector)} dimensions; the index holds "
+                f"query vector has {dimension} dimensions; the index holds "
                 f"{self._receipt.dimension}"
             )
+
+    def query(self, vector: Sequence[float], top_k: int) -> list[VectorMatch]:
+        self.check_query(dimension=len(vector), top_k=top_k)
         params: dict[str, Any] = {
             "indexArn": self._receipt.index_arn,
             "topK": top_k,

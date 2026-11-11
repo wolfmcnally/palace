@@ -1521,3 +1521,128 @@ This record is the last tracked write before one bare handoff gate. If the gate 
 
 Lessons:
 - none new; ethereal-weasel (2), esoteric-hawk (5) and celestial-oryx remain as recorded.
+
+## 2026-11-11 08:40 — START
+Phase 25 — Prepared multi-store search
+
+Execution trace: 3e6ba05288aa43e9b28b783098bf71a1
+
+Primary mode, full review and evidence lanes. Preflight routed plan review and code critique to independent Opus instances because the configured cross-provider reviewer's weekly usage exceeded 95%.
+
+Planned work:
+- A public `prepare_store_search` returning an immutable, process-local `PreparedStoreSearch` value, and a public `execute_prepared` that freshly admits each store, refuses any change to the prepared stable bindings, and retrieves, hydrates and reranks with the prepared expansion outputs and vectors only.
+- `search_stores` reimplemented as exactly that composition, with unchanged signature, results, refusal texts, provider-call counts and inputs, resource ownership and strict semantics.
+- Hermetic synthetic proofs inside the existing multi-store proof families: composition equivalence, adoption of corpus changes between the steps, refusal of each stable-binding change, refusal of an execute-time embed or expansion, and integrity refusal of an altered or foreign prepared value. Their contract text is updated in the proof estate at zero family and leaf growth.
+- Operator-facing documentation in the multi-store guide and an Unreleased changelog entry.
+
+## 2026-11-11 09:24 — END
+Phase 25 — Prepared multi-store search
+
+Execution trace: 3e6ba05288aa43e9b28b783098bf71a1
+
+A multi-store search can now run in two steps. `prepare_store_search` does every pre-provider refusal, then the query expansion and embedding, and returns an immutable sealed value that holds no connection or provider. `execute_prepared` admits the stores again, searches the rows they hold at that moment, and reranks once. `search_stores` is exactly the two steps. A consumer that guards its own view of the corpus can therefore embed before opening that window rather than inside it. Content added, edited or removed between the steps, including a newly indexed watch root or a republished index, is searched as it is now; nothing about corpus content is bound. A changed identity, embedder selector, vector-backend selector, published index or reranker refuses before any request. Execution never embeds or expands. Execution against an S3 Vectors store still sends its query, and reranking still runs inside execution.
+
+Ratified contract clarification (authenticated factotum, 2026-11-11T16:08:59Z, after the first code critique; quoted unchanged):
+
+> Root has ratified this reviewed approach under the commissioned seam: preserve security admission ordering and successful-path call inputs/count/order, reject deterministically invalid requests before paid work, and document/test unavoidable execution-failure differences. Early SQLite limit refusal is appropriate if equivalent invalid inputs remain refused and the existing public error contract is preserved or reviewed. No weakening of authorization or data disclosure. Proceed with S3 top-K/receipt-dimension and SQLite bounds after all current security admission, taking the smallest correct supported refusal surface.
+
+This replaces the Commission's literal "no provider-call changes", and the matching Goal and Deliverable wording, for failure traces only. On success each provider receives the same calls, inputs and order as the single call, and refusal texts are unchanged. The vector-leg bounds (S3 top-K above 10,000, a receipt dimension that differs from the store's, and sqlite-vec k above 4,096) now refuse in shared admission, after every security check and before any provider is constructed, with their existing texts. Residual failure-trace differences, inherent to embedding before retrieval and documented in docs/multi-store.md:
+- Fewer calls: an expansion failure, a hybrid rewrite with no searchable term, or an embedding failure for a later variant or identity now refuses before any S3 Vectors request.
+- More calls: failures that can occur only during retrieval (S3 QueryVectors network, authorization or throttling errors; local SQLite I/O or corruption during MATCH or hydration; a lost candidate chunk; a store change between the two steps) now follow embeddings a single call would have skipped.
+- Precedence: for a request that is invalid twice over, a vector-leg bound now wins over a non-security refusal the single call reached first (embedder construction, expander probe, a first-variant no-term or embedding failure, an earlier store's retrieval error). At execution, a bound can pre-empt the binding-change text. No security refusal is displaced, and no valid request changes.
+
+Files changed:
+- palace/multistore.py — prepare_store_search, execute_prepared, PreparedStoreSearch, shared admission with stable bindings and vector-leg bounds, value-backed execution adapters; search_stores as their composition.
+- palace/index/s3vectors.py — PublishedIndex, the backend's published_index and profile, and check_query as the single home of the index bounds.
+- palace/search.py — SQLITE_VEC_MAX_K.
+- tests/test_search.py, tests/test_private_providers.py — new assertions inside four existing families.
+- tests/proof-estate.yaml — contract, oracle, covers and mutation evidence for those families; zero family and leaf growth.
+- docs/multi-store.md, README.md, CHANGELOG.md — the prepared-search guide, library list and Unreleased entry.
+- plan/phase-25.md, plan/INDEX.md — the phase and its row.
+
+Build status:
+- Focused gate (tests/test_search.py, tests/test_private_providers.py, tests/test_smoke.py, tests/index): OK, 50 passed, no warnings.
+- Implementation gate ./bin/check all: OK. Lint, format, typecheck, 268 tests in 201.29 s, smoke and every policy check passed. Nine identical uv notices that the evidence tool's inherited VIRTUAL_ENV was ignored are environmental, not product warnings. Product and full-tree identities were unchanged across the gates.
+- Handoff gate: runs after this tracked END block; completion is contingent on the ignored receipt from the final bare `./bin/check all`.
+
+Review lane (per `policies/review-lanes.md`):
+- full
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- N/A (initial implementation)
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus read-only, for reviewer and critic). Routing fallback recorded by preflight: the configured cross-provider reviewer and critic exceeded 95% weekly usage, so independent Opus was used. The operator's same-day direction to use only Opus workers was relayed by the factotum and already held.
+- Planner: inline primary (opus), not dispatched.
+- Reviewer (plan review): requested model=opus effort=default venue=claude, one pass.
+- Coder: inline primary (opus), not dispatched.
+- Critic (code review): requested model=opus effort=default venue=claude, two passes; the second recorded cause was the ratified post-critique change to refusal order and the new proofs.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- Planner: inline.
+- Reviewer (plan review): 338.5 s; success.
+- Coder: inline.
+- Critic (code review): 309.4 s and 215.9 s; success both.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Makespan: 2677.206 s; intelligence 863.900 s; gates 253.290 s; wait 862.502 s; retry or rework 215.933 s; failed work 0 s; unattributed 17.539 s (from `kickoff-evidence timing-summary`).
+- Awaiting user input: none.
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=3f47c262a9109b102aea5ae790d7363f647bc32e1e15c21f286e9c90e5cbe2cf approved=fabaab71c909fc522285d6d605d7613661979d5e27b32941364cf5879b2a4d65 final=fabaab71c909fc522285d6d605d7613661979d5e27b32941364cf5879b2a4d65
+- Advisory findings: plan review 12 (1 high), first critique 7, second critique 5; all 24 adopted by primary decision; none declined or deferred.
+- Gates: focused=1 implementation-final=1, both recorded against the approved product candidate.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+- Red witnesses: fourteen byte-restored source mutations, each caught by the expected family. They covered removing the binding comparison, the seal check, the prepared-vector or prepared-expansion refusal, the BM25 term check, the reranker-injection check, either vector-leg bound, the admission close or an owned-provider close; placing a bound before security admission; and binding row counts or the watch-root set.
+
+Wall-clock observations:
+- None material; the full gate dominated automated checks at 206 s.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound):
+  - composition equivalence and unchanged success-path provider calls;
+  - adoption of corpus, watch-root and republished-checkpoint changes;
+  - refusal of each stable-binding change, a missing database, the current-watch-root boundary, execute-time embedding or expansion, an altered or foreign value, and a reranker-injection mismatch;
+  - zero provider work on deterministic invalid inputs, with security refusals first;
+  - resource release on success and refusal;
+  - both repository gates, with independent plan and code advice and primary dispositions retained.
+- Parked for the user: review the clarity of the two-step API and its documented guarantees in docs/multi-store.md.
+
+Delivery:
+- default — commit + fast-forward push after the handoff gate. No tag, release, artifact publication or dependency-pin change is authorized.
+
+Ripple (per `policies/phase-ripple.md`):
+- none — no downstream sketches.
+
+Lessons:
+- filed (pending, written after this block): vague-iguana. When a phase reorders a call into stages under a "no provider-call changes" promise, enumerate failure-path call traces at planning, and keep deterministic request bounds in admission. The plan review caught the BM25-before-embed case and the code critique the vector-leg bounds; neither was in the plan. Scope methodology.
+- occurrences added: none.
+- graduation DECIDE: none.
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — this is a library composition seam with deterministic synthetic proofs, without a new interactive surface.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, lesson vague-iguana, the dashboard report, and the bare handoff gate; then guarded delivery.
+- Test protocol: skipped (reason: library API with no user-observable surface; the synthetic proofs are the executable evidence).
+- Release and consumer adoption are outside this phase.
+
+## 2026-11-11 09:25 — END (close bookkeeping)
+Phase 25 — Prepared multi-store search: close bookkeeping outcomes
+
+Execution trace: 3e6ba05288aa43e9b28b783098bf71a1
+
+Applied after the accepted close: Phase 25 is ✅ in plan/INDEX.md (catalog check OK; there is no downstream phase, so no row is marked next), lesson vague-iguana is filed, and the ledger validates. The dashboard report and the bare handoff gate follow this record.
+
+Carried record from the v0.4.1 release (Phase 22 correction), not previously logged. The first guarded push of tag v0.4.1 was refused by its pre-push full gate: 267 passed, and tests/reindex/test_server.py::test_serve_emits_jsonl_line_within_two_seconds_of_touch received no notes.md event before its deadline. The remote tag stayed absent until one coordinator-authorized ordinary retry passed. Failure signature 9c4fad0ca6ed4987b3aff31a8a12e4bc is recorded with resume not permitted and the self-resume budget unchanged. Its generator is the same unresolved native file-event delivery as signature b33b2959cf2c42c09315ebaf43de6421 and lesson esoteric-hawk. The watcher readiness follow-up remains separate and unstarted.
+
+Lessons:
+- filed: vague-iguana — enumerate failure-path call traces when a phase splits a call into stages, and keep deterministic request bounds in admission (methodology, 1 occurrence).
+- graduation DECIDE (carried, unchanged): caped-bonobo → bin (3 occurrences) and esoteric-hawk → test (5 occurrences) meet the graduation threshold and await the operator's ratification; nothing graduated.

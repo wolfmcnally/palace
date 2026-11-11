@@ -18,7 +18,7 @@ from palace.index.build import build
 from palace.index.config import EMBED_DIM, chunks_db_path
 from palace.index.egress import EmbeddingUsage, usage_scope
 from palace.index.embedder_config import EmbedderConfig, save_embedder_config
-from palace.multistore import search_stores
+from palace.multistore import execute_prepared, prepare_store_search, search_stores
 from palace.private_demo import ENV, NAME, TOKEN, FixtureServer
 from palace.private_inference import EndpointEmbedder, EndpointReranker
 from palace.provider_config import EndpointConfig, assert_private_boundary
@@ -326,6 +326,21 @@ def test_private_https_build_and_search_preserve_identity_and_boundaries(
         assert combined.reranker_identity == answer.reranker_identity
         assert [r["operation"] for r in server.requests[count:]] == ["embedding", "reranking"]
 
+        # Preparation sends the one query embedding; execution sends only the rerank, and
+        # refuses a reranker reconfigured in between before any request.
+        count = len(server.requests)
+        prepared = prepare_store_search(query="retention policy", stores=[copy, store])
+        assert [r["operation"] for r in server.requests[count:]] == ["embedding"]
+        assert execute_prepared(prepared) == combined
+        assert [r["operation"] for r in server.requests[count:]] == ["embedding", "reranking"]
+        prepared = prepare_store_search(query="retention policy", stores=[copy, store])
+        for target in (store, copy):
+            save_rerank_config(target, RerankConfig("endpoint", "different-model", config))
+        count = len(server.requests)
+        with pytest.raises(ProviderError, match=r"binding changed for store .* \(reranker\)"):
+            execute_prepared(prepared)
+        assert len(server.requests) == count
+        save_rerank_config(store, RerankConfig("endpoint", "fixture-reranker", config))
         save_rerank_config(copy, RerankConfig("endpoint", "different-model", config))
         count = len(server.requests)
         with pytest.raises(ProviderError, match="reranker identities"):
@@ -334,11 +349,16 @@ def test_private_https_build_and_search_preserve_identity_and_boundaries(
         save_rerank_config(copy, RerankConfig("endpoint", "fixture-reranker", config))
         vault = tmp_path / "personal-vault"
         monkeypatch.setattr("palace.provider_config.resolve_vault_root", lambda _arg: vault)
+        prepared = prepare_store_search(query="retention", stores=[store, copy])
+        count = len(server.requests)
         with closing(sqlite3.connect(chunks_db_path(copy))) as conn:
             conn.execute("UPDATE chunks SET watch_root=?", (str(vault / "notes"),))
             conn.commit()
         with pytest.raises(ProviderError, match="personal vault"):
             search_stores(query="retention", stores=[store, copy])
+        # Execution checks the boundary against the watch roots the store has now.
+        with pytest.raises(ProviderError, match="personal vault"):
+            execute_prepared(prepared)
         assert len(server.requests) == count
         with closing(sqlite3.connect(chunks_db_path(store))) as conn:
             conn.execute("UPDATE index_meta SET value='wrong-model' WHERE key='embed_model'")

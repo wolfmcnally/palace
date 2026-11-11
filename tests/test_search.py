@@ -18,9 +18,10 @@ import json
 import queue
 import shutil
 import sqlite3
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import closing
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -476,10 +477,25 @@ def test_query_embedding_is_not_breadcrumbed(
     search(query=query, store=tmp_store, mode="vector", embedder=embedder)
     assert embedder.last_batch == [query]
 
+    from dataclasses import fields, replace
+
+    import palace.multistore as multiple
+    from palace.index._errors import IndexError as SearchError
     from palace.index.config import EMBED_DIM, chunks_db_path
-    from palace.index.embedder_config import EmbedderConfig, resolve_identity, save_embedder_config
+    from palace.index.embedder_config import (
+        EmbedderConfig,
+        load_embedder_config,
+        resolve_identity,
+        save_embedder_config,
+    )
     from palace.index.schema import stamp_identity
-    from palace.multistore import search_stores
+    from palace.index.store_ops import remove_paths
+    from palace.multistore import (
+        PreparedStoreSearch,
+        execute_prepared,
+        prepare_store_search,
+        search_stores,
+    )
 
     copied = tmp_store.parent / "copied-store"
     shutil.copytree(tmp_store, copied)
@@ -531,6 +547,194 @@ def test_query_embedding_is_not_breadcrumbed(
     assert len(expansion.passages) == len(set(expansion.passages)) == 3
     assert embedder.call_count == before + 3
 
+    # Preparation makes every expansion and embedding call; execution makes none and
+    # returns the single call's result.
+    staged = Expansion()
+    before = embedder.call_count
+    prepared = prepare_store_search(
+        query=query,
+        stores=[tmp_store, copied],
+        rerank_enabled=False,
+        embedders={identity: embedder},
+        expander=staged,
+        hyde=True,
+        multi_query=2,
+    )
+    assert (staged.rewrite_calls, len(staged.passages), embedder.call_count - before) == (1, 3, 3)
+    assert execute_prepared(prepared) == expanded
+    assert (staged.rewrite_calls, len(staged.passages), embedder.call_count - before) == (1, 3, 3)
+
+    # A query whose BM25 leg refuses is never embedded, prepared or not.
+    before = embedder.call_count
+    with pytest.raises(SearchError, match="no searchable term"):
+        prepare_store_search(
+            query="???", stores=[tmp_store, copied], embedders={identity: embedder}
+        )
+    with pytest.raises(SearchError, match="no searchable term"):
+        search_stores(query="???", stores=[tmp_store, copied], embedders={identity: embedder})
+    assert embedder.call_count == before
+
+    # A pool beyond sqlite-vec's KNN limit refuses with the extension's own text before
+    # any embedding; BM25 has no such limit. The bound matches the locked extension.
+    import re
+
+    import sqlite_vec
+
+    from palace.search import SQLITE_VEC_MAX_K
+
+    too_large = SQLITE_VEC_MAX_K + 1
+    expected = (
+        f"k value in knn query too large, provided {too_large} and the limit is {SQLITE_VEC_MAX_K}"
+    )
+    bounded = f"multi-store database read failed: {re.escape(expected)}"
+    stores = [tmp_store, copied]
+    with pytest.raises(SearchError, match=bounded):
+        prepare_store_search(
+            query=query, stores=stores, pool=too_large, embedders={identity: embedder}
+        )
+    with pytest.raises(SearchError, match=bounded):
+        search_stores(query=query, stores=stores, pool=too_large, embedders={identity: embedder})
+    lexical = prepare_store_search(
+        query=query, stores=stores, mode="bm25", pool=too_large, rerank_enabled=False
+    )
+    assert execute_prepared(lexical).status == "disabled"
+    assert embedder.call_count == before
+    with closing(sqlite3.connect(chunks_db_path(tmp_store))) as conn:
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        probe = sqlite_vec.serialize_float32([0.0] * EMBED_DIM)
+        with pytest.raises(sqlite3.OperationalError) as raised:
+            conn.execute(
+                "SELECT chunk_id FROM chunks_vec WHERE embedding MATCH ? AND k = ?",
+                (probe, too_large),
+            ).fetchall()
+    assert str(raised.value) == expected
+
+    # Execution searches current rows: a file indexed or removed after preparation is
+    # found or gone, without embedding again.
+    plain = prepare_store_search(
+        query=query,
+        stores=[tmp_store, copied],
+        rerank_enabled=False,
+        embedders={identity: embedder},
+    )
+    _seed(store=tmp_store, watch_root=tmp_watch_root, embedder=embedder, files={"added.md": query})
+    before = embedder.call_count
+
+    def names(result: multiple.MultiStoreSearch) -> set[str]:
+        return {Path(item.hit.path).name for item in result.hits}
+
+    assert "added.md" in names(execute_prepared(plain))
+    remove_paths(store=tmp_store, watch_root=tmp_watch_root, paths=["added.md"])
+    assert "added.md" not in names(execute_prepared(plain))
+    # Nor does it bind the watch-root set: a root indexed after preparation is searched.
+    second_root = tmp_watch_root.parent / "second-watch"
+    _seed(store=tmp_store, watch_root=second_root, embedder=embedder, files={"second.md": query})
+    before = embedder.call_count
+    assert "second.md" in names(execute_prepared(plain))
+    remove_paths(store=tmp_store, watch_root=second_root, paths=["second.md"])
+    assert embedder.call_count == before
+
+    # Preparation holds nothing afterwards: constructed providers and every snapshot it
+    # opened close on success and on refusal; injected providers are never closed.
+    class Owned(FakeEmbedder):
+        closed = 0
+
+        def close(self) -> None:
+            self.closed += 1
+
+    class OwnedExpansion(Expansion):
+        closed = 0
+
+        def close(self) -> None:
+            self.closed += 1
+
+    opened: list[sqlite3.Connection] = []
+    open_snapshot = multiple._open_chunks_db_ro
+
+    def tracked(db: Path) -> sqlite3.Connection:
+        opened.append(open_snapshot(db))
+        return opened[-1]
+
+    owned, owned_expansion = Owned(), OwnedExpansion()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            multiple, "resolve_embedder", lambda root, *, purpose: (owned, resolve_identity(root))
+        )
+        patch.setattr(multiple, "OllamaQueryExpander", lambda: owned_expansion)
+        patch.setattr(multiple, "_open_chunks_db_ro", tracked)
+        stores = [tmp_store, copied]
+        prepare_store_search(query=query, stores=stores, rerank_enabled=False, multi_query=2)
+        assert (owned.closed, owned_expansion.closed) == (1, 1)
+        owned.raise_on_call = SearchError("fixture embedding failure")
+        with pytest.raises(SearchError, match="fixture embedding failure"):
+            prepare_store_search(query=query, stores=stores, rerank_enabled=False, multi_query=2)
+        assert (owned.closed, owned_expansion.closed) == (2, 2)
+        injected = Owned()
+        prepare_store_search(
+            query=query,
+            stores=stores,
+            rerank_enabled=False,
+            embedders={identity: injected},
+            expander=Expansion(),
+            multi_query=2,
+        )
+        assert injected.closed == 0
+    assert len(opened) == 6
+    for conn in opened:
+        with pytest.raises(sqlite3.ProgrammingError):
+            conn.execute("SELECT 1")
+
+    # An altered, hand-made or foreign value refuses before any store is admitted.
+    values = {item.name: getattr(plain, item.name) for item in fields(plain)}
+    with pytest.MonkeyPatch.context() as patch:
+
+        def unadmitted(*_args: object, **_kwargs: object) -> None:
+            pytest.fail("an unsealed prepared value reached store admission")
+
+        patch.setattr(multiple, "_admit_stores", unadmitted)
+        for altered in (
+            replace(plain, query="other"),
+            replace(plain, limit=plain.limit + 1),
+            PreparedStoreSearch(**{**values, "seal": "0" * 64}),
+            object(),
+        ):
+            with pytest.raises(SearchError, match="altered or not prepared in this process"):
+                execute_prepared(altered)  # type: ignore[arg-type]
+
+    # Execution never embeds or expands: an unprepared input refuses.
+    original = multiple._fuse_variants
+
+    def calling(late: Callable[[dict[str, Any]], object]) -> Callable[..., list[SearchHit]]:
+        def wrapped(conn: sqlite3.Connection, **kwargs: Any) -> list[SearchHit]:
+            late(kwargs)
+            return original(conn, **kwargs)
+
+        return wrapped
+
+    before = embedder.call_count
+    for late, refusal in (
+        (lambda kwargs: kwargs["embedder"].embed(["unprepared"]), "execution never embeds"),
+        (
+            lambda kwargs: kwargs["expander"].hypothetical_passage("unprepared"),
+            "execution never expands",
+        ),
+        (lambda kwargs: kwargs["expander"].rewrites("unprepared", 2), "execution never expands"),
+    ):
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(multiple, "_fuse_variants", calling(late))
+            with pytest.raises(SearchError, match=refusal):
+                execute_prepared(prepared)
+    assert embedder.call_count == before
+    assert (staged.rewrite_calls, len(staged.passages)) == (1, 3)
+
+    unchanged = prepare_store_search(
+        query=query,
+        stores=[copied, tmp_store],
+        rerank_enabled=False,
+        embedders={identity: embedder},
+    )
+
     save_embedder_config(
         copied,
         EmbedderConfig(
@@ -547,6 +751,8 @@ def test_query_embedding_is_not_breadcrumbed(
     with closing(sqlite3.connect(chunks_db_path(copied))) as conn:
         stamp_identity(conn, different)
         conn.commit()
+    with pytest.raises(SearchError, match=r"binding changed for store .*copied-store \(identity\)"):
+        execute_prepared(unchanged)
     second = FakeEmbedder()
     before = embedder.call_count
     separated = search_stores(
@@ -560,7 +766,31 @@ def test_query_embedding_is_not_breadcrumbed(
     assert second.call_count == 1
     assert embedder.last_batch == second.last_batch == [query]
 
-    from palace.index._errors import IndexError as SearchError
+    # Any selector edit, even an identity-neutral boundary note, requires preparing again.
+    neutral = prepare_store_search(
+        query=query,
+        stores=[copied, tmp_store],
+        rerank_enabled=False,
+        embedders={identity: embedder, different: FakeEmbedder()},
+    )
+    save_embedder_config(
+        copied, replace(load_embedder_config(copied), published_corpus_note="Edited synthetic note")
+    )
+    with pytest.raises(SearchError, match=r"copied-store \(embedder\)"):
+        execute_prepared(neutral)
+
+    # Security admission precedes the vector-leg bound: a store outside the published
+    # boundary refuses with the boundary text, and nothing is embedded.
+    asserted = load_embedder_config(copied)
+    save_embedder_config(copied, replace(asserted, published_corpus=False))
+    with pytest.raises(SearchError, match="complete published-corpus assertion"):
+        prepare_store_search(
+            query=query,
+            stores=[copied, tmp_store],
+            pool=too_large,
+            embedders={identity: embedder, different: second},
+        )
+    save_embedder_config(copied, asserted)
 
     with pytest.raises(SearchError, match="no injected query embedder"):
         search_stores(query=query, stores=[copied, tmp_store], embedders={identity: embedder})
@@ -760,6 +990,37 @@ def test_search_limit_respected(
     )
     assert failed.status == "failed" and failed.detail == "fixture failure"
     assert failed.hits == first.hits
+
+    from palace.index._errors import IndexError as SearchError
+    from palace.index.config import chunks_db_path
+    from palace.multistore import PreparedStoreSearch, execute_prepared, prepare_store_search
+
+    def prepared_pair(*, injected: bool) -> PreparedStoreSearch:
+        return prepare_store_search(
+            query="common",
+            stores=[tmp_store, copied],
+            mode="bm25",
+            limit=5,
+            injected_reranker=injected,
+        )
+
+    # The reranker declared at preparation is the one execution must receive.
+    with pytest.raises(SearchError, match="reranker injection differs from execution"):
+        execute_prepared(prepared_pair(injected=True))
+    with pytest.raises(SearchError, match="reranker injection differs from execution"):
+        execute_prepared(prepared_pair(injected=False), reranker=scorer)
+    calls = scorer.calls
+    with pytest.raises(RerankUnavailableError, match="fixture failure"):
+        execute_prepared(prepared_pair(injected=True), reranker=scorer)
+    assert scorer.calls == calls + 1
+
+    # A store whose database vanished after preparation refuses before retrieval.
+    prepared = prepared_pair(injected=True)
+    database = chunks_db_path(copied)
+    database.rename(database.with_name("moved.sqlite"))
+    with pytest.raises(SearchError, match="store has no chunks database"):
+        execute_prepared(prepared, reranker=scorer)
+    assert scorer.calls == calls + 1
 
 
 def test_search_uses_bm25_snippet_when_available(
@@ -1277,6 +1538,69 @@ def test_s3vectors_backend_query_composes_with_fusion(
     assert {item.store for item in merged.hits} == {store, local}
     assert merged.vector_usage is not None
     assert merged.vector_usage.requests == len(fake.calls) - before
+
+    # A prepared query adopts a republished checkpoint but refuses a different index or
+    # a different vector leg, before any query request.
+    from palace.multistore import PreparedStoreSearch, execute_prepared, prepare_store_search
+
+    def prepare_merged() -> PreparedStoreSearch:
+        return prepare_store_search(
+            query="lantern",
+            stores=[store, local],
+            mode="vector",
+            embedders={resolve_identity(store): embedder},
+            injected_reranker=True,
+        )
+
+    published = s3v.receipt_path(store)
+    recorded = published.read_text()
+    prepared = prepare_merged()
+    checkpoint = json.loads(recorded)
+    checkpoint["published_at"] = "2026-11-11T00:00:00+00:00"
+    checkpoint["vector_count"] += 1
+    published.write_text(json.dumps(checkpoint))
+    before = len(fake.calls)
+    adopted = execute_prepared(prepared, reranker=scorer)
+    assert adopted.hits[0].hit.chunk_id == "remote-only" and len(fake.calls) > before
+    prepared = prepare_merged()
+    moved = json.loads(recorded)
+    moved["index_arn"] += "-moved"
+    published.write_text(json.dumps(moved))
+    before = len(fake.calls)
+    with pytest.raises(SearchError, match=r"binding changed for store .* \(published index\)"):
+        execute_prepared(prepared, reranker=scorer)
+    published.write_text(recorded)
+    prepared = prepare_merged()
+    selector = s3v.vector_backend_config_path(store)
+    chosen = selector.read_text()
+    selector.unlink()
+    with pytest.raises(SearchError, match=r"binding changed for store .* \(vector backend\)"):
+        execute_prepared(prepared, reranker=scorer)
+    selector.write_text(chosen)
+    assert len(fake.calls) == before
+
+    # Deterministic index bounds refuse before any embedding or request, after the
+    # publishing boundary.
+    embeds = embedder.call_count
+    published_only = {"stores": [store], "mode": "vector", "rerank_enabled": False}
+    injected = {resolve_identity(store): embedder}
+    with pytest.raises(SearchError, match=r"S3 Vectors top-K must be 1\.\.10000, not 10001"):
+        prepare_store_search(query="lantern", pool=10_001, embedders=injected, **published_only)
+    with pytest.raises(SearchError, match=r"S3 Vectors top-K must be 1\.\.10000, not 10001"):
+        search_stores(query="lantern", pool=10_001, embedders=injected, **published_only)
+    narrow = json.loads(recorded)
+    narrow["dimension"] = 8
+    published.write_text(json.dumps(narrow))
+    with pytest.raises(SearchError, match="query vector has 4096 dimensions; the index holds 8"):
+        search_stores(query="lantern", embedders=injected, **published_only)
+    published.write_text(recorded)
+    opt_in = s3v.publishing_config_path(store)
+    opted = opt_in.read_bytes()
+    opt_in.unlink()
+    with pytest.raises(SearchError, match="not opted in as published"):
+        prepare_store_search(query="lantern", pool=10_001, embedders=injected, **published_only)
+    opt_in.write_bytes(opted)
+    assert embedder.call_count == embeds and len(fake.calls) == before
 
     # Refusals before any query: metadata filters, a mismatched or interrupted receipt.
     receipt_path = store / "meta" / "vector-publication.json"

@@ -870,6 +870,11 @@ def _search_conn(
 
 _FTS5_TOKEN = re.compile(r"\w+")
 
+# The largest k the locked sqlite-vec accepts in a KNN query; a larger pool fails there
+# with the extension's own message, which multi-store admission reproduces before any
+# provider work.
+SQLITE_VEC_MAX_K = 4096
+
 
 def fts5_query(text: str) -> str:
     """Render free text as an FTS5 MATCH expression that cannot be syntax.
