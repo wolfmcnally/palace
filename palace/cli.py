@@ -117,7 +117,7 @@ _HARNESS_CHOICES: tuple[str, ...] = (*HARNESSES, "all")
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="palace",
-        description="Palace — Wolf McNally's personal memory substrate.",
+        description="Palace — a personal memory substrate for agents and applications.",
     )
     parser.add_argument(
         "--version",

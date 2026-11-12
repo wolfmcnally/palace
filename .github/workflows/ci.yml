@@ -39,3 +39,6 @@ jobs:
           cp .github/package-smoke.py "$RUNNER_TEMP/palace-package-smoke.py"
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/palace-release-venv/bin/python" palace-package-smoke.py
+      - name: Native watcher lane (detector after push)
+        if: runner.os == 'macOS'
+        run: ./bin/check native

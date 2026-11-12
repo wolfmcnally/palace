@@ -30,7 +30,7 @@ class Candidate:
     from; ``authored`` is True when ANY contributing unit was an explicit
     authored source (one such source satisfies the corroboration gate). The
     "authored?" predicate is source-kind-aware — sessions key it on the
-    Wolf-authored heuristic, captures on the ``source:`` prefix.
+    operator-authored heuristic, captures on the ``source:`` prefix.
     """
 
     summary: str

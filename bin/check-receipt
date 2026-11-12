@@ -2,7 +2,12 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-"""Durable, candidate-bound receipts for the authoritative full gate."""
+"""Durable, candidate-bound receipts for the full gate and the native release lane.
+
+``all`` receipts bind the ordinary full gate; ``native`` receipts bind the
+macOS native watcher lane and the host that ran it. ``release-verify``
+checks both for the clean current candidate before a release tag.
+"""
 
 from __future__ import annotations
 
@@ -12,15 +17,72 @@ import hashlib
 import json
 import os
 import secrets
+import shutil
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 SCHEMA = "agentic_starter.check_all_receipt.v1"
 RUN_SCHEMA = "agentic_starter.check_all_run.v1"
+NATIVE_SCHEMA = "agentic_starter.check_native_receipt.v1"
+NATIVE_RUN_SCHEMA = "agentic_starter.check_native_run.v1"
+MACHINE_ID_PATHS = (Path("/etc/machine-id"), Path("/var/lib/dbus/machine-id"))
+
+
+@dataclass(frozen=True)
+class Gate:
+    name: str
+    state_dir: str
+    schema: str
+    run_schema: str
+    command: str
+    pass_line: str
+
+
+GATES = {
+    "all": Gate("all", "check-all", SCHEMA, RUN_SCHEMA, "./bin/check all", "CHECK ALL PASS"),
+    "native": Gate(
+        "native",
+        "check-native",
+        NATIVE_SCHEMA,
+        NATIVE_RUN_SCHEMA,
+        "./bin/check native",
+        "CHECK NATIVE PASS",
+    ),
+}
+RECEIPT_FIELDS = frozenset(
+    {
+        "schema",
+        "candidate_id",
+        "command",
+        "completed_at",
+        "environment",
+        "environment_fingerprint",
+        "log",
+        "log_sha256",
+        "run",
+    }
+)
+RUN_FIELDS = frozenset(
+    {
+        "schema",
+        "status",
+        "candidate_before",
+        "candidate_after",
+        "environment",
+        "environment_fingerprint",
+        "host_sha256",
+        "log",
+        "log_sha256",
+        "started_at",
+        "completed_at",
+        "exit_code",
+    }
+)
 RUNTIME_DESCRIPTOR_FIELDS = frozenset(
     {
         "base_executable",
@@ -91,6 +153,10 @@ class ReceiptError(ValueError):
     """A receipt cannot be created or trusted."""
 
 
+class HostIdentityError(ReceiptError):
+    """This host's identity source is present but unreadable."""
+
+
 def repository_root(start: Path) -> Path:
     process = subprocess.run(
         ["git", "-C", str(start), "rev-parse", "--show-toplevel"],
@@ -143,18 +209,89 @@ def selected_runtime_descriptor(root: Path) -> dict[str, str]:
     return descriptor
 
 
-def environment_descriptor(root: Path) -> dict[str, str]:
-    return selected_runtime_descriptor(root)
+def environment_descriptor(
+    root: Path, gate: str = "all", host: str | None = None
+) -> dict[str, str]:
+    """The selected runtime, plus the host digest for the native gate."""
+    descriptor = selected_runtime_descriptor(root)
+    if gate == "native":
+        if host is None:
+            raise ReceiptError("gate=native: a native environment needs a host identity")
+        descriptor["host_sha256"] = host
+    return descriptor
 
 
-def environment_fingerprint(root: Path) -> tuple[str, dict[str, str]]:
-    descriptor = environment_descriptor(root)
+def environment_fingerprint(
+    root: Path, gate: str = "all", host: str | None = None
+) -> tuple[str, dict[str, str]]:
+    descriptor = environment_descriptor(root, gate, host)
     encoded = json.dumps(descriptor, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest(), descriptor
 
 
-def state_root(root: Path) -> Path:
-    return root / ".kickoff" / "check-all"
+def host_sha256() -> str | None:
+    """Return the SHA-256 of this host's stable machine identifier, or None.
+
+    The macOS identifier is the IOPlatformUUID that ``ioreg`` reports; other
+    hosts use the machine-id file when one exists. The raw identifier is
+    never stored or printed. A present ``ioreg`` that fails raises
+    :class:`HostIdentityError`; there is no fallback past it.
+    """
+    ioreg = shutil.which("ioreg")
+    if ioreg is not None:
+        process = subprocess.run(
+            [ioreg, "-rd1", "-c", "IOPlatformExpertDevice"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if process.returncode != 0:
+            raise HostIdentityError(
+                f"cannot read the host identity (ioreg exit={process.returncode})"
+            )
+        for line in process.stdout.splitlines():
+            if '"IOPlatformUUID"' in line and "=" in line:
+                value = line.split("=", 1)[1].strip().strip('"')
+                if value:
+                    return hashlib.sha256(value.encode()).hexdigest()
+        raise HostIdentityError("cannot read the host identity (ioreg reported no IOPlatformUUID)")
+    for candidate_path in MACHINE_ID_PATHS:
+        try:
+            value = candidate_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if value:
+            return hashlib.sha256(value.encode()).hexdigest()
+    return None
+
+
+def gate_host(gate: str, candidate: str) -> str | None:
+    """The host digest a gate run records.
+
+    The native gate refuses without a readable identity. The ordinary gate
+    records null instead, which release verification refuses, so a host
+    identity fault never blocks ordinary delivery.
+    """
+    try:
+        host = host_sha256()
+    except HostIdentityError as exc:
+        if gate == "native":
+            raise ReceiptError(f"gate=native candidate={candidate}: {exc}") from exc
+        print(
+            f"check-receipt: gate={gate} candidate={candidate}: {exc};"
+            " recording a null host, which release verification refuses",
+            file=sys.stderr,
+        )
+        return None
+    if gate == "native" and host is None:
+        raise ReceiptError(
+            f"gate=native candidate={candidate}: a native receipt needs a host identity"
+        )
+    return host
+
+
+def state_root(root: Path, gate: str = "all") -> Path:
+    return root / ".kickoff" / GATES[gate].state_dir
 
 
 def relative_to_root(path: Path, root: Path) -> str:
@@ -193,17 +330,17 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def receipt_path(root: Path, candidate: str, fingerprint: str) -> Path:
+def receipt_path(root: Path, candidate: str, fingerprint: str, gate: str = "all") -> Path:
     validate_digest(candidate, "candidate id")
     validate_digest(fingerprint, "environment fingerprint")
-    return state_root(root) / "receipts" / f"{candidate}-{fingerprint}.json"
+    return state_root(root, gate) / "receipts" / f"{candidate}-{fingerprint}.json"
 
 
-def safe_log_path(root: Path, raw: str) -> Path:
+def safe_log_path(root: Path, raw: str, gate: str = "all") -> Path:
     path = Path(raw)
     if not path.is_absolute():
         path = root / path
-    logs = (state_root(root) / "logs").resolve()
+    logs = (state_root(root, gate) / "logs").resolve()
     resolved = path.resolve()
     if not resolved.is_relative_to(logs):
         raise ReceiptError(f"log is outside {logs}: {path}")
@@ -240,22 +377,25 @@ def command_fingerprint(arguments: argparse.Namespace) -> int:
 
 def command_begin(arguments: argparse.Namespace) -> int:
     root = repository_root(arguments.root.resolve())
+    gate = GATES[arguments.gate]
     validate_digest(arguments.candidate, "candidate id")
-    fingerprint, descriptor = environment_fingerprint(root)
+    host = gate_host(gate.name, arguments.candidate)
+    fingerprint, descriptor = environment_fingerprint(root, gate.name, host)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     stem = f"{stamp}-{os.getpid()}-{secrets.token_hex(4)}"
-    log = state_root(root) / "logs" / f"{stem}.log"
+    log = state_root(root, gate.name) / "logs" / f"{stem}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("x", encoding="utf-8"):
         pass
     atomic_json(
         run_metadata_path(log),
         {
-            "schema": RUN_SCHEMA,
+            "schema": gate.run_schema,
             "status": "running",
             "candidate_before": arguments.candidate,
             "environment": descriptor,
             "environment_fingerprint": fingerprint,
+            "host_sha256": host,
             "log": relative_to_root(log, root),
             "started_at": utc_now(),
         },
@@ -266,11 +406,14 @@ def command_begin(arguments: argparse.Namespace) -> int:
 
 def command_complete(arguments: argparse.Namespace) -> int:
     root = repository_root(arguments.root.resolve())
-    log = safe_log_path(root, arguments.log)
+    gate = GATES[arguments.gate]
+    log = safe_log_path(root, arguments.log, gate.name)
     metadata_path = run_metadata_path(log)
     document = load_json(metadata_path, "run metadata")
-    if document.get("schema") != RUN_SCHEMA or document.get("status") != "running":
-        raise ReceiptError(f"run metadata is not an active {RUN_SCHEMA} record: {metadata_path}")
+    if document.get("schema") != gate.run_schema or document.get("status") != "running":
+        raise ReceiptError(
+            f"run metadata is not an active {gate.run_schema} record: {metadata_path}"
+        )
     if document.get("candidate_before") != arguments.candidate_before:
         raise ReceiptError("candidate-before does not match the run metadata")
     validate_digest(arguments.candidate_before, "candidate-before")
@@ -284,13 +427,24 @@ def command_complete(arguments: argparse.Namespace) -> int:
             raise ReceiptError("a passed run must have exit code 0")
         if arguments.candidate_after != arguments.candidate_before:
             raise ReceiptError("a passed run must preserve candidate identity")
-        current_fingerprint, _ = environment_fingerprint(root)
-        if current_fingerprint != document.get("environment_fingerprint"):
-            raise ReceiptError("environment fingerprint changed during the gate")
+        drift = None
+        current_host = gate_host(gate.name, arguments.candidate_before)
+        if current_host != document.get("host_sha256"):
+            drift = "host identity changed during the gate"
+        else:
+            current_fingerprint, _ = environment_fingerprint(root, gate.name, current_host)
+            if current_fingerprint != document.get("environment_fingerprint"):
+                drift = "environment fingerprint changed during the gate"
+        if drift is not None:
+            # Record the attempt as terminal and non-passing before refusing,
+            # so release verification counts and names it.
+            finish_run(log, metadata_path, document, gate, arguments, "environment-drift", 1, drift)
+            raise ReceiptError(f"gate={gate.name} candidate={arguments.candidate_before}: {drift}")
         relative_log = relative_to_root(log, root)
         terminal_lines = (
-            f"CHECK RECEIPT STORED candidate={arguments.candidate_before} log={relative_log}\n"
-            "CHECK ALL PASS\n"
+            f"CHECK RECEIPT STORED gate={gate.name} candidate={arguments.candidate_before}"
+            f" log={relative_log}\n"
+            f"{gate.pass_line}\n"
         )
         with log.open("a", encoding="utf-8") as handle:
             handle.write(terminal_lines)
@@ -299,9 +453,9 @@ def command_complete(arguments: argparse.Namespace) -> int:
         log_digest = sha256_file(log)
         completed_at = utc_now()
         receipt = {
-            "schema": SCHEMA,
+            "schema": gate.schema,
             "candidate_id": arguments.candidate_before,
-            "command": "./bin/check all",
+            "command": gate.command,
             "completed_at": completed_at,
             "environment": document["environment"],
             "environment_fingerprint": document["environment_fingerprint"],
@@ -310,7 +464,9 @@ def command_complete(arguments: argparse.Namespace) -> int:
             "run": relative_to_root(metadata_path, root),
         }
         atomic_json(
-            receipt_path(root, arguments.candidate_before, document["environment_fingerprint"]),
+            receipt_path(
+                root, arguments.candidate_before, document["environment_fingerprint"], gate.name
+            ),
             receipt,
         )
         document.update(
@@ -336,10 +492,29 @@ def command_complete(arguments: argparse.Namespace) -> int:
     if arguments.outcome == "identity-error" and arguments.candidate_after != "ERROR":
         raise ReceiptError("identity-error requires candidate-after=ERROR")
 
+    finish_run(
+        log, metadata_path, document, gate, arguments, arguments.outcome, arguments.exit_code
+    )
+    return 0
+
+
+def finish_run(
+    log: Path,
+    metadata_path: Path,
+    document: dict[str, Any],
+    gate: Gate,
+    arguments: argparse.Namespace,
+    status: str,
+    exit_code: int,
+    reason: str | None = None,
+) -> None:
+    """Make a run record terminal and non-passing; it is never deleted."""
+    root = repository_root(arguments.root.resolve())
     relative_log = relative_to_root(log, root)
+    suffix = f" reason={reason}" if reason else ""
     terminal_line = (
-        f"CHECK RECEIPT RUN {arguments.outcome.upper()} "
-        f"exit={arguments.exit_code} log={relative_log}\n"
+        f"CHECK RECEIPT RUN {status.upper()} gate={gate.name} "
+        f"candidate={arguments.candidate_before} exit={exit_code} log={relative_log}{suffix}\n"
     )
     with log.open("a", encoding="utf-8") as handle:
         handle.write(terminal_line)
@@ -349,17 +524,13 @@ def command_complete(arguments: argparse.Namespace) -> int:
         {
             "candidate_after": arguments.candidate_after,
             "completed_at": utc_now(),
-            "exit_code": arguments.exit_code,
+            "exit_code": exit_code,
             "log_sha256": sha256_file(log),
-            "status": arguments.outcome,
+            "status": status,
         }
     )
     atomic_json(metadata_path, document)
-    print(
-        terminal_line.rstrip(),
-        file=sys.stderr,
-    )
-    return 0
+    print(terminal_line.rstrip(), file=sys.stderr)
 
 
 def miss(reason: str) -> int:
@@ -383,6 +554,56 @@ def parse_push_input(raw: str) -> list[str] | None:
     return local_shas
 
 
+def validate_receipt(
+    root: Path, gate_name: str, candidate: str, fingerprint: str, descriptor: dict[str, str]
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
+    """Validate the gate's receipt for this candidate and environment.
+
+    Returns ``(receipt, run, None)`` for a trustworthy passing receipt, or
+    ``(None, None, reason)`` naming the first failed check.
+    """
+    gate = GATES[gate_name]
+    path = receipt_path(root, candidate, fingerprint, gate.name)
+    if not path.is_file() or path.is_symlink():
+        return None, None, "receipt-not-found"
+    receipt = load_json(path, "receipt")
+    if set(receipt) != RECEIPT_FIELDS:
+        return None, None, "receipt-schema-mismatch"
+    if (
+        receipt.get("schema") != gate.schema
+        or receipt.get("candidate_id") != candidate
+        or receipt.get("command") != gate.command
+        or receipt.get("environment") != descriptor
+        or receipt.get("environment_fingerprint") != fingerprint
+    ):
+        return None, None, "receipt-identity-mismatch"
+    log = safe_log_path(root, str(receipt.get("log", "")), gate.name)
+    if not log.is_file() or sha256_file(log) != receipt.get("log_sha256"):
+        return None, None, "receipt-log-mismatch"
+    run_path = Path(str(receipt.get("run", "")))
+    if not run_path.is_absolute():
+        run_path = root / run_path
+    runs_root = (state_root(root, gate.name) / "logs").resolve()
+    if not run_path.resolve().is_relative_to(runs_root):
+        return None, None, "receipt-run-path-invalid"
+    run = load_json(run_path, "run metadata")
+    if (
+        set(run) != RUN_FIELDS
+        or run.get("schema") != gate.run_schema
+        or run.get("status") != "passed"
+        or run.get("candidate_before") != candidate
+        or run.get("candidate_after") != candidate
+        or run.get("environment") != descriptor
+        or run.get("environment_fingerprint") != fingerprint
+        or run.get("log") != receipt.get("log")
+        or run.get("log_sha256") != receipt.get("log_sha256")
+        or run.get("completed_at") != receipt.get("completed_at")
+        or run.get("exit_code") != 0
+    ):
+        return None, None, "receipt-run-mismatch"
+    return receipt, run, None
+
+
 def command_pre_push(arguments: argparse.Namespace) -> int:
     try:
         root = repository_root(arguments.root.resolve())
@@ -398,73 +619,137 @@ def command_pre_push(arguments: argparse.Namespace) -> int:
             return miss("working-tree-not-clean")
         candidate = candidate_id(root)
         fingerprint, descriptor = environment_fingerprint(root)
-        path = receipt_path(root, candidate, fingerprint)
-        if not path.is_file() or path.is_symlink():
-            return miss("receipt-not-found")
-        receipt = load_json(path, "receipt")
-        required = {
-            "schema",
-            "candidate_id",
-            "command",
-            "completed_at",
-            "environment",
-            "environment_fingerprint",
-            "log",
-            "log_sha256",
-            "run",
-        }
-        if set(receipt) != required:
-            return miss("receipt-schema-mismatch")
-        if (
-            receipt.get("schema") != SCHEMA
-            or receipt.get("candidate_id") != candidate
-            or receipt.get("command") != "./bin/check all"
-            or receipt.get("environment") != descriptor
-            or receipt.get("environment_fingerprint") != fingerprint
-        ):
-            return miss("receipt-identity-mismatch")
-        log = safe_log_path(root, str(receipt.get("log", "")))
-        if not log.is_file() or sha256_file(log) != receipt.get("log_sha256"):
-            return miss("receipt-log-mismatch")
-        run_path = Path(str(receipt.get("run", "")))
-        if not run_path.is_absolute():
-            run_path = root / run_path
-        runs_root = (state_root(root) / "logs").resolve()
-        if not run_path.resolve().is_relative_to(runs_root):
-            return miss("receipt-run-path-invalid")
-        run = load_json(run_path, "run metadata")
-        run_required = {
-            "schema",
-            "status",
-            "candidate_before",
-            "candidate_after",
-            "environment",
-            "environment_fingerprint",
-            "log",
-            "log_sha256",
-            "started_at",
-            "completed_at",
-            "exit_code",
-        }
-        if (
-            set(run) != run_required
-            or run.get("schema") != RUN_SCHEMA
-            or run.get("status") != "passed"
-            or run.get("candidate_before") != candidate
-            or run.get("candidate_after") != candidate
-            or run.get("environment") != descriptor
-            or run.get("environment_fingerprint") != fingerprint
-            or run.get("log") != receipt.get("log")
-            or run.get("log_sha256") != receipt.get("log_sha256")
-            or run.get("completed_at") != receipt.get("completed_at")
-            or run.get("exit_code") != 0
-        ):
-            return miss("receipt-run-mismatch")
+        receipt, _, reason = validate_receipt(root, "all", candidate, fingerprint, descriptor)
+        if receipt is None:
+            return miss(reason or "receipt-not-found")
         print(f"CHECK RECEIPT HIT candidate={candidate} log={receipt['log']}")
         return 0
     except (OSError, ReceiptError) as exc:
         print(f"CHECK RECEIPT ERROR {exc}", file=sys.stderr)
         return miss("receipt-query-error")
+
+
+def native_attempts(root: Path, candidate: str, host: str) -> list[dict[str, Any]]:
+    """Every native run record for this candidate and host, oldest first.
+
+    A record still marked ``running`` is an interrupted or in-flight attempt,
+    not a pass, and is included. An unreadable record refuses: an attempt
+    must never vanish from the verdict.
+    """
+    gate = GATES["native"]
+    logs = state_root(root, gate.name) / "logs"
+    rows: list[dict[str, Any]] = []
+    if not logs.is_dir():
+        return rows
+    for metadata in sorted(logs.glob("*.json")):
+        run = load_json(metadata, "gate=native run metadata")
+        if (
+            run.get("schema") != gate.run_schema
+            or run.get("candidate_before") != candidate
+            or run.get("host_sha256") != host
+        ):
+            continue
+        rows.append({**run, "_path": relative_to_root(metadata, root)})
+    rows.sort(key=lambda row: (attempt_time(row), row["_path"]))
+    return rows
+
+
+def attempt_time(run: dict[str, Any]) -> datetime:
+    """Order by completion, or by start for an attempt that never finished."""
+    raw = str(run.get("completed_at") or run.get("started_at") or "")
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ReceiptError(f"gate=native run {run.get('log')} has no valid time: {raw!r}") from exc
+
+
+def missing_receipt_reason(root: Path, gate_name: str, candidate: str, host: str) -> str:
+    """Name why no receipt matches: another host, another candidate, or none at all."""
+    receipts = state_root(root, gate_name) / "receipts"
+    paths = sorted(receipts.glob("*.json")) if receipts.is_dir() else []
+    for path in paths:
+        receipt = load_json(path, f"gate={gate_name} receipt")
+        if receipt.get("candidate_id") != candidate:
+            continue
+        if gate_name == "native":
+            recorded = receipt.get("environment", {}).get("host_sha256")
+        else:
+            recorded = load_json(root / str(receipt.get("run", "")), "run metadata").get(
+                "host_sha256"
+            )
+        if recorded != host:
+            return "host-mismatch"
+    return "receipt-identity-mismatch" if paths else "receipt-not-found"
+
+
+def release_refusal(gate: str, reason: str, candidate: str, detail: str = "") -> int:
+    suffix = f" {detail}" if detail else ""
+    print(
+        f"CHECK RELEASE REFUSED gate={gate} reason={reason} candidate={candidate}{suffix}",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def command_release_verify(arguments: argparse.Namespace) -> int:
+    """Verify passing ``all`` and ``native`` receipts for the clean current candidate.
+
+    The newest native attempt for the candidate and this host must be the
+    receipt's passing run; a newer failed, interrupted or in-flight attempt
+    refuses. Earlier non-passing attempts stay on record and are named;
+    nothing is cured, retried or deleted here.
+    """
+    root = repository_root(arguments.root.resolve())
+    candidate = candidate_id(root)
+    if run_command(root, "git", "status", "--porcelain=v1", "--untracked-files=all"):
+        return release_refusal("release", "working-tree-not-clean", candidate)
+    try:
+        host = host_sha256()
+    except HostIdentityError as exc:
+        return release_refusal("release", "host-identity-unavailable", candidate, f"error={exc}")
+    if host is None:
+        return release_refusal("release", "host-identity-unavailable", candidate)
+    try:
+        return verify_release(root, candidate, host)
+    except (OSError, ReceiptError) as exc:
+        return release_refusal("release", "run-record-unreadable", candidate, f"error={exc}")
+
+
+def verify_release(root: Path, candidate: str, host: str) -> int:
+    attempts = native_attempts(root, candidate, host)
+    nonpassing = [row for row in attempts if row.get("status") != "passed"]
+    latest = f" latest-failed-run={nonpassing[-1]['_path']}" if nonpassing else ""
+    detail = f"native-failed-runs={len(nonpassing)}{latest}" if nonpassing else ""
+    verified: dict[str, dict[str, Any]] = {}
+    for gate_name in ("all", "native"):
+        fingerprint, descriptor = environment_fingerprint(root, gate_name, host)
+        gate_detail = detail if gate_name == "native" else ""
+        receipt, run, reason = validate_receipt(root, gate_name, candidate, fingerprint, descriptor)
+        if receipt is None or run is None:
+            if reason == "receipt-not-found":
+                reason = missing_receipt_reason(root, gate_name, candidate, host)
+            return release_refusal(gate_name, reason or "receipt-not-found", candidate, gate_detail)
+        if run.get("host_sha256") != host:
+            return release_refusal(gate_name, "host-mismatch", candidate, gate_detail)
+        verified[gate_name] = receipt
+    newest = attempts[-1] if attempts else None
+    if newest is None or newest.get("log") != verified["native"]["log"]:
+        reason = (
+            "native-run-unfinished"
+            if newest is not None and newest.get("status") == "running"
+            else "native-failure-after-pass"
+        )
+        return release_refusal("native", reason, candidate, detail)
+    for row in nonpassing:
+        print(
+            f"CHECK RELEASE NOTE earlier-failed-native-run={row['_path']}"
+            f" status={row.get('status')} completed_at={row.get('completed_at')}"
+        )
+    print(
+        f"CHECK RELEASE VERIFIED candidate={candidate} all={verified['all']['log']}"
+        f" native={verified['native']['log']} native-failed-runs={len(nonpassing)}{latest}"
+    )
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -480,11 +765,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     begin = subparsers.add_parser("begin")
     begin.add_argument("--root", type=Path, default=Path.cwd())
+    begin.add_argument("--gate", choices=sorted(GATES), default="all")
     begin.add_argument("--candidate", required=True)
     begin.set_defaults(function=command_begin)
 
     complete = subparsers.add_parser("complete")
     complete.add_argument("--root", type=Path, default=Path.cwd())
+    complete.add_argument("--gate", choices=sorted(GATES), default="all")
     complete.add_argument("--log", required=True)
     complete.add_argument("--candidate-before", required=True)
     complete.add_argument("--candidate-after", required=True)
@@ -499,6 +786,10 @@ def build_parser() -> argparse.ArgumentParser:
     pre_push = subparsers.add_parser("pre-push")
     pre_push.add_argument("--root", type=Path, default=Path.cwd())
     pre_push.set_defaults(function=command_pre_push)
+
+    release_verify = subparsers.add_parser("release-verify")
+    release_verify.add_argument("--root", type=Path, default=Path.cwd())
+    release_verify.set_defaults(function=command_release_verify)
     return parser
 
 

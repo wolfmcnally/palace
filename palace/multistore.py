@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import json
 import math
-import secrets
 import sqlite3
 from collections.abc import Mapping, Sequence
 from contextlib import ExitStack
@@ -24,15 +22,20 @@ from palace.index.embedder_config import (
     resolve_embedder,
 )
 from palace.index.s3vectors import (
-    BACKEND_S3VECTORS,
-    PublishedIndex,
     S3VectorsBackend,
-    VectorBackendConfig,
     VectorMatch,
     VectorUsageSummary,
     resolve_vector_backend,
 )
 from palace.index.schema import assert_identity, assert_identity_readable
+from palace.prepared import (
+    HitEvidence,
+    _changed_axis,
+    _collect_hit_evidence,
+    _seal,
+    _selected_backend,
+    _StoreBinding,
+)
 from palace.query_expand import OllamaQueryExpander, QueryExpander
 from palace.rerank import (
     RerankCandidate,
@@ -86,6 +89,7 @@ class MultiStoreSearch:
     detail: str | None = None
     reranker_identity: RerankIdentity | None = None
     vector_usage: VectorUsageSummary | None = None
+    evidence: tuple[HitEvidence, ...] | None = None
 
 
 class _QueryVectors:
@@ -195,18 +199,6 @@ class _PreparedExpansion:
         pass
 
 
-@dataclass(frozen=True, slots=True)
-class _StoreBinding:
-    """Stable configuration one store's prepared search depends on, never its corpus."""
-
-    store: Path
-    embedder: EmbedderConfig | None
-    identity: EmbeddingIdentity | None
-    vector_backend: VectorBackendConfig | None
-    published_index: PublishedIndex | None
-    reranker: RerankConfig | None
-
-
 @dataclass
 class _Admission:
     connections: dict[Path, sqlite3.Connection]
@@ -306,36 +298,6 @@ def _admit_stores(
     return _Admission(connections, identities, reranker_config, backends, bindings)
 
 
-def _selected_backend(backend: S3VectorsBackend | None) -> VectorBackendConfig:
-    """The selector a resolved backend was built from, without a second read."""
-    if backend is None:
-        return VectorBackendConfig()
-    return VectorBackendConfig(BACKEND_S3VECTORS, backend.profile)
-
-
-def _changed_axis(prepared: _StoreBinding, current: _StoreBinding) -> str | None:
-    for axis, before, after in (
-        ("identity", prepared.identity, current.identity),
-        ("embedder", prepared.embedder, current.embedder),
-        ("vector backend", prepared.vector_backend, current.vector_backend),
-        ("published index", prepared.published_index, current.published_index),
-        ("reranker", prepared.reranker, current.reranker),
-    ):
-        if before != after:
-            return axis
-    return None
-
-
-# Drawn at import: a prepared value verifies in this process and in forked children
-# that inherit the key, never in a spawned or separate process.
-_SEAL_KEY = secrets.token_bytes(32)
-
-
-def _seal(values: tuple[object, ...]) -> str:
-    message = repr(values).encode("utf-8", "backslashreplace")
-    return hmac.new(_SEAL_KEY, message, hashlib.sha256).hexdigest()
-
-
 @dataclass(frozen=True, slots=True)
 class PreparedStoreSearch:
     """A validated, expanded and embedded multi-store query, ready to execute.
@@ -360,6 +322,7 @@ class PreparedStoreSearch:
     hyde: bool
     multi_query: int | None
     injected_reranker: bool
+    evidence: bool
     stores: tuple[Path, ...]
     bindings: tuple[_StoreBinding, ...]
     rewrites: tuple[str, ...] | None
@@ -388,6 +351,7 @@ def prepare_store_search(
     embedders: Mapping[EmbeddingIdentity, Embedder] | None = None,
     expander: QueryExpander | None = None,
     injected_reranker: bool = False,
+    evidence: bool = False,
 ) -> PreparedStoreSearch:
     """Admit the whole request, then expand and embed the query, holding nothing after.
 
@@ -396,11 +360,14 @@ def prepare_store_search(
     rewrite request, one passage per distinct variant, and one embedding per distinct
     input per recorded identity. Constructed providers close before return; injected
     ones stay caller-owned. ``injected_reranker`` declares that execution will receive
-    a caller-owned reranker, so the configured one is not preflighted.
+    a caller-owned reranker, so the configured one is not preflighted. ``evidence``
+    makes execution attach one :class:`~palace.prepared.HitEvidence` per returned hit.
     """
     _validate_retrieval(
         query=query, mode=mode, limit=limit, pool=pool, hyde=hyde, multi_query=multi_query
     )
+    if evidence and mode == "bm25":
+        raise IndexError("hit evidence requires a search mode with a vector leg; mode=bm25")
     if not stores or rerank_in <= 0 or rrf_k <= 0:
         raise IndexError("stores must be non-empty; rerank_in and rrf_k must be positive")
     roots = [Path(store).expanduser().resolve() for store in stores]
@@ -488,6 +455,7 @@ def prepare_store_search(
         hyde,
         multi_query,
         injected_reranker,
+        evidence,
         tuple(roots),
         admission.bindings,
         rewrites,
@@ -507,7 +475,9 @@ def execute_prepared(
     index or configured reranker refuses before any vector query or rerank, as does
     every refusal admission makes. Execution never embeds or expands. An S3 Vectors
     store still receives its query request; reranking and ``strict`` behave as in
-    :func:`search_stores`.
+    :func:`search_stores`. Reranking runs while every store's snapshot is open, and a
+    value prepared with ``evidence`` attaches each returned hit's evidence, in result
+    order, read from its store's snapshot on every return path.
     """
     if not isinstance(prepared, PreparedStoreSearch) or not hmac.compare_digest(
         prepared.seal, _seal(_unsealed(prepared))
@@ -577,11 +547,34 @@ def execute_prepared(
                     union[key] = item
                     candidates[key] = replace(candidate, chunk_id=key)
             fused = sorted(union, key=lambda key: (-union[key].hit.rrf_score, key))
+
+            def attested(hits: list[StoreHit]) -> tuple[HitEvidence, ...] | None:
+                # Every store's snapshot is still open, so each entry comes from the
+                # read transaction its retrieval used.
+                if not prepared.evidence:
+                    return None
+                wanted: dict[Path, list[str]] = {}
+                for item in hits:
+                    wanted.setdefault(item.store, []).append(item.hit.chunk_id)
+                collected = {
+                    root: _collect_hit_evidence(
+                        admission.connections[root],
+                        store=root,
+                        identity=identities[root],
+                        remote=admission.backends.get(root) is not None,
+                        chunk_ids=chunk_ids,
+                    )
+                    for root, chunk_ids in wanted.items()
+                }
+                return tuple(collected[item.store][item.hit.chunk_id] for item in hits)
+
             if not prepared.rerank_enabled:
+                returned = [union[key] for key in fused[:limit]]
                 return MultiStoreSearch(
-                    [union[key] for key in fused[:limit]],
+                    returned,
                     "disabled",
                     vector_usage=_served_usage(usage),
+                    evidence=attested(returned),
                 )
             reranker_config = admission.reranker_config
             reranker_identity = reranker_config.identity if reranker_config is not None else None
@@ -591,6 +584,7 @@ def execute_prepared(
                     "applied",
                     reranker_identity=reranker_identity,
                     vector_usage=_served_usage(usage),
+                    evidence=attested([]),
                 )
             try:
                 if reranker is None:
@@ -613,28 +607,32 @@ def execute_prepared(
                     private=reranker_identity is not None
                     and reranker_identity.provider.startswith("endpoint:"),
                 )
+                returned = [union[key] for key in fused[:limit]]
                 return MultiStoreSearch(
-                    [union[key] for key in fused[:limit]],
+                    returned,
                     "failed",
                     str(exc),
                     reranker_identity,
                     vector_usage=_served_usage(usage),
+                    evidence=attested(returned),
                 )
+            returned = [
+                replace(
+                    union[row.candidate.chunk_id],
+                    hit=replace(
+                        union[row.candidate.chunk_id].hit,
+                        rerank_rank=row.rank,
+                        rerank_score=row.score,
+                    ),
+                )
+                for row in ranked
+            ]
             return MultiStoreSearch(
-                [
-                    replace(
-                        union[row.candidate.chunk_id],
-                        hit=replace(
-                            union[row.candidate.chunk_id].hit,
-                            rerank_rank=row.rank,
-                            rerank_score=row.score,
-                        ),
-                    )
-                    for row in ranked
-                ],
+                returned,
                 "applied",
                 reranker_identity=reranker_identity,
                 vector_usage=_served_usage(usage),
+                evidence=attested(returned),
             )
     except sqlite3.Error as exc:
         raise IndexError(f"multi-store database read failed: {exc}") from exc
@@ -656,6 +654,7 @@ def search_stores(
     embedders: Mapping[EmbeddingIdentity, Embedder] | None = None,
     expander: QueryExpander | None = None,
     reranker: Reranker | None = None,
+    evidence: bool = False,
 ) -> MultiStoreSearch:
     """Retrieve each store in its own vector space, then rerank the union once.
 
@@ -681,6 +680,7 @@ def search_stores(
         embedders=embedders,
         expander=expander,
         injected_reranker=reranker is not None,
+        evidence=evidence,
     )
     return execute_prepared(prepared, reranker=reranker)
 

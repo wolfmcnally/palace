@@ -14,7 +14,7 @@ Notes on naming:
   is exempt from the phase's greenfield grep gate per the
   Architecture-Decision disposition in the implementation plan.
 - ``MARKDOWN_EXTENSIONS`` is restricted to ``.md`` in 2.3. The wider set
-  (``.markdown`` etc.) is deferred to a future decision when Wolf's
+  (``.markdown`` etc.) is deferred to a future decision when the operator's
   vault is surveyed; Phase 2.3 consistently uses ``.md`` throughout.
 """
 
@@ -223,7 +223,7 @@ FileKind = Literal["markdown", "jsonl", "code", "text", "binary", "unknown"]
 
 # File-extension sets used by :func:`palace.index.pipeline.classify_kind`.
 # Restricted to ``.md`` in 2.3 by deliberate scope-creep removal —
-# ``.markdown`` is deferred until Wolf's vault is surveyed.
+# ``.markdown`` is deferred until the operator's vault is surveyed.
 MARKDOWN_EXTENSIONS: frozenset[str] = frozenset({".md"})
 JSONL_EXTENSIONS: frozenset[str] = frozenset({".jsonl"})
 CODE_EXTENSIONS: frozenset[str] = frozenset(

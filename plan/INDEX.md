@@ -10,6 +10,12 @@
 | [Phase 23](phase-23.md) | Release 0.3.0 preparation | ✅ |
 | [Phase 24](phase-24.md) | Compatible file-vector reuse | ✅ |
 | [Phase 25](phase-25.md) | Prepared multi-store search | ✅ |
+| [Phase 26](phase-26.md) | Native watcher readiness witnesses | ✅ |
+| [Phase 27](phase-27.md) | Native watcher qualification design | ✅ |
+| [Phase 28](phase-28.md) | Native watcher post-readiness diagnostics | ✅ |
+| [Phase 29](phase-29.md) | Generic operator wording in source and operations docs | ✅ |
+| [Phase 30](phase-30.md) | Deterministic reindex pipeline proofs and a mandatory native watcher lane | ✅ |
+| [Phase 31](phase-31.md) | Returned-hit evidence with prepared single- and multi-store search | ✅ |
 
 Private phase history is excluded. Retained policies and current API contracts govern future work.
 

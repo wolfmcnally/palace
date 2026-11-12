@@ -2,7 +2,7 @@
 
 A candidate that would otherwise promote but contradicts an existing
 ``valid: true`` fact is HELD (not promoted, RESOLUTION 2) and routed to
-``<vault-root>/dreams/contradictions/<YYYY-MM-DD>.md`` for Wolf to adjudicate.
+``<vault-root>/dreams/contradictions/<YYYY-MM-DD>.md`` for the operator to adjudicate.
 NEITHER fact is mutated — no auto-invalidate, no auto-supersede.
 
 Detection is two-stage to keep the slow chat confirmation bounded: an

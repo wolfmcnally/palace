@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -216,7 +217,7 @@ def test_all_is_default_locked_ordered_and_cwd_independent(
         (f"uv cwd={root} args=run --project {root} --locked --managed-python python -c {PROBE}"),
         (
             f"uv cwd={root} args=run --project {root} --locked "
-            "--managed-python python -m pytest -q tests"
+            "--managed-python python -m pytest -q -m not native tests"
         ),
         f"uv cwd={root} args=run --locked --managed-python palace --version",
         f"parity cwd={root}",
@@ -283,8 +284,93 @@ def test_governed_iteration_lanes_dispatch_selected_tests_without_receipt(
     assert result.returncode == 0, result.stderr
     calls = Path(environment["CHECK_TEST_LOG"]).read_text().splitlines()
     assert f"governance cwd={root} args=select {selection_arguments}" in calls
-    assert any("python -m pytest -q tests/test_check.py" in call for call in calls)
+    assert any("python -m pytest -q -m not native tests/test_check.py" in call for call in calls)
     assert not any("check-receipt" in call for call in calls)
+
+
+def _collect(*arguments: str) -> list[str]:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            *arguments,
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return [line for line in result.stdout.splitlines() if "::" in line]
+
+
+@pytest.mark.parametrize("lane", ["native", "focused-all-native", "focused-empty-preserved"])
+def test_native_marker_partitions_ordinary_and_native_lanes(
+    check_repo: tuple[Path, dict[str, str]], lane: str
+) -> None:
+    root, environment = check_repo
+    if lane == "native":
+        native = _collect("-m", "native", "tests")
+        ordinary = _collect("-m", "not native", "tests")
+        server = _collect("tests/reindex/test_server.py")
+        assert native == server and native
+        assert not set(native) & set(ordinary)
+        assert len(native) + len(ordinary) == len(_collect("tests"))
+        result = subprocess.run(
+            [str(root / "bin" / "test"), "--native"],
+            cwd=root,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        calls = Path(environment["CHECK_TEST_LOG"]).read_text().splitlines()
+        assert calls[-1] == (
+            f"uv cwd={root} args=run --project {root} --locked "
+            "--managed-python python -m pytest -q -m native tests"
+        )
+        return
+    # The governed FOCUSED branch collects outside the native lane first.
+    environment["CHECK_TEST_FAIL_CODE"] = "5"
+    environment["CHECK_TEST_FAIL_MATCH"] = (
+        "--collect-only -q -m not native" if lane == "focused-all-native" else "--collect-only"
+    )
+
+    result = _run(root, environment, "vital")
+
+    calls = Path(environment["CHECK_TEST_LOG"]).read_text().splitlines()
+    assert not any("python -m pytest -q " in call for call in calls), calls
+    if lane == "focused-all-native":
+        assert result.returncode == 0, result.stderr
+        assert "every selected proof is native-lane" in result.stdout
+        assert any("--collect-only -q tests/test_check.py" in call for call in calls)
+    else:
+        assert result.returncode == 5
+        assert (
+            "TEST ERROR governed FOCUSED selection collected nothing outside the native lane"
+            in result.stderr
+        )
+
+
+def test_native_mode_refuses_off_macos_before_any_receipt(
+    check_repo: tuple[Path, dict[str, str]], tmp_path: Path
+) -> None:
+    root, environment = check_repo
+    _write_executable(tmp_path / "tools" / "uname", "#!/usr/bin/env bash\nprintf 'Linux\\n'\n")
+
+    result = _run(root, environment, "native")
+
+    assert result.returncode == 1
+    assert "CHECK ERROR native lane requires macOS (uname=Linux)" in result.stderr
+    assert not (root / ".kickoff").exists()
+    calls = Path(environment["CHECK_TEST_LOG"]).read_text().splitlines()
+    assert not any("-m pytest" in call for call in calls)
 
 
 def test_authoritative_runtime_probe_failure_stops_before_gate_without_fallback(

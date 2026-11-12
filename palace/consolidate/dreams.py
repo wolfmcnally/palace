@@ -23,7 +23,7 @@ __all__ = ["RunSummary", "append_dreams", "render_dreams_entry"]
 class RunSummary:
     """Headline totals for one consolidation run, rendered into the audit.
 
-    ``source_kind`` defaults to ``"sessions"`` (Wolf's path); the audit header
+    ``source_kind`` defaults to ``"sessions"`` (the captured-session path); the audit header
     names the kind only when it is not the default, so the sessions audit is
     byte-unchanged from before the captures source was added.
     """

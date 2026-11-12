@@ -82,7 +82,7 @@ Repeat `--store` for explicit multi-store search:
 palace search --store /path/to/store-a --store /path/to/store-b --json "retention policy"
 ```
 
-Library callers use `palace.index.build.build`, `palace.index.update.update`, `palace.search.search`, `palace.search.search_reranked` and `palace.multistore.search_stores`, which is also available as two steps: `prepare_store_search` (admission, expansion and embedding) and `execute_prepared` (retrieval and rerank against current rows). Reranked results expose `applied`, `disabled` or `failed`; multi-store hits carry their canonical store and local hit. Private and multi-store reranking fail strictly by default; deliberate operational degradation requires explicit opt-in. Authentication, identity, schema and audit errors remain failures.
+Library callers use `palace.index.build.build`, `palace.index.update.update`, `palace.search.search`, `palace.search.search_reranked` and `palace.multistore.search_stores`, which is also available as two steps: `prepare_store_search` (admission, expansion and embedding) and `execute_prepared` (retrieval and rerank against current rows). One store has the same two steps in `palace.search.prepare_search` and `execute_prepared_search`, and both seams can attach per-hit evidence read in the retrieval's own snapshot (see [multi-store retrieval](docs/multi-store.md#prepared-search-and-returned-hit-evidence)). Reranked results expose `applied`, `disabled` or `failed`; multi-store hits carry their canonical store and local hit. Private and multi-store reranking fail strictly by default; deliberate operational degradation requires explicit opt-in. Authentication, identity, schema and audit errors remain failures.
 
 ## Walkthroughs and operations
 

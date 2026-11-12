@@ -1,7 +1,7 @@
 """The consolidation pipeline — the pure-function brain of dreaming.
 
 :func:`run_consolidation` is the one-shot pass: read the selected source units
-(sessions for Wolf's default, captures for an external consumer) → extract
+(sessions by default, captures for an external consumer) → extract
 candidates → load existing valid facts from ``MEMORY.md`` → embed those
 existing claims ONCE → score every candidate → apply the three gates →
 contradiction-check the gate-passers → and (only on a real run) acquire the

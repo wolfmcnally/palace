@@ -62,13 +62,14 @@ resolves it against the stored ``chunks.watch_root`` so every
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import re
 import sqlite3
 import sys
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -76,9 +77,10 @@ import sqlite_vec
 
 from palace.daemons.capture.config import DEFAULT_STORE
 from palace.index._errors import IndexError
-from palace.index.config import chunks_db_path
+from palace.index.config import EmbeddingIdentity, chunks_db_path
 from palace.index.embedder import Embedder, OllamaEmbedder
 from palace.index.embedder_config import (
+    EmbedderConfig,
     assert_remote_corpus_boundary,
     identity_for,
     load_embedder_config,
@@ -101,6 +103,14 @@ from palace.metadata import (
     metadata_generation,
     normalize_filters,
     parse_filters,
+)
+from palace.prepared import (
+    HitEvidence,
+    _changed_axis,
+    _collect_hit_evidence,
+    _seal,
+    _selected_backend,
+    _StoreBinding,
 )
 from palace.query_expand import OllamaQueryExpander, QueryExpander
 from palace.rerank import (
@@ -134,6 +144,7 @@ __all__ = [
     "RRF_K",
     "ExpandResult",
     "ExpandSection",
+    "PreparedSearch",
     "RerankedSearch",
     "SearchHit",
     "SearchMode",
@@ -142,7 +153,9 @@ __all__ = [
     "build_escalation_parser",
     "build_subparser",
     "dispatch_search",
+    "execute_prepared_search",
     "expand",
+    "prepare_search",
     "rerank_candidates",
     "search",
     "search_expanded",
@@ -211,13 +224,18 @@ class SearchHit:
 
 @dataclass(frozen=True)
 class RerankedSearch:
-    """A reranked result set with explicit application or failure status."""
+    """A retrieval result with explicit rerank application, failure or disabled status.
+
+    ``evidence`` holds one :class:`~palace.prepared.HitEvidence` per hit, in result
+    order, when the search was prepared with ``evidence=True``; otherwise ``None``.
+    """
 
     hits: list[SearchHit]
     status: RerankStatus
     detail: str | None
     reranker_identity: RerankIdentity | None = None
     vector_usage: VectorUsageSummary | None = None
+    evidence: tuple[HitEvidence, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -301,23 +319,18 @@ def _served_usage(usage: VectorUsage) -> VectorUsageSummary | None:
 
 
 @contextmanager
-def _query_snapshot(
+def _admit_store(
     *,
     store: Path,
     mode: SearchMode,
-    embedder: Embedder | None,
-    expander: QueryExpander | None = None,
-    hyde: bool = False,
-    multi_query: int | None = None,
     reranker_config: RerankConfig | None = None,
     filters: Sequence[MetadataFilter] = (),
-) -> Iterator[
-    tuple[sqlite3.Connection, Embedder | None, QueryExpander | None, S3VectorsBackend | None]
-]:
-    """Bind provider checks to the same database snapshot used for retrieval.
+) -> Iterator[tuple[sqlite3.Connection, _StoreBinding, S3VectorsBackend | None]]:
+    """Open one read snapshot and run every store check, constructing no provider.
 
     The store's selected vector leg is resolved here too: ``None`` for sqlite-vec, or
-    its published S3 Vectors index after the receipt and identity checks.
+    its published S3 Vectors index after the receipt and identity checks. Retrieval on
+    the yielded connection reads the same snapshot the checks did.
     """
     try:
         with ExitStack() as stack:
@@ -331,6 +344,8 @@ def _query_snapshot(
             ]
             if reranker_config is not None:
                 preflight_reranker(reranker_config, store=store, watch_roots=watch_roots)
+            config: EmbedderConfig | None = None
+            identity: EmbeddingIdentity | None = None
             backend: S3VectorsBackend | None = None
             if mode != "bm25":
                 config = load_embedder_config(store)
@@ -345,23 +360,497 @@ def _query_snapshot(
                     raise IndexError(
                         "metadata filters are not supported with the s3vectors vector backend"
                     )
-                if embedder is None:
-                    if config.provider == "ollama":
-                        embedder = OllamaEmbedder()
-                    else:
-                        embedder, selected = resolve_embedder(store, purpose="query")
-                        stack.callback(embedder.close)
-                        if selected != identity:
-                            raise IndexError("embedding provider changed during query preparation")
-                    if config.provider == "ollama":
-                        stack.callback(embedder.close)
+            binding = _StoreBinding(
+                store=store,
+                embedder=config,
+                identity=identity,
+                vector_backend=_selected_backend(backend) if mode != "bm25" else None,
+                published_index=backend.published_index if backend is not None else None,
+                reranker=reranker_config,
+            )
+            yield conn, binding, backend
+    except (sqlite3.Error, MetadataError) as exc:
+        raise IndexError(f"query database read failed: {exc}") from exc
+
+
+_SearchRoute = Literal["direct", "fused", "reranked"]
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedSearch:
+    """A validated, expanded and embedded single-store query, ready to execute.
+
+    The value is immutable. It holds no connection, snapshot, provider or caller
+    object, and binds only stable query, store, provider and backend identity, never
+    corpus content: execution searches the store's current rows. Construct it only with
+    :func:`prepare_search`. It is sealed with a key drawn when :mod:`palace.prepared` is
+    imported, so :func:`execute_prepared_search` refuses an altered or hand-built value,
+    or one from a process that did not inherit that key.
+
+    ``embeddings`` and ``passages`` record each provider call's input and returned
+    value in call order, so execution replays exactly the sequence retrieval asks for.
+    """
+
+    query: str
+    store: Path
+    route: _SearchRoute
+    mode: SearchMode
+    limit: int
+    pool: int
+    rrf_k: int
+    rerank_in: int
+    strict: bool
+    hyde: bool
+    multi_query: int | None
+    filters: tuple[MetadataFilter, ...]
+    injected_reranker: bool
+    evidence: bool
+    absent: bool
+    binding: _StoreBinding
+    rewrites: tuple[str, ...] | None
+    passages: tuple[tuple[str, str], ...]
+    embeddings: tuple[tuple[str, tuple[tuple[float, ...], ...]], ...]
+    seal: str = field(repr=False)
+
+
+def _unsealed_search(prepared: PreparedSearch) -> tuple[object, ...]:
+    return tuple(getattr(prepared, item.name) for item in fields(prepared) if item.name != "seal")
+
+
+class _ServedVectors:
+    """Replay prepared embedding results in call order; execution never embeds."""
+
+    max_concurrency = 1
+
+    def __init__(self, calls: Sequence[tuple[str, tuple[tuple[float, ...], ...]]]) -> None:
+        self.calls = calls
+        self.served = 0
+
+    def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        if self.served >= len(self.calls) or list(texts) != [self.calls[self.served][0]]:
+            raise IndexError("prepared search has no vector for this input; execution never embeds")
+        _, vectors = self.calls[self.served]
+        self.served += 1
+        return [list(vector) for vector in vectors]
+
+    def probe(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+class _ServedExpansion:
+    """Replay prepared rewrites and passages in call order; execution never expands."""
+
+    def __init__(self, prepared: PreparedSearch) -> None:
+        self.prepared = prepared
+        self.served = 0
+        self.rewritten = False
+
+    def hypothetical_passage(self, query: str) -> str:
+        passages = self.prepared.passages
+        if self.served >= len(passages) or passages[self.served][0] != query:
+            raise IndexError(
+                "prepared search has no expansion for this input; execution never expands"
+            )
+        self.served += 1
+        return passages[self.served - 1][1]
+
+    def rewrites(self, query: str, n: int) -> list[str]:
+        prepared = self.prepared
+        if (
+            self.rewritten
+            or prepared.rewrites is None
+            or query != prepared.query
+            or n != prepared.multi_query
+        ):
+            raise IndexError(
+                "prepared search has no expansion for this input; execution never expands"
+            )
+        self.rewritten = True
+        return list(prepared.rewrites)
+
+    def probe(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+def _prepare_search(
+    *,
+    route: _SearchRoute,
+    query: str,
+    store: Path,
+    mode: SearchMode,
+    limit: int,
+    pool: int,
+    rrf_k: int,
+    rerank_in: int,
+    strict: bool,
+    hyde: bool,
+    multi_query: int | None,
+    filters: tuple[MetadataFilter, ...],
+    embedder: Embedder | None,
+    expander: QueryExpander | None,
+    reranker_config: RerankConfig | None,
+    injected_reranker: bool,
+    evidence: bool,
+) -> PreparedSearch:
+    """Admit the store, then expand and embed exactly as the retrieval would.
+
+    The caller has validated its arguments and, for an owned reranker, loaded its
+    configuration. Admission constructs no provider; the snapshot closes before any
+    provider is constructed or sent any input. Per variant the calls keep retrieval's
+    order: the passage, the keyword leg's term check, then the embedding.
+    """
+    absent = not chunks_db_path(store).is_file()
+    rewrites: tuple[str, ...] | None = None
+    passages: list[tuple[str, str]] = []
+    embeddings: list[tuple[str, tuple[tuple[float, ...], ...]]] = []
+    if absent:
+        if filters:
+            raise IndexError("metadata unavailable: no chunks database")
+        binding = _StoreBinding(store, None, None, None, None, reranker_config)
+    else:
+        with _admit_store(
+            store=store, mode=mode, reranker_config=reranker_config, filters=filters
+        ) as (_, binding, _):
+            pass
+        with ExitStack() as stack:
+            if mode != "bm25" and embedder is None:
+                assert binding.embedder is not None
+                if binding.embedder.provider == "ollama":
+                    embedder = OllamaEmbedder()
+                    stack.callback(embedder.close)
+                else:
+                    embedder, selected = resolve_embedder(store, purpose="query")
+                    stack.callback(embedder.close)
+                    if selected != binding.identity:
+                        raise IndexError("embedding provider changed during query preparation")
             if (hyde or multi_query is not None) and expander is None:
                 expander = OllamaQueryExpander()
                 stack.callback(expander.close)
                 expander.probe()
-            yield conn, embedder, expander, backend
-    except (sqlite3.Error, MetadataError) as exc:
-        raise IndexError(f"query database read failed: {exc}") from exc
+            variants = [query]
+            if multi_query is not None:
+                assert expander is not None
+                rewrites = tuple(expander.rewrites(query, multi_query))
+                variants.extend(rewrites)
+            for variant in variants:
+                text = variant
+                if hyde:
+                    assert expander is not None
+                    text = expander.hypothetical_passage(variant)
+                    passages.append((variant, text))
+                if mode == "hybrid":
+                    fts5_query(variant)
+                if mode != "bm25":
+                    assert embedder is not None
+                    returned = embedder.embed([text])
+                    embeddings.append(
+                        (text, tuple(tuple(float(value) for value in row) for row in returned))
+                    )
+    values = (
+        query,
+        store,
+        route,
+        mode,
+        limit,
+        pool,
+        rrf_k,
+        rerank_in,
+        strict,
+        hyde,
+        multi_query,
+        filters,
+        injected_reranker,
+        evidence,
+        absent,
+        binding,
+        rewrites,
+        tuple(passages),
+        tuple(embeddings),
+    )
+    return PreparedSearch(*values, seal=_seal(values))
+
+
+def prepare_search(
+    *,
+    query: str,
+    store: Path,
+    mode: SearchMode = "hybrid",
+    limit: int = RERANK_OUT,
+    pool: int = DEFAULT_POOL,
+    rrf_k: int = RRF_K,
+    rerank_in: int = RERANK_IN,
+    rerank_enabled: bool = True,
+    strict: bool | None = True,
+    hyde: bool = False,
+    multi_query: int | None = None,
+    filters: Sequence[MetadataFilter] = (),
+    embedder: Embedder | None = None,
+    expander: QueryExpander | None = None,
+    injected_reranker: bool = False,
+    evidence: bool = False,
+) -> PreparedSearch:
+    """Admit one store, then expand and embed the query, holding nothing after.
+
+    Every refusal the matching entry point makes before provider input happens here
+    first, and expansion and embedding make exactly its calls, in its order. With
+    ``rerank_enabled`` this prepares :func:`search_reranked`'s retrieval and rerank;
+    without it, :func:`search`'s retrieval, or :func:`search_expanded`'s when ``hyde``
+    or ``multi_query`` is set. ``strict=None`` resolves as in :func:`search_reranked`.
+    ``injected_reranker`` declares that execution will receive a caller-owned reranker,
+    so the configured one is neither loaded nor preflighted. ``evidence`` makes
+    execution attach one :class:`~palace.prepared.HitEvidence` per returned hit.
+    Constructed providers close before return; injected ones stay caller-owned.
+    """
+    filters = _validated_metadata_filters(filters)
+    if rerank_enabled:
+        if limit <= 0:
+            raise IndexError("limit and pool must be positive")
+        if rerank_in <= 0:
+            raise IndexError("rerank_in must be positive")
+    _validate_retrieval(
+        query=query,
+        mode=mode,
+        limit=rerank_in if rerank_enabled else limit,
+        pool=pool,
+        hyde=hyde,
+        multi_query=multi_query,
+    )
+    if evidence and mode == "bm25":
+        raise IndexError("hit evidence requires a search mode with a vector leg; mode=bm25")
+    configuration = load_rerank_config(store) if rerank_enabled and not injected_reranker else None
+    route: _SearchRoute = (
+        "reranked" if rerank_enabled else "fused" if hyde or multi_query is not None else "direct"
+    )
+    return _prepare_search(
+        route=route,
+        query=query,
+        store=store,
+        mode=mode,
+        limit=limit,
+        pool=pool,
+        rrf_k=rrf_k,
+        rerank_in=rerank_in,
+        strict=_effective_strict(strict, configuration),
+        hyde=hyde,
+        multi_query=multi_query,
+        filters=filters,
+        embedder=embedder,
+        expander=expander,
+        reranker_config=configuration,
+        injected_reranker=injected_reranker,
+        evidence=evidence,
+    )
+
+
+def _effective_strict(strict: bool | None, configuration: RerankConfig | None) -> bool:
+    # None requests the CLI posture: private endpoints are strict; local stays lenient.
+    if strict is None:
+        return configuration is not None and configuration.provider == "endpoint"
+    return strict
+
+
+def _execute_retrieval(
+    prepared: PreparedSearch,
+) -> tuple[list[SearchHit], list[RerankCandidate], dict[str, HitEvidence] | None]:
+    """Freshly admit the prepared store and retrieve its current rows, never embedding.
+
+    Returns the route's hits, the hydrated candidates on the reranked route, and the
+    evidence map when requested. Evidence is read before the snapshot closes: for the
+    returned hits, or for every fused id on the reranked route.
+    """
+    store = prepared.store
+    present = chunks_db_path(store).is_file()
+    if prepared.absent:
+        if present:
+            raise IndexError(
+                f"prepared search store gained a chunks database: {store}; prepare the query again"
+            )
+        return [], [], ({} if prepared.evidence else None)
+    if not present:
+        raise IndexError(
+            f"prepared search store lost its chunks database: {store}; prepare the query again"
+        )
+    owned_config = prepared.binding.reranker
+    reranker_config = load_rerank_config(store) if owned_config is not None else None
+    reranked = prepared.route == "reranked"
+    remote: dict[str, VectorMatch] = {}
+    with (
+        _tracked_vector_usage(),
+        _admit_store(
+            store=store,
+            mode=prepared.mode,
+            reranker_config=reranker_config,
+            filters=prepared.filters,
+        ) as (conn, binding, backend),
+    ):
+        axis = _changed_axis(prepared.binding, binding)
+        if axis is not None:
+            raise IndexError(
+                f"prepared search binding changed for store {store} ({axis}); "
+                "prepare the query again"
+            )
+        served = _ServedVectors(prepared.embeddings) if prepared.mode != "bm25" else None
+        expanded = prepared.hyde or prepared.multi_query is not None
+        expansion = _ServedExpansion(prepared) if expanded else None
+        if prepared.route == "direct":
+            hits = _search_conn(
+                conn,
+                query=prepared.query,
+                mode=prepared.mode,
+                limit=prepared.limit,
+                pool=prepared.pool,
+                rrf_k=prepared.rrf_k,
+                embedder=served,
+                filters=prepared.filters,
+                vector_backend=backend,
+            )
+        else:
+            hits = _fuse_variants(
+                conn,
+                query=prepared.query,
+                mode=prepared.mode,
+                limit=prepared.rerank_in if reranked else prepared.limit,
+                pool=prepared.pool,
+                rrf_k=prepared.rrf_k,
+                embedder=served,
+                expander=expansion,
+                filters=prepared.filters,
+                hyde=prepared.hyde,
+                multi_query=prepared.multi_query,
+                vector_backend=backend,
+                remote=remote if reranked else None,
+            )
+        candidates = (
+            _hydrate_candidates(conn, [hit.chunk_id for hit in hits], remote) if reranked else []
+        )
+        collected: dict[str, HitEvidence] | None = None
+        if prepared.evidence:
+            assert binding.identity is not None
+            collected = _collect_hit_evidence(
+                conn,
+                store=store,
+                identity=binding.identity,
+                remote=backend is not None,
+                chunk_ids=[hit.chunk_id for hit in hits],
+            )
+    return hits, candidates, collected
+
+
+def execute_prepared_search(
+    prepared: PreparedSearch, *, reranker: Reranker | None = None
+) -> RerankedSearch:
+    """Freshly admit the prepared store and search its current rows with prepared vectors.
+
+    Rows added or removed since preparation are searched as they are now. A change to
+    the store's embedder selector, recorded identity, vector-backend selector, published
+    index or configured reranker refuses before any vector query, as does every refusal
+    admission makes, and so does a chunks database that appeared or vanished. Execution
+    never embeds or expands. An S3 Vectors store still receives its query request. The
+    rerank, its ``strict`` posture and its statuses run after the snapshot closes, as in
+    :func:`search_reranked`; a value prepared without reranking returns ``"disabled"``.
+    """
+    if not isinstance(prepared, PreparedSearch) or not hmac.compare_digest(
+        prepared.seal, _seal(_unsealed_search(prepared))
+    ):
+        raise IndexError("prepared search was altered or not prepared in this process")
+    if (reranker is not None) != prepared.injected_reranker:
+        raise IndexError(
+            "prepared search reranker injection differs from execution; prepare the query again"
+        )
+    configuration = prepared.binding.reranker
+    selected_identity = configuration.identity if configuration is not None else None
+    owned_reranker = reranker is None
+    with _tracked_vector_usage() as usage:
+        fused, candidates, collected = _execute_retrieval(prepared)
+
+        def attested(hits: Sequence[SearchHit]) -> tuple[HitEvidence, ...] | None:
+            if collected is None:
+                return None
+            return tuple(collected[hit.chunk_id] for hit in hits)
+
+        if prepared.route != "reranked":
+            return RerankedSearch(
+                hits=fused,
+                status="disabled",
+                detail=None,
+                vector_usage=_served_usage(usage),
+                evidence=attested(fused),
+            )
+        try:
+            if not fused:
+                # An empty fused pool short-circuits before the model is loaded:
+                # there is nothing to rerank, so nothing can fail. `applied` here
+                # is documented intent (policies/retrieval.md §9), not evidence
+                # that the cross-encoder was exercised — a caller probing reranker
+                # health needs a query that actually matches.
+                return RerankedSearch(
+                    hits=[],
+                    status="applied",
+                    detail=None,
+                    reranker_identity=selected_identity,
+                    vector_usage=_served_usage(usage),
+                    evidence=attested([]),
+                )
+            try:
+                if not candidates:
+                    raise RerankUnavailableError(
+                        "reranker candidate hydration returned no candidates"
+                    )
+                if owned_reranker:
+                    assert configuration is not None
+                    reranker = construct_reranker(
+                        configuration, store=prepared.store, local_loader=load_reranker
+                    )
+                assert reranker is not None
+                ranked = rerank(
+                    query=prepared.query,
+                    candidates=candidates,
+                    top_k=prepared.limit,
+                    reranker=reranker,
+                )
+            except RerankUnavailableError as exc:
+                if prepared.strict:
+                    raise
+                detail = str(exc)
+                _warn_rerank_failed(
+                    detail=detail,
+                    private=configuration is not None and configuration.provider == "endpoint",
+                )
+                return RerankedSearch(
+                    hits=fused[: prepared.limit],
+                    status="failed",
+                    detail=detail,
+                    reranker_identity=selected_identity,
+                    vector_usage=_served_usage(usage),
+                    evidence=attested(fused[: prepared.limit]),
+                )
+
+            hit_by_id = {hit.chunk_id: hit for hit in fused}
+            hits = [
+                replace(
+                    hit_by_id[item.candidate.chunk_id],
+                    rerank_rank=item.rank,
+                    rerank_score=item.score,
+                )
+                for item in ranked
+            ]
+            return RerankedSearch(
+                hits=hits,
+                status="applied",
+                detail=None,
+                reranker_identity=selected_identity,
+                vector_usage=_served_usage(usage),
+                evidence=attested(hits),
+            )
+        finally:
+            if owned_reranker and reranker is not None:
+                reranker.close()
 
 
 def search(
@@ -385,7 +874,8 @@ def search(
     Raises :class:`IndexError` for unreadable chunks DB, unreachable
     Ollama (when vector mode is needed), or any sqlite error.
     ``embedder`` is a test seam: production callers leave it ``None``
-    and the function constructs an :class:`OllamaEmbedder`.
+    and the function constructs an :class:`OllamaEmbedder`. This is exactly
+    :func:`prepare_search` followed by :func:`execute_prepared_search`.
     """
     filters = _validated_metadata_filters(filters)
     if not query.strip():
@@ -394,33 +884,26 @@ def search(
         raise IndexError(f"unknown search mode: {mode}")
     if limit <= 0 or pool <= 0:
         raise IndexError("limit and pool must be positive")
-
-    db_path = chunks_db_path(store)
-    if not db_path.is_file():
-        if filters:
-            raise IndexError("metadata unavailable: no chunks database")
-        return []
-
-    with (
-        _tracked_vector_usage(),
-        _query_snapshot(store=store, mode=mode, embedder=embedder, filters=filters) as (
-            conn,
-            selected,
-            _,
-            backend,
-        ),
-    ):
-        return _search_conn(
-            conn,
-            query=query,
-            mode=mode,
-            limit=limit,
-            pool=pool,
-            rrf_k=rrf_k,
-            embedder=selected,
-            filters=filters,
-            vector_backend=backend,
-        )
+    prepared = _prepare_search(
+        route="direct",
+        query=query,
+        store=store,
+        mode=mode,
+        limit=limit,
+        pool=pool,
+        rrf_k=rrf_k,
+        rerank_in=RERANK_IN,
+        strict=True,
+        hyde=False,
+        multi_query=None,
+        filters=filters,
+        embedder=embedder,
+        expander=None,
+        reranker_config=None,
+        injected_reranker=False,
+        evidence=False,
+    )
+    return execute_prepared_search(prepared).hits
 
 
 def search_expanded(
@@ -447,38 +930,26 @@ def search_expanded(
         hyde=hyde,
         multi_query=multi_query,
     )
-    db_path = chunks_db_path(store)
-    if not db_path.is_file():
-        if filters:
-            raise IndexError("metadata unavailable: no chunks database")
-        return []
-
-    with (
-        _tracked_vector_usage(),
-        _query_snapshot(
-            store=store,
-            mode=mode,
-            embedder=embedder,
-            expander=expander,
-            filters=filters,
-            hyde=hyde,
-            multi_query=multi_query,
-        ) as (conn, selected, expansion, backend),
-    ):
-        return _fuse_variants(
-            conn,
-            query=query,
-            mode=mode,
-            limit=limit,
-            pool=pool,
-            rrf_k=rrf_k,
-            embedder=selected,
-            expander=expansion,
-            filters=filters,
-            hyde=hyde,
-            multi_query=multi_query,
-            vector_backend=backend,
-        )
+    prepared = _prepare_search(
+        route="fused",
+        query=query,
+        store=store,
+        mode=mode,
+        limit=limit,
+        pool=pool,
+        rrf_k=rrf_k,
+        rerank_in=RERANK_IN,
+        strict=True,
+        hyde=hyde,
+        multi_query=multi_query,
+        filters=filters,
+        embedder=embedder,
+        expander=expander,
+        reranker_config=None,
+        injected_reranker=False,
+        evidence=False,
+    )
+    return execute_prepared_search(prepared).hits
 
 
 def rerank_candidates(
@@ -493,7 +964,6 @@ def rerank_candidates(
     multi_query: int | None = None,
     embedder: Embedder | None = None,
     expander: QueryExpander | None = None,
-    _reranker_config: RerankConfig | None = None,
     filters: Sequence[MetadataFilter] = (),
 ) -> tuple[list[SearchHit], list[RerankCandidate]]:
     """Retrieve the fused pool and hydrate its stored candidate fields."""
@@ -508,42 +978,27 @@ def rerank_candidates(
         hyde=hyde,
         multi_query=multi_query,
     )
-    db_path = chunks_db_path(store)
-    if not db_path.is_file():
-        if filters:
-            raise IndexError("metadata unavailable: no chunks database")
-        return [], []
-
-    remote: dict[str, VectorMatch] = {}
-    with (
-        _tracked_vector_usage(),
-        _query_snapshot(
-            store=store,
-            mode=mode,
-            embedder=embedder,
-            expander=expander,
-            filters=filters,
-            hyde=hyde,
-            multi_query=multi_query,
-            reranker_config=_reranker_config,
-        ) as (conn, selected, expansion, backend),
-    ):
-        fused = _fuse_variants(
-            conn,
-            query=query,
-            mode=mode,
-            limit=rerank_in,
-            pool=pool,
-            rrf_k=rrf_k,
-            embedder=selected,
-            expander=expansion,
-            filters=filters,
-            hyde=hyde,
-            multi_query=multi_query,
-            vector_backend=backend,
-            remote=remote,
-        )
-        return fused, _hydrate_candidates(conn, [hit.chunk_id for hit in fused], remote)
+    prepared = _prepare_search(
+        route="reranked",
+        query=query,
+        store=store,
+        mode=mode,
+        limit=rerank_in,
+        pool=pool,
+        rrf_k=rrf_k,
+        rerank_in=rerank_in,
+        strict=True,
+        hyde=hyde,
+        multi_query=multi_query,
+        filters=filters,
+        embedder=embedder,
+        expander=expander,
+        reranker_config=None,
+        injected_reranker=False,
+        evidence=False,
+    )
+    fused, candidates, _ = _execute_retrieval(prepared)
+    return fused, candidates
 
 
 def search_reranked(
@@ -563,105 +1018,28 @@ def search_reranked(
     strict: bool | None = True,
     filters: Sequence[MetadataFilter] = (),
 ) -> RerankedSearch:
-    """Retrieve and rerank, optionally degrading operational failures to fused order."""
-    filters = _validated_metadata_filters(filters)
-    if limit <= 0:
-        raise IndexError("limit and pool must be positive")
-    if rerank_in <= 0:
-        raise IndexError("rerank_in must be positive")
-    _validate_retrieval(
+    """Retrieve and rerank, optionally degrading operational failures to fused order.
+
+    This is exactly :func:`prepare_search` followed by :func:`execute_prepared_search`.
+    """
+    prepared = prepare_search(
         query=query,
+        store=store,
         mode=mode,
-        limit=rerank_in,
+        limit=limit,
         pool=pool,
+        rrf_k=rrf_k,
+        rerank_in=rerank_in,
+        rerank_enabled=True,
+        strict=strict,
         hyde=hyde,
         multi_query=multi_query,
+        filters=filters,
+        embedder=embedder,
+        expander=expander,
+        injected_reranker=reranker is not None,
     )
-    owned_reranker = reranker is None
-    configuration = load_rerank_config(store) if owned_reranker else None
-    selected_identity = configuration.identity if configuration is not None else None
-    # None requests the CLI posture: private endpoints are strict; local stays lenient.
-    effective_strict = (
-        (configuration is not None and configuration.provider == "endpoint")
-        if strict is None
-        else strict
-    )
-    with _tracked_vector_usage() as usage:
-        try:
-            fused, candidates = rerank_candidates(
-                query=query,
-                store=store,
-                rerank_in=rerank_in,
-                mode=mode,
-                pool=pool,
-                rrf_k=rrf_k,
-                hyde=hyde,
-                multi_query=multi_query,
-                embedder=embedder,
-                expander=expander,
-                _reranker_config=configuration,
-                filters=filters,
-            )
-            if not fused:
-                # An empty fused pool short-circuits before the model is loaded:
-                # there is nothing to rerank, so nothing can fail. `applied` here
-                # is documented intent (policies/retrieval.md §9), not evidence
-                # that the cross-encoder was exercised — a caller probing reranker
-                # health needs a query that actually matches.
-                return RerankedSearch(
-                    hits=[],
-                    status="applied",
-                    detail=None,
-                    reranker_identity=selected_identity,
-                    vector_usage=_served_usage(usage),
-                )
-            try:
-                if not candidates:
-                    raise RerankUnavailableError(
-                        "reranker candidate hydration returned no candidates"
-                    )
-                if owned_reranker:
-                    assert configuration is not None
-                    reranker = construct_reranker(
-                        configuration, store=store, local_loader=load_reranker
-                    )
-                assert reranker is not None
-                ranked = rerank(query=query, candidates=candidates, top_k=limit, reranker=reranker)
-            except RerankUnavailableError as exc:
-                if effective_strict:
-                    raise
-                detail = str(exc)
-                _warn_rerank_failed(
-                    detail=detail,
-                    private=configuration is not None and configuration.provider == "endpoint",
-                )
-                return RerankedSearch(
-                    hits=fused[:limit],
-                    status="failed",
-                    detail=detail,
-                    reranker_identity=selected_identity,
-                    vector_usage=_served_usage(usage),
-                )
-
-            hit_by_id = {hit.chunk_id: hit for hit in fused}
-            hits = [
-                replace(
-                    hit_by_id[item.candidate.chunk_id],
-                    rerank_rank=item.rank,
-                    rerank_score=item.score,
-                )
-                for item in ranked
-            ]
-            return RerankedSearch(
-                hits=hits,
-                status="applied",
-                detail=None,
-                reranker_identity=selected_identity,
-                vector_usage=_served_usage(usage),
-            )
-        finally:
-            if owned_reranker and reranker is not None:
-                reranker.close()
+    return execute_prepared_search(prepared, reranker=reranker)
 
 
 def expand(*, chunk_id: str, store: Path, neighbors: int = 0) -> ExpandResult:

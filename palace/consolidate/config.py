@@ -55,7 +55,7 @@ __all__ = [
 #
 # The consolidator's extraction source is pluggable in *shape*, not just path
 # (``briefs/consolidator-extraction-source-pluggability.md``). ``sessions`` is
-# Wolf's default — the day-partitioned captured session transcripts.
+# the default — the day-partitioned captured session transcripts.
 # ``captures`` is the external-consumer kind: a flat directory of pre-distilled
 # Markdown capture files. The session-transcript reader stays the default; a
 # captures run is gated behind an explicit ``--source-kind captures`` (or an

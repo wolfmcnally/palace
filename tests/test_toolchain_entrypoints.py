@@ -147,7 +147,7 @@ def test_test_defaults_to_every_repository_test_from_any_cwd(
         (f"uv cwd={root} args=run --project {root} --locked --managed-python python -c {PROBE}"),
         (
             f"uv cwd={root} args=run --project {root} --locked "
-            "--managed-python python -m pytest -q tests"
+            "--managed-python python -m pytest -q -m not native tests"
         ),
     ]
 
@@ -202,7 +202,11 @@ def test_test_governed_lanes_run_selected_proofs(
         (f"uv cwd={root} args=run --project {root} --locked --managed-python python -c {PROBE}"),
         (
             f"uv cwd={root} args=run --project {root} --locked "
-            "--managed-python python -m pytest -q tests/test_check.py"
+            "--managed-python python -m pytest --collect-only -q -m not native tests/test_check.py"
+        ),
+        (
+            f"uv cwd={root} args=run --project {root} --locked "
+            "--managed-python python -m pytest -q -m not native tests/test_check.py"
         ),
     ]
 

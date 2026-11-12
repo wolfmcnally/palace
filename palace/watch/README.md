@@ -111,7 +111,7 @@ Failure modes (config unreadable, malformed TOML) emit a single-line stderr
 
 ## How to confirm a path's classification
 
-Whenever Wolf wants to ask "why isn't palace seeing this file?",
+Whenever the operator wants to ask "why isn't palace seeing this file?",
 `palace watch check <path>` is the one-command answer. The `reason: dotfile`
 vs `reason: gitignore` distinction surfaces exactly which rule excluded the
 path so the next move is unambiguous (drop the dotfile component, edit a

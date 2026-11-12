@@ -177,6 +177,30 @@ def _check_file_vector_bounds(
     return True
 
 
+def committed_input_digest(
+    conn: sqlite3.Connection,
+    *,
+    chunk_id: str,
+    path: str,
+    heading: str | None,
+    body: str,
+    supplied: bool,
+) -> str:
+    """The embedding-input digest committed for one chunk.
+
+    An explicit representation (``supplied``) records it in
+    ``chunk_embedding_inputs``; a missing or invalid row refuses. The default
+    representation derives it from the scored text of the stored row.
+    """
+    if supplied:
+        evidence = conn.execute(
+            "SELECT input_sha256 FROM chunk_embedding_inputs WHERE chunk_id=?",
+            (chunk_id,),
+        ).fetchone()
+        return validate_input_digest(None if evidence is None else evidence[0])
+    return input_digest(scored_text(path=path, heading=heading, body=body))
+
+
 def read_file_vectors(
     *,
     conn: sqlite3.Connection,
@@ -249,16 +273,14 @@ def read_file_vectors(
         vector = struct.unpack(f"{expected_identity.dim}f", blob)
         if any(not math.isfinite(value) for value in vector):
             raise IndexError("non-finite committed vector")
-        if supplied:
-            evidence = conn.execute(
-                "SELECT input_sha256 FROM chunk_embedding_inputs WHERE chunk_id=?",
-                (chunk.chunk_id,),
-            ).fetchone()
-            digest = validate_input_digest(None if evidence is None else evidence[0])
-        else:
-            digest = input_digest(
-                scored_text(path=chunk.path, heading=chunk.heading, body=chunk.body)
-            )
+        digest = committed_input_digest(
+            conn,
+            chunk_id=chunk.chunk_id,
+            path=chunk.path,
+            heading=chunk.heading,
+            body=chunk.body,
+            supplied=supplied,
+        )
         result.append(CommittedChunkVector(chunk, vector, digest))
         vector_hashes.append(hashlib.sha256(blob).hexdigest())
     try:

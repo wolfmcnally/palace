@@ -29,7 +29,7 @@ RERANK_MODEL: str = "ms-marco-MiniLM-L-6-v2"
 RERANK_IN: int = 20
 RERANK_OUT: int = 5
 
-# Wolf ratified default-on before the personal eval on 2026-08-08, accepting
+# The operator ratified default-on before the personal eval on 2026-08-08, accepting
 # the explicit extrapolation recorded in CLAUDE.md. Phase 8's first eval run
 # confirms or reverses this one-constant decision.
 RERANK_ENABLED_DEFAULT: bool = True

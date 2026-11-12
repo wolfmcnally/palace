@@ -78,7 +78,25 @@ Expect version `0.4.1` and a module path inside this new environment. Inspect th
 
 Smoke-test synchronous indexing and retrieval on synthetic data with an explicitly injected deterministic embedder and reranker, or use the checkout's documented disposable HTTPS walkthrough. Do not use a production corpus or paid inference to prove packaging. Verify a matching result, recorded embedding identity, origin-preserving multi-store retrieval, and loud refusal of an incompatible identity. Do not install or restart daemons during a package smoke.
 
-Repeat the exact-wheel installation and synthetic smoke on each claimed platform. Current qualification covers macOS ARM64 and Linux ARM64; it does not establish x86, Linux daemons, production latency or provider quality. Maintainers also run the full repository check sequence and final handoff gate against the actual delivery candidate. The wheel does not include checkout launchd templates, capture-hook scripts or demo launchers; those integrations require a full development checkout.
+Repeat the exact-wheel installation and synthetic smoke on each claimed platform. Current qualification covers macOS ARM64 and Linux ARM64; it does not establish x86, Linux daemons, production latency or provider quality. Maintainers also run the full repository check sequence and final handoff gate against the actual delivery candidate.
+
+## Native watcher qualification
+
+Release qualification adds the mandatory native lane. On the qualifying macOS host, on the clean delivered release commit, run these in order:
+
+```bash
+./bin/check all
+```
+
+```bash
+./bin/check native
+```
+
+```bash
+./bin/check release
+```
+
+A tag requires `CHECK RELEASE VERIFIED`. A failed native run blocks the release and keeps its log and run record; `release` refuses until the most recent native run for that exact candidate on this host is a passing one, and it names every earlier failure. A later run needs operator or coordinator authority and is never automatic. A native receipt from another host never qualifies. The continuous-integration native step on the macOS runner is a detector after push: it never gates delivery and is not a release receipt. The wheel does not include checkout launchd templates, capture-hook scripts or demo launchers; those integrations require a full development checkout.
 
 ## Owner publication checklist
 

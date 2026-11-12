@@ -1,4 +1,4 @@
-"""Palace — Wolf McNally's personal memory substrate."""
+"""Palace — a personal memory substrate for agents and applications."""
 
 from importlib.metadata import PackageNotFoundError, version
 

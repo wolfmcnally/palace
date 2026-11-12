@@ -2,7 +2,7 @@
 # palace-scaffold-vault-smoke — end-to-end smoke for `palace vault scaffold`.
 #
 # Hermetic. Scaffolds into an ISOLATED `mktemp` vault root via
-# PALACE_VAULT_ROOT so Wolf's real ~/Obsidian/Palace/ is never touched.
+# PALACE_VAULT_ROOT so the operator's real ~/Obsidian/Palace/ is never touched.
 # Mirrors the isolation pattern in bin/palace-watch-smoke. Asserts the
 # canonical structure (facts/, dreams/, context/working.md) exists, then
 # exits 0 with `scaffold-vault-smoke: ok`.

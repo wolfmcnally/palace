@@ -14,11 +14,14 @@ project_root="$repo_root"
 
 usage() {
   cat <<'EOF'
-Usage: ./bin/test [--vital | --changed-from <ref> | pytest arguments...]
+Usage: ./bin/test [--vital | --changed-from <ref> | --native | pytest arguments...]
 
-Run the full repository test suite by default. The governed --vital and
---changed-from lanes select admitted proof families and widen to full when
-selection cannot be proved safe. Other arguments are forwarded to pytest.
+Run every repository test except the declared native lane by default. The
+governed --vital and --changed-from lanes select admitted proof families,
+widen to the full ordinary lane when selection cannot be proved safe, and
+never run native proofs. --native runs exactly the native lane (real macOS
+FSEvents watcher proofs; release qualification only). Other arguments are
+forwarded to pytest unchanged.
 EOF
 }
 
@@ -34,6 +37,12 @@ if [[ $# -ge 1 && "$1" == "--changed-from" && ( $# -ne 2 || -z "${2:-}" ) ]]; th
   usage >&2
   exit 2
 fi
+if [[ $# -ge 1 && "$1" == "--native" && $# -ne 1 ]]; then
+  usage >&2
+  exit 2
+fi
+
+ordinary_lane="not native"
 
 toolchain_helper="$repo_root/bin/_python-toolchain"
 if [[ ! -r "$toolchain_helper" ]]; then
@@ -47,8 +56,17 @@ cd "$repo_root"
 python_toolchain_probe
 if [[ $# -eq 0 ]]; then
   exec uv run --project "$project_root" --locked "${python_toolchain_uv_args[@]}" \
-    python -m pytest -q tests
+    python -m pytest -q -m "$ordinary_lane" tests
 fi
+if [[ $# -eq 1 && "$1" == "--native" ]]; then
+  exec uv run --project "$project_root" --locked "${python_toolchain_uv_args[@]}" \
+    python -m pytest -q -m native tests
+fi
+
+collect_selectors() {
+  uv run --project "$project_root" --locked "${python_toolchain_uv_args[@]}" \
+    python -m pytest --collect-only -q "$@" >/dev/null
+}
 
 run_governed_lane() {
   local -a selection=()
@@ -73,23 +91,43 @@ run_governed_lane() {
   echo "TEST GOVERNED $selection_mode: $selection_reason"
   if [[ "$selection_mode" == "FULL" ]]; then
     exec uv run --project "$project_root" --locked "${python_toolchain_uv_args[@]}" \
-      python -m pytest -q tests
+      python -m pytest -q -m "$ordinary_lane" tests
   fi
   if [[ "$selection_mode" != "FOCUSED" || ${#selection[@]} -lt 3 ]]; then
     echo "TEST ERROR governance selection did not provide runnable selectors" >&2
     return 1
   fi
   selectors=("${selection[@]:2}")
+  local collect_exit=0
+  collect_selectors -m "$ordinary_lane" "${selectors[@]}" || collect_exit=$?
+  if [[ $collect_exit -eq 5 ]]; then
+    # Nothing outside the native lane was selected. That is a pass only when
+    # the same selectors do collect proofs, which are then all native-lane.
+    local unmarked_exit=0
+    collect_selectors "${selectors[@]}" || unmarked_exit=$?
+    if [[ $unmarked_exit -eq 0 ]]; then
+      echo "TEST GOVERNED FOCUSED: every selected proof is native-lane; the ordinary lane has nothing to run"
+      return 0
+    fi
+    echo "TEST ERROR governed FOCUSED selection collected nothing outside the native lane" >&2
+    return 5
+  fi
+  if [[ $collect_exit -ne 0 ]]; then
+    echo "TEST ERROR governed FOCUSED collection failed (pytest exit=$collect_exit)" >&2
+    return "$collect_exit"
+  fi
   exec uv run --project "$project_root" --locked "${python_toolchain_uv_args[@]}" \
-    python -m pytest -q "${selectors[@]}"
+    python -m pytest -q -m "$ordinary_lane" "${selectors[@]}"
 }
 
 if [[ $# -eq 1 && "$1" == "--vital" ]]; then
   run_governed_lane --tier vital
+  exit $?
 fi
 
 if [[ $# -ge 1 && "$1" == "--changed-from" ]]; then
   run_governed_lane --changed-from "$2"
+  exit $?
 fi
 
 exec uv run --project "$project_root" --locked "${python_toolchain_uv_args[@]}" \

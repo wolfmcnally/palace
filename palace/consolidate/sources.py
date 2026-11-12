@@ -1,6 +1,6 @@
 """Reading episodic source units from the machine-state store.
 
-The consolidator's default and only Wolf-store source is the day's captured
+The machine store's default and only consolidation source is the day's captured
 **session transcripts** (``<store>/sessions/<YYYY-MM-DD>/<id>.jsonl``). This
 module reads those records into an ordered list of :class:`SourceUnit` records
 the extractor consumes, carrying the source-event id (for exact provenance +
@@ -34,10 +34,10 @@ inline fields (``_session_text``) when the transcript is absent or carries no
 dialogue. Resolution never raises: the transcript is upstream data palace does
 not own, so a missing file or a malformed line degrades gracefully.
 
-The Wolf-authored heuristic (RESOLUTION 1) is deliberately conservative and
-tunable: a unit counts as Wolf-authored when its harness is one of the
+The operator-authored heuristic (RESOLUTION 1) is deliberately conservative and
+tunable: a unit counts as operator-authored when its harness is one of the
 interactive coding harnesses (``claude-code`` / ``codex``) AND its
-``event_type`` is ``"stop"`` — i.e. a top-level turn Wolf drove, not a
+``event_type`` is ``"stop"`` — i.e. a top-level turn the operator drove, not a
 subagent turn or a filesystem event. ``policies/consolidation.md`` documents
 the heuristic and that it is a knob, not a law.
 """
@@ -69,7 +69,7 @@ class SourceUnit:
 
     ``authored`` is the generic source-trust flag the corroboration gate reads:
     a single authored unit clears ``corroboration ≥ 2``. Its value is supplied
-    per source kind — the sessions reader keys it on the Wolf-authored heuristic
+    per source kind — the sessions reader keys it on the operator-authored heuristic
     (:func:`is_wolf_authored`); the captures reader keys it on the capture's
     ``source:`` prefix (:func:`palace.consolidate.captures.source_is_user_authored`).
     """
@@ -100,9 +100,9 @@ class SourceSelection:
 
 
 def is_wolf_authored(record: dict[str, Any]) -> bool:
-    """Return True when a session record counts as Wolf-authored (RESOLUTION 1).
+    """Return True when a session record counts as operator-authored (RESOLUTION 1).
 
-    Wolf-authored ≡ harness in the interactive coding set AND a top-level
+    Operator-authored ≡ harness in the interactive coding set AND a top-level
     ``stop`` turn. This is the **sessions-kind** source-trust signal; it
     populates the generic :attr:`SourceUnit.authored` field for that kind.
     Tunable; see ``policies/consolidation.md``.

@@ -45,7 +45,7 @@ __all__ = ["CaptureHandler", "CaptureServer", "serve"]
 
 
 def _now_boise() -> datetime:
-    """Return the current time in Wolf's home timezone.
+    """Return the current time in the application's fixed day-partition timezone.
 
     Centralized so tests can monkeypatch a fixed instant.
     """

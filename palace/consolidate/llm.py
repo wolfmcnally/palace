@@ -218,7 +218,7 @@ class OllamaConsolidatorLLM:
             "You extract durable factual claims worth remembering long-term "
             "from an agent session or event. Each claim is one tight prose "
             "paragraph plus a short summary heading. Return only claims that "
-            "are durable facts about Wolf, his projects, or his decisions — "
+            "are durable facts about the user, their projects, or their decisions — "
             "not transient task chatter."
         )
         user = (

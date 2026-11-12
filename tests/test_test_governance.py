@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import re
 import shlex
 import subprocess
 import sys
@@ -23,8 +24,8 @@ def test_parameterized_leaves_collapse_to_one_family() -> None:
 
 def test_inventory_counts_executable_families_and_expanded_leaves() -> None:
     observed = governance.inventory(REPO_ROOT)
-    assert observed["counts"] == {"families": 271, "leaves": 290}
-    assert observed["by_kind"]["pytest"] == {"families": 249, "leaves": 268}
+    assert observed["counts"] == {"families": 289, "leaves": 325}
+    assert observed["by_kind"]["pytest"] == {"families": 265, "leaves": 301}
 
 
 def test_live_reset_validates() -> None:
@@ -38,13 +39,19 @@ def test_family_or_leaf_cap_overrun_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     original = governance.inventory(REPO_ROOT)
+    manifest = governance.load_yaml(REPO_ROOT / "tests/proof-estate.yaml")
+    allowed = {
+        dimension: manifest["post_reset_counts"][dimension]
+        + manifest["test_budget_delta"][dimension]
+        for dimension in ("families", "leaves")
+    }
     over = copy.deepcopy(original)
-    over["counts"]["families"] = 272
+    over["counts"]["families"] = allowed["families"] + 1
     monkeypatch.setattr(governance, "inventory", lambda _root: over)
     with pytest.raises(governance.GovernanceError, match="families cap exceeded"):
         governance.validate(REPO_ROOT)
-    over["counts"]["families"] = 271
-    over["counts"]["leaves"] = 291
+    over["counts"]["families"] = allowed["families"]
+    over["counts"]["leaves"] = allowed["leaves"] + 1
     with pytest.raises(governance.GovernanceError, match="leaves cap exceeded"):
         governance.validate(REPO_ROOT)
 
@@ -210,6 +217,83 @@ def test_positive_growth_requires_named_approval(
     with pytest.raises(governance.GovernanceError, match="selection must be frozen"):
         governance.validate(REPO_ROOT)
 
+    # An admission may be funded by a named approved budget instead of a
+    # retirement. Admission rows are leaves: each funded row consumes one
+    # approved leaf unit, and family growth stays bounded by the family cap.
+    ledger_path = REPO_ROOT / original(REPO_ROOT / "tests/proof-estate.yaml")["audit_ledger"]
+    original_ledger = governance.load_ledger
+    already_funded = sum(
+        row.get("record_type") == "proof_admission" and row.get("compensating_retirement") is None
+        for row in original_ledger(ledger_path)
+    )
+    # Cases are increments over the live manifest's own budget, which already
+    # funds the live budget-funded admissions; family growth from them stays
+    # inside the live family delta.
+    live_delta = original(REPO_ROOT / "tests/proof-estate.yaml")["test_budget_delta"]
+    single = "pytest:tests/test_test_governance.py::test_recall_below_eighty_percent_fails_closed"
+    family = (
+        "pytest:tests/test_toolchain_entrypoints.py::"
+        "test_installed_symlink_chain_selects_the_owning_repository"
+    )
+    parametrized = [
+        f"{family}[{case}]"
+        for case in ("check-arguments2", "python-arguments3", "setup-arguments0", "test-arguments1")
+    ]
+    funded: list[str] = []
+    families = 0
+    leaves = 0
+    approval: str | None = None
+
+    def budgeted(path: Path):
+        payload = original(path)
+        if path.name == "proof-estate.yaml":
+            payload["test_budget_delta"] = {
+                "families": families + live_delta["families"],
+                # A case with no leaf budget leaves every funded row unfunded.
+                "leaves": leaves + already_funded if leaves else 0,
+            }
+            if approval is None:
+                payload.pop("budget_approval", None)
+            else:
+                payload["budget_approval"] = approval
+        return payload
+
+    def budget_funded(path: Path):
+        rows = original_ledger(path)
+        if path == ledger_path:
+            for row in rows:
+                if row.get("record_type") == "proof_admission" and row.get("proof_id") in funded:
+                    row["compensating_retirement"] = None
+        return rows
+
+    def refused(message: str) -> None:
+        with pytest.raises(governance.GovernanceError, match=message):
+            governance.validate(REPO_ROOT)
+
+    monkeypatch.setattr(governance, "load_yaml", budgeted)
+    monkeypatch.setattr(governance, "load_ledger", budget_funded)
+    funded = [single]
+    refused(f"lacks an available retirement: {re.escape(single)}")
+    approval = "fixture owner approval"
+    refused(f"lacks an available retirement: {re.escape(single)}")
+    leaves = 1
+    approval = "   "
+    refused("positive leaves budget requires a named budget_approval")
+    approval = "fixture owner approval"
+    summary = governance.validate(REPO_ROOT)
+    assert summary["state"] == "valid"
+    assert summary["budget_funded_admissions"] == already_funded + 1
+    families = 2
+    funded = [single, parametrized[0]]
+    refused("exceeds the approved budget")
+    families = 0
+    funded = parametrized
+    leaves = 4
+    summary = governance.validate(REPO_ROOT)
+    assert summary["budget_funded_admissions"] == already_funded + 4
+    leaves = 3
+    refused("exceeds the approved budget")
+
 
 def test_changed_selection_widens_on_an_unmapped_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -249,6 +333,10 @@ def test_changed_selection_widens_on_an_unmapped_path(
 def test_report_reproduces_reset_ratios() -> None:
     payload = governance.report(REPO_ROOT)
     assert payload["baseline"] == {"families": 1355, "leaves": 1574}
-    assert payload["current"] == {"families": 271, "leaves": 290}
-    assert payload["family_ratio"] == 0.2
-    assert payload["leaf_ratio"] < 0.2
+    assert payload["current"] == {"families": 289, "leaves": 325}
+    # Above the reset's 0.2 limit only by the approved family and leaf budgets.
+    manifest = governance.load_yaml(REPO_ROOT / "tests/proof-estate.yaml")
+    for dimension in ("families", "leaves"):
+        funded = manifest["post_reset_counts"][dimension] + manifest["test_budget_delta"][dimension]
+        ratio = payload["family_ratio" if dimension == "families" else "leaf_ratio"]
+        assert ratio <= funded / payload["baseline"][dimension]

@@ -18,9 +18,9 @@ The runtime library lives at [`palace/watch/`](../../palace/watch/) (the watch-r
 - `ThrottleInterval = 10` (seconds) — caps crash-loop frequency. If the daemon wedges on every start, launchd waits at least 10s between restarts rather than burning the CPU.
 - `ProcessType = Background` — exempt from App Nap; scheduled as a long-running service.
 - `StandardErrorPath` and `StandardOutPath` — both pointed at `<home>/palace-data.noindex/logs/palace-reindex.log`. The reindex daemon's stderr (FSEvents subscription messages, debouncer drops with `-v`, drop-with-reason lines, startup banner) flows here.
-- `EnvironmentVariables` — `PATH` carries `~/.local/bin` (uv's default install location) plus Homebrew + system bins so `uv run` resolves. `HOME` is set explicitly so `Path.home()` resolves correctly inside the spawned process. `TZ = America/Boise` carries `policies/storage-layout.md` §4's timezone-stable rule into the supervised process so the daemon's events JSONL writes select today's daily file by Wolf's home timezone regardless of where his laptop is.
+- `EnvironmentVariables` — `PATH` carries `~/.local/bin` (uv's default install location) plus Homebrew + system bins so `uv run` resolves. `HOME` is set explicitly so `Path.home()` resolves correctly inside the spawned process. `TZ = America/Boise` carries `policies/storage-layout.md` §4's timezone-stable rule into the supervised process so the daemon's events JSONL writes select today's daily file in the application's fixed day-partition timezone regardless of the host's local timezone.
 - `WorkingDirectory` — the absolute palace repo root, so `uv run` finds `pyproject.toml`.
-- `LimitLoadToSessionType = Aqua` — the GUI-session value. The agent only loads in Wolf's interactive login session, matching the per-user `LaunchAgent` posture (not a system-wide `LaunchDaemon`).
+- `LimitLoadToSessionType = Aqua` — the GUI-session value. The agent only loads in the operator's interactive login session, matching the per-user `LaunchAgent` posture (not a system-wide `LaunchDaemon`).
 
 The plist deliberately does **not** set `UserName` or `GroupName` — those are `LaunchDaemon`-only keys; a `LaunchAgent` always runs as the owning user.
 

@@ -20,12 +20,12 @@ All four typed pipelines (Markdown, JSONL, code, opaque text) have landed; see [
 - `ThrottleInterval = 10` (seconds) — caps crash-loop frequency. If Ollama isn't reachable on every restart, launchd waits at least 10s between restarts rather than burning the CPU.
 - `ProcessType = Background` — exempt from App Nap; scheduled as a long-running service.
 - `StandardErrorPath` and `StandardOutPath` — both pointed at `<home>/palace-data.noindex/logs/palace-index.log`. The index daemon's stderr (startup banner — `probing embedder`, `embedder OK`, `starting from`, `tailing`; lifecycle lines `PARKED` and `RESUMING`; and per-file index lines) flows here.
-- `EnvironmentVariables` — `PATH` carries `~/.local/bin` (uv's default install location) plus Homebrew + system bins so `uv run` resolves. `HOME` is set explicitly so `Path.home()` resolves correctly inside the spawned process. `TZ = America/Boise` carries `policies/storage-layout.md` §4's timezone-stable rule into the supervised process so `ingest_time` ISO-8601 stamps carry the home offset regardless of where the laptop is.
+- `EnvironmentVariables` — `PATH` carries `~/.local/bin` (uv's default install location) plus Homebrew + system bins so `uv run` resolves. `HOME` is set explicitly so `Path.home()` resolves correctly inside the spawned process. `TZ = America/Boise` carries `policies/storage-layout.md` §4's timezone-stable rule into the supervised process so `ingest_time` ISO-8601 stamps carry that timezone's offset regardless of the host's local timezone.
 
 The plist deliberately does **not** set `OLLAMA_HOST` or `OLLAMA_BASE_URL` in `EnvironmentVariables`. `palace.index.config.OLLAMA_BASE_URL` defaults to `http://localhost:11434`, which matches the running Ollama process on this host. If a future workload moves Ollama to a non-default host, hand-edit the installed plist's `EnvironmentVariables` block to add `OLLAMA_BASE_URL` and `launchctl kickstart -k gui/$(id -u)/ai.palace.index`. See the Open Questions section below.
 
 - `WorkingDirectory` — the absolute palace repo root, so `uv run` finds `pyproject.toml`.
-- `LimitLoadToSessionType = Aqua` — the GUI-session value. The agent only loads in Wolf's interactive login session, matching the per-user `LaunchAgent` posture (not a system-wide `LaunchDaemon`).
+- `LimitLoadToSessionType = Aqua` — the GUI-session value. The agent only loads in the operator's interactive login session, matching the per-user `LaunchAgent` posture (not a system-wide `LaunchDaemon`).
 
 The plist deliberately does **not** set `UserName` or `GroupName` — those are `LaunchDaemon`-only keys; a `LaunchAgent` always runs as the owning user.
 

@@ -133,7 +133,7 @@ def gate_verdict(
     Corroboration passes when the candidate has ≥ ``GATE_CORROBORATION``
     distinct source events OR one explicit authored source — the count gate of
     ``policies/fact-schema.md`` §Gates, NOT the frequency weight. The
-    "authored?" predicate is source-kind-aware (sessions: Wolf-authored turn;
+    "authored?" predicate is source-kind-aware (sessions: operator-authored turn;
     captures: ``user:*`` source).
     """
     relevance_pass = relevance > GATE_RELEVANCE

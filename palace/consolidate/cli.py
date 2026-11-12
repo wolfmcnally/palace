@@ -16,10 +16,10 @@ is accepted, reserved (RESOLUTION 5), and additionally locates the captures
 watermark directory (RESOLUTION 3).
 
 The source kind is pluggable (``briefs/consolidator-extraction-source-
-pluggability.md``): ``sessions`` (the default) reads Wolf's day-partitioned
+pluggability.md``): ``sessions`` (the default) reads the store's day-partitioned
 session transcripts; ``captures`` reads a flat directory of pre-distilled
 Markdown captures named by ``--captures-root``, draining the unconsolidated
-backlog (``--since`` narrows it). Absent any captures flag, Wolf's defaults are
+backlog (``--since`` narrows it). Absent any captures flag, the sessions-source defaults are
 unchanged. Every error path emits one ``error: ...`` line to stderr with exit
 1 — no Python traceback.
 """
@@ -115,7 +115,7 @@ def build_subparser(subparsers: Any) -> None:
         choices=("sessions", "captures"),
         default=None,
         help=(
-            "Episodic source kind (default: sessions, Wolf's path). 'captures' "
+            "Episodic source kind (default: sessions, the captured-session path). 'captures' "
             "reads a flat directory of Markdown captures named by --captures-root."
         ),
     )

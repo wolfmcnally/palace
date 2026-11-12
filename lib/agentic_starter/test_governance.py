@@ -404,6 +404,8 @@ def validate(root: Path) -> dict[str, Any]:
     if not isinstance(budget, dict):
         errors.append("test_budget_delta must be a mapping")
         budget = {"families": 0, "leaves": 0}
+    approval = manifest.get("budget_approval")
+    approval_named = isinstance(approval, str) and bool(approval.strip())
     post_reset_counts = manifest.get("post_reset_counts")
     if not isinstance(post_reset_counts, dict):
         errors.append("post_reset_counts must be a mapping")
@@ -422,7 +424,7 @@ def validate(root: Path) -> dict[str, Any]:
         if not isinstance(delta, int):
             errors.append(f"test_budget_delta.{dimension} must be an integer")
             continue
-        if delta > 0 and not isinstance(manifest.get("budget_approval"), str):
+        if delta > 0 and not approval_named:
             errors.append(f"positive {dimension} budget requires a named budget_approval")
         post_reset_count = post_reset_counts.get(dimension)
         if not isinstance(post_reset_count, int) or post_reset_count <= 0:
@@ -549,6 +551,16 @@ def validate(root: Path) -> dict[str, Any]:
     seen_retirement_targets: set[str] = set()
     post_reset_retirement_ids: set[str] = set()
     post_reset_started = False
+    # A named approval funds admissions without a retirement. Admission rows
+    # are leaves, so each consumes one approved leaf unit; family growth stays
+    # bounded by the family cap above.
+    approved_leaves = budget.get("leaves", 0)
+    budget_units = (
+        approved_leaves
+        if approval_named and type(approved_leaves) is int and approved_leaves > 0
+        else 0
+    )
+    budget_funded_admissions = 0
     disposition_phase_open = True
     for row in ledger:
         record_type = row.get("record_type")
@@ -604,7 +616,12 @@ def validate(root: Path) -> dict[str, Any]:
         if row.get("disposition") != "retain" or row.get("replacement") != proof_id:
             errors.append(f"post-baseline admission must retain and self-bind: {proof_id}")
         compensation = row.get("compensating_retirement")
-        if compensation not in available_retirements:
+        if compensation is None and budget_units > 0:
+            # Funded by the named approved budget: one leaf unit per admission.
+            budget_funded_admissions += 1
+            if budget_funded_admissions > budget_units:
+                errors.append(f"post-baseline admission exceeds the approved budget: {proof_id}")
+        elif compensation not in available_retirements:
             errors.append(f"post-baseline admission lacks an available retirement: {proof_id}")
         elif compensation in consumed_retirements:
             errors.append(f"retirement budget is reused by admission: {proof_id}")
@@ -760,6 +777,7 @@ def validate(root: Path) -> dict[str, Any]:
         "admissions": len(admission_rows),
         "post_reset_retirements": len(retirement_rows),
         "unspent_retirements": len(post_reset_retirement_ids - consumed_retirements),
+        "budget_funded_admissions": budget_funded_admissions,
     }
 
 

@@ -63,7 +63,7 @@ changed lanes; execute assays; and report or reassess the current estate.
 
 Vital and changed are iteration aids. Invalid or indeterminate selection widens
 to full. `./bin/test` without lane arguments, both candidate-bound close gates,
-pre-push custody, and durable receipts always use the full retained estate.
+pre-push custody, and durable receipts always use the ordinary lane of the full retained estate. Release qualification additionally runs the declared native lane and requires its receipt. Native-lane proofs stay in the inventory, the ledger and their budgets; deselecting them from the ordinary lane is a declared lane, not removal, skip or quarantine.
 Pre-commit runs structural validation only and never claims full acceptance.
 
 ## Reassessment and transfer

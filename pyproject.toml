@@ -109,6 +109,9 @@ quote-style = "double"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "native: real macOS FSEvents watcher proofs; release qualification only",
+]
 
 [tool.mypy]
 python_version = "3.12"

@@ -81,16 +81,12 @@ missing or stale. After synchronization, it runs the dependency-chain probe;
 
 ### `bin/test`
 
-`./bin/test` with no arguments runs every repository test, including
-methodology/tooling tests outside the deliverable. Arguments are forwarded to
-the underlying test runner for focused iteration, with paths interpreted
-relative to the repository root. It uses the same locked environment as the
-full gate and preserves the test runner's exit status.
+`./bin/test` with no arguments runs every repository test outside the declared native lane, including methodology/tooling tests outside the deliverable. `./bin/test --native` runs exactly the native lane: the proofs marked `native`, which exercise real macOS file-system notification delivery. Other arguments are forwarded to the underlying test runner for focused iteration, with paths interpreted relative to the repository root. It uses the same locked environment as the full gate and preserves the test runner's exit status.
 
 When the repository carries the proof-estate bundle, `--vital` selects its
 locally admitted vital families and `--changed-from <ref>` selects the union of
 families mapped to live changed paths. Invalid governance, an unresolved ref,
-an unmapped path, or indeterminate impact widens to the full retained suite.
+an unmapped path, or indeterminate impact widens to the full retained suite. Governed lanes never run a native-lane proof; a focused selection that holds only native-lane proofs runs nothing and says so, and any other empty selection fails.
 The manager also enforces the frozen reset, effectiveness floors, direct-risk
 witnesses, zero-net-growth, and reassessment. All family choices and evidence
 remain recipient-local.
@@ -100,7 +96,7 @@ remain recipient-local.
 `./bin/check` with no arguments is identical to `./bin/check all`. Universal
 named modes are:
 
-- `all` — every authoritative repository gate, in deterministic order;
+- `all` — every authoritative ordinary gate, in deterministic order, over the ordinary lane of the retained estate;
 - `lint` — static lint checks;
 - `format` — formatting checks without rewriting files;
 - `test` — delegates to `./bin/test`;
@@ -110,7 +106,9 @@ named modes are:
 Governed repositories also expose `vital` and `changed <ref>` as iteration-only
 modes. They never produce or replace a full-gate receipt.
 
-A project may add named modes but does not remove or weaken `all`. Unknown
+Palace also exposes `native` and `release`. `native` runs exactly the native lane on macOS, refuses on any other platform before writing state, and records its own receipt. `release` writes nothing: on a clean tree it verifies a passing `all` receipt and a passing `native` receipt for the same candidate, both recorded on this host, and refuses unless the most recent terminal native run for that candidate and host is the passing one. Earlier failed native runs stay on record and are reported by name; a later passing run on the exact candidate and host qualifies without any manufactured candidate change, and no failure is cured automatically or retried without authority. Neither mode replaces either close gate or pre-push custody.
+
+A project may add named modes but does not remove or weaken `all`. Moving proofs into a declared lane that release qualification runs is not removal; such a lane is named in this policy and in the test-suite governance policy. Unknown
 modes and extra arguments are usage errors. Every entry point preserves child
 failures, emits unambiguous terminal results where applicable, hides no failure
 behind a pipe or fallback, and performs no commit, push, deploy, or other
@@ -123,6 +121,8 @@ running, failed, identity-error, and candidate-drift runs retain terminal
 metadata but never create a reusable receipt. A log/storage failure remains an
 explicit failure and never creates a receipt. `CHECK ALL PASS` is emitted only
 after the log, receipt, and terminal run metadata are durable.
+
+`native` follows the same rules under `.kickoff/check-native/`, with its own run and receipt schemas and the terminal line `CHECK NATIVE PASS`, and its environment also records a digest of this host's hardware identity. On macOS every gate's run metadata records that host digest, so release verification can refuse a receipt recorded on another host.
 
 The `format` mode evaluates the complete candidate working-tree state:
 staged changes, unstaged changes, and nonignored untracked files. Its result
@@ -217,6 +217,8 @@ Governed lanes optimize feedback only. They cannot replace either close gate,
 a prescribed acceptance command, or pre-push full-gate custody. Full means the
 complete retained estate after the required local reset, never a small lane
 over an untouched shadow suite.
+
+The retained estate has two declared lanes. The ordinary lane is what both close gates, pre-push custody and the full-gate receipt run, on every platform. The native lane holds the real macOS watcher proofs, unchanged in every assertion and deadline, and is mandatory for release qualification. Native proofs never gate ordinary delivery. A native failure blocks release only, keeps its evidence, is never retried automatically, and is not cleared by a run on another host.
 
 If the handoff gate fails, the phase is not complete. Reopen the current
 uncommitted close, correct or regenerate the close artifact, and rerun the bare

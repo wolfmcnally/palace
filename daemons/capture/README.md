@@ -15,9 +15,9 @@ The Stop-hook capture daemon's deployment artifacts. The Python implementation l
 - `ThrottleInterval = 10` (seconds) — caps crash-loop frequency. If the daemon wedges on every start, launchd waits at least 10s between restarts rather than burning the CPU.
 - `ProcessType = Background` — exempt from App Nap; scheduled as a long-running service.
 - `StandardErrorPath` and `StandardOutPath` — both pointed at `<home>/palace-data.noindex/logs/palace-capture.log`. Phase 1.1's writer emits one stderr line per accepted/rejected POST; under launchd those lines land in this file. Any accidental stdout is also captured rather than dropped.
-- `EnvironmentVariables` — `PATH` carries `~/.local/bin` (uv's default install location) plus Homebrew + system bins so `uv run` resolves. `HOME` is set explicitly so `Path.home()` resolves correctly inside the spawned process. `TZ = America/Boise` carries `policies/storage-layout.md` §4's timezone-stable rule into the supervised process so daily session directories stay stable across travel.
+- `EnvironmentVariables` — `PATH` carries `~/.local/bin` (uv's default install location) plus Homebrew + system bins so `uv run` resolves. `HOME` is set explicitly so `Path.home()` resolves correctly inside the spawned process. `TZ = America/Boise` carries `policies/storage-layout.md` §4's timezone-stable rule into the supervised process so daily session directories stay stable when the host's local timezone changes.
 - `WorkingDirectory` — the absolute palace repo root, so `uv run` finds `pyproject.toml`.
-- `LimitLoadToSessionType = Aqua` — the GUI-session value. The agent only loads in Wolf's interactive login session, matching the per-user `LaunchAgent` posture (not a system-wide `LaunchDaemon`).
+- `LimitLoadToSessionType = Aqua` — the GUI-session value. The agent only loads in the operator's interactive login session, matching the per-user `LaunchAgent` posture (not a system-wide `LaunchDaemon`).
 
 The plist deliberately does **not** set `UserName` or `GroupName` — those are `LaunchDaemon`-only keys; a `LaunchAgent` always runs as the owning user.
 

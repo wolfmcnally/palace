@@ -67,13 +67,12 @@ and refuses a stale or missing lockfile.
 
 ### `test` — full or focused repository tests
 
-With no arguments, runs the full palace test suite, methodology machinery tests included.
-Arguments are forwarded to pytest from the repository root, so focused paths
-are stable from any caller directory.
+With no arguments, runs every palace test except the declared native lane, methodology machinery tests included. `--native` runs exactly the native lane: the real macOS FSEvents watcher proofs marked `native`, which only release qualification requires. The governed `--vital` and `--changed-from` lanes never run native proofs. Other arguments are forwarded to pytest unchanged from the repository root, so focused paths are stable from any caller directory.
 
 ```bash
 ./bin/test
 ./bin/test tests/test_check.py -q
+./bin/test --native
 ```
 
 ### `python` — repository-selected Python
@@ -120,6 +119,8 @@ exact status and emit a terminal `CHECK <name> FAIL`; success ends with
 `CHECK ALL PASS`. Every `all` run also captures a complete durable log and
 terminal run metadata under `.kickoff/check-all/`; success stores a receipt
 bound to the exact candidate, environment fingerprint, and log digest.
+
+`native` (macOS only; it refuses elsewhere before writing anything) runs exactly the native lane under the same receipt wrapper, storing its log, run metadata and receipt under `.kickoff/check-native/` bound to the complete candidate and an environment that includes the host digest (the SHA-256 of the IOPlatformUUID from `ioreg`, else of the machine-id file). Every gate's run metadata also records the host digest, null when no identity source exists. Failed, drifted and interrupted runs keep their records. `release` writes nothing: on a clean tree it verifies passing `all` and `native` receipts for the current candidate on this host, refuses unless the newest native attempt for them is the passing one (a newer failed, interrupted or in-flight attempt refuses), names every earlier non-passing native run, and prints `CHECK RELEASE VERIFIED` or `CHECK RELEASE REFUSED gate=<gate> reason=<code> candidate=<id>`.
 
 ```bash
 ./bin/check

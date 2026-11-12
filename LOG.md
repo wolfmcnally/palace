@@ -1646,3 +1646,1054 @@ Carried record from the v0.4.1 release (Phase 22 correction), not previously log
 Lessons:
 - filed: vague-iguana — enumerate failure-path call traces when a phase splits a call into stages, and keep deterministic request bounds in admission (methodology, 1 occurrence).
 - graduation DECIDE (carried, unchanged): caped-bonobo → bin (3 occurrences) and esoteric-hawk → test (5 occurrences) meet the graduation threshold and await the operator's ratification; nothing graduated.
+
+## 2026-11-11 09:41 — START (correction)
+Phase 25 — ordinary 0.5.0 release follow-up
+
+Execution trace: 4c657086634844b2a3edf598b4c69473
+
+The operator directed a Palace release carrying the delivered capability so a dependent consumer can pin it. The authenticated factotum verified the operator's original messages, which ask for that release followed immediately by the consumer's adoption of it, with frequent updates until the consumer's update is released. The factotum reconciled the earlier Phase 25 no-publication hold against this direction and authorized this narrowly scoped dependency release through the current release policy. It supersedes that hold for this ordinary forward tag and the existing GitHub release destination only. Historical tags, permissions, history and the experimental compatibility policy are unchanged.
+
+Direct-fix route: version, changelog and release-documentation changes only, with no runtime, API or assertion change. Phase 25 stays complete; its accepted evidence and spent review allowances carry forward. Both normal gates and release artifact qualification remain required.
+
+Planned work:
+- Version 0.5.0 in pyproject.toml and uv.lock; the Unreleased changelog entry dated as 0.5.0; README, RELEASE.md, package smoke, CI workflow and smoke-test version strings.
+- Release qualification per RELEASE.md: two compared builds, archive inspection, artifact hashes, hash-locked clean installations with synthetic smoke on macOS ARM64 and Linux ARM64, and a disclosure scan.
+- Guarded delivery, branch CI, guarded v0.5.0 tag push, tag CI, GitHub release with the qualified artifacts, and verification of the public download.
+
+## 2026-11-11 10:14 — PARK
+Phase 25 — ordinary 0.5.0 release follow-up — full gate failed twice on the native watcher proofs.
+
+Execution trace: 4c657086634844b2a3edf598b4c69473
+
+Nothing from this release follow-up has been committed, pushed, tagged or published. The version metadata, its focused smoke, two reproducible macOS builds, a hash-locked macOS install, a fresh Linux install and the disclosure scan all passed on the unchanged candidate. The authoritative full gate did not pass.
+
+- Attempt 1 failed: 1 test failed and 267 passed in 206.77 s. test_serve_emits_jsonl_line_within_two_seconds_of_touch received no notes.md event within two seconds.
+- Attempt 2 also failed. The authenticated coordinator authorized exactly one superseding attempt on the same candidate, under a successor manifest. 3 tests failed and 265 passed in 232.90 s, all in tests/reindex/test_server.py: the missing-root, callback-recovery and shutdown-drain proofs.
+- In the missing-root proof, native registration returned at 13 ms and the target write at 308 ms. No native callback carrying the target arrived before the assertion at 2.31 s.
+- Read-only diagnosis found that registration proves only that the stream was started. The proofs' instrumentation cannot see a late arrival or a file-system overflow notification. The daemon and its watcher library silently ignore such notifications, which is an observed source gap, not a demonstrated cause.
+- The host's file-event service was near full CPU during attempt 2. That is correlated, not causal.
+- Reindex source and tests are unchanged since before 0.4.0. The candidate's product and full-tree identities were unchanged after both attempts.
+
+This recurs the unresolved generator in lesson esoteric-hawk, so no self-resume is permitted. Both failed receipts, their reviewed diagnostics, both manifests, the qualification artifacts and the diagnosis are preserved outside the tree. The stale candidate is not releasable; its receipts will not be reused.
+
+Resume condition: the coordinator directed a new product phase, which repairs the native watcher readiness witnesses under independent plan and code review. After that, a fresh 0.5.0 release run rebuilds and requalifies a new candidate on the corrected source. The uncommitted release-metadata edits are preserved as a verified patch outside the tree and removed from it before that phase starts.
+
+Lessons:
+- Occurrence pending: esoteric-hawk — two further observations on this candidate, with stage evidence placing the missing-root failure before the daemon's handler.
+- Candidate pending: ultra-stallion — search escaped and pattern forms of the old version when bumping a release (local).
+- Observation: a background wrapper that ended with an echo reported exit 0 for a failed gate. The gate receipt was authoritative; preserve the command's status in wrappers.
+
+## 2026-11-11 10:17 — START
+Phase 26 — Native watcher readiness witnesses
+
+Execution trace: b0da8c0302ce4d328cec8a87b2b575c9
+Baseline: 9d1e6a86774046f4b57f2be60b9d9e064012ac20 — original watcher assertions, deadline values and proof families are unchanged against this commit
+
+Planned work:
+- A shared test readiness barrier. It writes a canary file that the daemon's handler already ignores, and waits with a readiness timeout separate from each test's deadline until the native callback delivers that exact path. It replaces the fixed startup sleep and the registration-return proxy in every positive native proof in tests/reindex/test_server.py.
+- Shared failure-only stage diagnostics for every positive native proof, covering native callbacks for the watch root (count, event-identifier range, overflow flags), readiness time, target write, and the target's handler, debouncer submit and emit, and fsync stages.
+- After a deadline failure, a bounded diagnostic-only observation that classifies the target as late, superseded by overflow, or never delivered. The failure is preserved.
+- Proof-estate contract, oracle and mutation text updated for the affected families, at zero family and leaf growth.
+
+## 2026-11-11 11:27 — PARK
+Phase 26 — Native watcher readiness witnesses — implementation gate failed after proven readiness.
+
+Execution trace: b0da8c0302ce4d328cec8a87b2b575c9
+
+Nothing from this phase has been committed, pushed or released. The test-only change is preserved uncommitted on product candidate 327f1268d5885af5110269da4ca7c9b0fd2154f1fc0dc5a57c183f7b1933c0fd (full tree b17c3262c0b3f1efa4d35946bbbac3c826a8eb3d77926fa13fa98e3006386ab8); both identities were unchanged after the gates.
+
+- The positive native proofs in tests/reindex/test_server.py now start every deadline only after an ignored canary has been delivered by the native callback and dispatched by the handler. Failure-only notes classify each target as natively absent, late, or stalled after a named pipeline stage, with overflow flags split before readiness, after readiness and after the write, and always re-raise the original assertion. The recovery proof's injected handler exception is armed after readiness, fires only for first.md and must be raised exactly once. Every assertion, deadline value and deadline start point matches HEAD except two declared changes: that recovery strengthening, and the real-signal proof's admission, which is now a 10 s end-to-end readiness wait instead of a 5 s registration-return wait (its 5 s target deadline is still created after the write). The phase acceptance wording "measured from before the target write" is imprecise for the recovery and real-signal proofs; their HEAD start points are preserved. tests/proof-estate.yaml changes contract and oracle text of eight existing families only (271 families, 290 leaves, valid).
+- Independent Opus plan review (13 findings, all adopted, one in modified form) and independent Opus code critique (6 findings: 4 adopted, 1 deferred to the operator criterion, 1 optional suggestion declined) are recorded with primary dispositions. Scratch fault controls outside the tree (plugin sha256 59deb3d6dc47b91265004d38b9b3b2c1bf973f4205b0b7b110c78beb78113f6e) each failed for the intended reason: canary suppressed gives a readiness failure; target suppressed gives native absent; handler suppression gives on-time native arrival stalled after dispatch; a must-scan flag is reported; a 3 s delay is classified late and still fails; an injection that never reaches first.md fails the exactly-one assertion.
+- Two focused module runs before the gate failed three and two proofs, all after proven readiness: one target arrived natively 4.9 s late with no overflow flag; others reached no native callback within a further 10 s window.
+- The first gate dispatch was refused before any test ran because the implementation stage was still open; command zero then passed. gate.focused passed all 10 proofs in 16.39 s. gate.full failed: 1 failed, 267 passed in 340.12 s. In test_serve_recovers_from_one_observer_callback_exception, native registration returned at 0.283 s, the canary was delivered and dispatched at 1.486 s, a canary rewrite was delivered at 2.204 s, and the second.md write was marked at 2.491 s; the first.md write follows readiness by the test's own sequence but is not separately marked. After 2.204 s no callback reached the instrumented callback entry for first.md or second.md through the deadline and the 10 s window (two native events in total, both canary), with no overflow flag. The injected exception never fired, because first.md was never dispatched. Captured daemon stderr shows only root loading and observation. Write-return and fsync of the watch-root files are not instrumented, the original callback's return or exception is not marked, and emitter-thread liveness was not captured.
+- The mechanism remains unknown: these observations cannot distinguish the operating system not delivering from the emitter's native run loop or lifecycle ending, or from interference by concurrent full-suite work. The full gate overlapped another owner's required gate that started 26 s after it; the focused gate preceded that overlap. No causal claim is made from that overlap.
+- No retry, skip, deadline change, production change or native-lane split was made. Production handling of overflow notifications remains an observed source gap, not a demonstrated cause.
+
+Remaining work: the operator decides whether the post-readiness native deadlines stay host-load-sensitive full-gate assertions, which is this phase's stated manual criterion. Resume requires that ruling; until then the phase stays in progress and the 0.5.0 release remains blocked.
+
+Lessons:
+- Occurrence: esoteric-hawk — the release follow-up failures and this phase's post-readiness native absence; the readiness witness separates readiness from post-readiness delivery but is not a fix.
+- Candidate filed: precious-kangaroo — re-read the stage recipe before re-executing a procedure after compaction (a refused gate dispatch and a mis-targeted fault control).
+- Candidate filed: ultra-stallion — search escaped and pattern forms of the old version when bumping a release (from the parked release follow-up).
+
+## 2026-11-11 11:32 — START (resumed)
+Phase 26 — Native watcher readiness witnesses
+
+Execution trace: 72ce6eef652e4faeb5feee47c1d20146
+
+Resumed after the PARK recorded above (implementation gate failed after proven readiness) to prepare an independently reviewed alternate-qualification proposal for the operator's decision, as directed through the authenticated factotum. This run changes no test, gate, deadline or source file and runs no test; the release remains blocked under the existing gate.
+
+Planned work:
+- An evidence-based proposal comparing keeping the native deadlines in the default gate, a lane split by obligation with deterministic default-lane proofs and a required macOS native-qualification lane, and in-process lifecycle or isolation remedies.
+- Exact proposed scope and file-level diff, which assertions stay unconditional in the default lane versus native qualification, how native coverage is triggered and enforced before release, and what each failure class means.
+- One independent plan review using the phase's second and final review pass, with recorded primary dispositions, then a truthful park for the decision.
+
+## 2026-11-11 11:39 — PARK
+Phase 26 — Native watcher readiness witnesses — alternate-qualification re-plan refused by the plan-growth guard.
+
+Execution trace: 72ce6eef652e4faeb5feee47c1d20146
+
+This resumed run prepared an alternate-qualification proposal as a Phase 26 re-plan. The plan-concreteness check, run against the phase's reviewed plan history, refused it before capture: the plan grew from 117 to 171 lines (more than one third), and the history contains two growth events across three artifacts, so the review loop must stop and the scope go to the operator. No plan was captured and no reviewer was registered or launched. The refused artifact (sha256 07b31bc402311089e5503cf945009223acef0edbb69a1c170c3fb757612338a7, 171 lines, after a wording correction about candidate identity) and the guard output are preserved outside the tree.
+
+The guard's diagnosis holds: a new qualification lane, new deterministic proofs, policy amendments and a new phase are a scope change, not a revision of this test-only phase. Through the authenticated coordinator, the operator ruled that the proposal proceeds only as a separately scoped design-only phase with its own preflight, evidence and independent review, preserving this refusal and the release hold. Phase 26's runtime and test candidate stays parked and unaccepted; it is not resumed or replaced by that phase.
+
+Remaining work: the earlier PARK's operator decision on the host-load-sensitive native deadlines still governs Phase 26. The 0.5.0 release remains blocked.
+
+Lessons:
+- none — the plan-growth guard worked as designed; the routing observation is covered by the existing methodology rule that a scope change is routed to the operator rather than revised into a plan.
+
+## 2026-11-11 11:41 — START
+Phase 27 — Native watcher qualification design
+
+Execution trace: 05a85e42ddcc4a7dada954196bfeb70a
+
+Planned work:
+- An evidence analysis of the native watcher failures on the development host and of the clean-host continuous-integration results, distinguishing source from test identity and the evidence's limits from its claims.
+- A comparison of keeping the native deadlines in the default gate, a split by obligation with deterministic default-lane proofs and a required native-qualification lane, a lane move without replacement, and in-process lifecycle or isolation remedies including a failure-only diagnostic increment.
+- For the recommended option, the exact file-level scope it would change, the assertions that remain unconditional, the triggering and fail-closed release enforcement of native coverage, failure semantics, and the required proof-estate and policy amendments.
+- Explicit operator decisions, recorded with one independent plan review and primary dispositions.
+
+## 2026-11-11 12:02 — PARK
+Phase 27 — Native watcher qualification design — reviewed design awaiting the operator's decision.
+
+Execution trace: 05a85e42ddcc4a7dada954196bfeb70a
+
+This design-only phase produced a qualification-policy design for the native watcher proofs and one independent plan review. It changed no test, gate, deadline, policy or source file and ran no test. Phase 26 stays parked and unaccepted, and the 0.5.0 release remains blocked under the existing gate.
+
+- The design (sha256 ca7921076c0f5c2162c58dbf123905875b71566975ce7c9ba6d3509d10be9298, 171 lines, concreteness pass) compares four options. It recommends a failure-only diagnostic increment, followed by a split by obligation: deterministic end-to-end pipeline proofs in the default lane on every platform, plus a required macOS native-qualification lane. It rejects moving the native proofs with no deterministic replacement, because they are the only proofs of the reindex pipeline today.
+- Independent Opus plan review, attempt 1 (reason initial): 12 findings, 4 high. Ingestion refused it because two findings cited the out-of-tree plan artifact. It is preserved unchanged and not ingested, and its four high findings are carried into the dispositions at high severity.
+- Attempt 2 (reason reexecution, cause recorded), the phase's final pass: 11 findings, 2 high, ingested. All 11 are adopted as stated corrections and requirements in a decision addendum; the reviewed plan stays immutable. The adopted corrections:
+  - the native lane contradicts the full-retained-estate policy clauses unless the operator amends them;
+  - release enforcement needs an executable verification command, or must be stated as a checklist rule;
+  - a failed native receipt latches its candidate;
+  - the diagnostic increment's inference uses a joint table with indeterminate outcomes;
+  - the clean-host evidence covers nine commits in aggregate only;
+  - the stand-in observer must patch both platform bindings, stub the native module on Linux and use a real watchdog observer;
+  - residual native-only obligations are named;
+  - the diagnostic increment is its own test-only phase;
+  - per-test isolation is untested;
+  - the stalled failure class is unresolved;
+  - the watching-class trigger needs an executable delivery check, and continuous integration is a detector only.
+
+Remaining work: the operator decides D-1 (option), D-2 (cross-host substitution), D-3 (proof budget), D-4 (Phase 26 disposition), D-5 (full-estate amendment or a separate ordinary-delivery mode) and D-6 (what clears a failed native receipt). No implementation proceeds before that ruling and a separately reviewed implementation phase.
+
+Lessons:
+- Occurrence: lovely-cricket — the advisory prompt again omitted the repository-relative path constraint for an out-of-tree artifact. The lesson, which already recorded a cheaper route, was not re-read before launch, and a review pass was spent.
+- Candidate filed: accelerated-swine — report clock times only from an observed clock, envelope or file timestamp.
+
+## 2026-11-11 12:19 — START
+Phase 28 — Native watcher post-readiness diagnostics
+
+Execution trace: 9cc42205ff9c4815bc156ae3574f7fba
+
+Planned work:
+- Callback outcome marks: the original event callback's return or raised exception with monotonic times, watchdog FSEvents logger records, each canary and target event's complete flag word, and root-changed and overflow flag counts for the watch root.
+- Workload write marks: enter and return times for each declared target write, including both writes of the recovery proof, without changing the workload, and the events-log writer's fsync enter and return.
+- Failure-time liveness: emitter thread, the observer's emitter set for the watch root, and observer thread.
+- A failure-only post-deadline canary awaited within a bounded liveness window, with the original failure re-raised unchanged.
+- A joint classification line: in-process lifecycle, unresolved stream stall, target non-delivery, or indeterminate.
+- Proof-estate oracle text for the affected families updated to name the joint classification, at zero family and leaf growth.
+
+## 2026-11-11 13:06 — PARK
+Phase 28 — Native watcher post-readiness diagnostics — focused gate failed; the new diagnostics classify the failure as late native delivery.
+
+Execution trace: 9cc42205ff9c4815bc156ae3574f7fba
+
+Nothing from this phase has been committed, pushed or released. The test-only increment is preserved uncommitted on product candidate 877dfd5546c3f92becf2143ae70039f7eddf25565dfa3b7e1b9f697f808b29e4 (full tree 037fa88708cfd5df4199caccab496182b84f6d7f5723e97a2b6279fc94ef1aab); both identities were unchanged after the gate. It builds on Phase 26's parked, unaccepted diff in the same two files; Phase 26 is not resumed, accepted or replaced, and its receipts are unchanged.
+
+- tests/reindex/test_server.py adds failure-only diagnostics to the native probe: the original callback's return or raised exception, records from watchdog's own fsevents logger with a usability check, complete flag words and per-window root-changed counts, enter and return marks for every workload write (both recovery writes included, workload unchanged), emitter and observer liveness read at the failure and again after a bounded post-deadline canary, and a joint classification that is indeterminate whenever an input is missing. tests/proof-estate.yaml extends the five classified oracle lines only (271 families, 290 leaves, valid). Every assertion, deadline value and start point and every workload write position matches the Phase 26 base (79 of 79 checked lines identical).
+- Independent Opus plan review (10 findings, all adopted, one in part) and independent Opus code critique (5 findings, all adopted, one as a stated limit) are recorded with primary dispositions. In a coordinator-confirmed slot, six scratch fault controls outside the tree each failed with the original deadline message and the expected joint line: a callback exception and a stopped emitter gave in-process lifecycle, a dropped target gave target non-delivery, dropping all post-readiness events gave stream stall, a suppressed liveness reading gave indeterminate, and a delayed target gave native delivery observed. The stopped-emitter control was caught only by the second liveness reading, because the target event that triggered the stop arrived after the deadline. The at-failure dead-emitter row, observer-not-alive, stop-requested-but-alive and probe-error rows rest on a synthetic check and code review only. The plugin-free module passed 10 of 10.
+- In a second coordinator-confirmed slot, explicitly not global host quiet, gate.focused failed: 1 failed, 9 passed in 20.76 s. test_serve_emits_jsonl_line_within_two_seconds_of_touch raised its original assertion (no notes.md event before deadline). Joint classification: native delivery observed. The target's native callback arrived 6.050 s after its write (deadline 2.0 s), and Palace's handler, debouncer and events-log fsync completed 0.12 s later. Emitter and observer were alive at both readings, the watcher log was usable with no records, no callback raised, there was no overflow or root-changed flag, and the post-deadline canary arrived in 0.462 s. The canary's own first delivery came about 3.5 s after the stream started, and a coalesced canary delivery lagged at least 3.27 s. gate.governance and ./bin/check all were not run.
+- The diagnostics rule out an in-process lifecycle fault, a lost target and a stalled stream for this occurrence. They cannot distinguish host load, native delivery latency or coalescing, or other owners' concurrent work as the reason for the lag, and no causal claim is made. Phase 26's earlier failure, where the target never reached the callback within a 10 s window, is a different observation.
+- No retry, skip, deadline change, lane change, production change or cross-host substitution was made.
+
+Remaining work: what this late-delivery classification means for the qualification decisions recorded by Phase 27 belongs to the operator, which is this phase's manual criterion. The coordinator directed read-only diagnosis only. The 0.5.0 release remains blocked.
+
+Lessons:
+- Occurrence: esoteric-hawk — this gate's late native delivery on a live, error-free stream, with the new classification recorded in the lesson.
+- Recurrence: accelerated-swine — two prepared coordinator reports carried placeholder times; both were caught before submission.
+
+## 2026-11-11 13:34 — START
+Phase 29 — Generic operator wording in source and operations docs
+
+Execution trace: 206a97893d3d4ba48e413ada967fda0e
+
+Planned work:
+- Operator-role wording in runtime docstrings, comments and help text under `palace/` replaced with generic role language (the user, the operator, the store owner; they/them), including the package and CLI product description. Authorship credit elsewhere is unchanged.
+- The extraction system prompt in `palace/consolidate/llm.py` asks for durable facts about the user, their projects or their decisions, keeping its existing criterion and its exclusion of transient task chatter.
+- One synthetic focused test that drives the consolidator's Ollama client through an injected `httpx.MockTransport`, captures the outgoing chat request, and asserts the generic system prompt and the absence of a personal name. No network, model or provider call.
+- A prepared proof-estate admission record for that test with its contract, independent oracle, red witness, non-subsumption account and the exact budget request. The positive budget is an operator approval; no unrelated proof is retired to fund it.
+- Generic wording in the operations READMEs under `daemons/` and `palace/`, and in the comment of `bin/palace-scaffold-vault-smoke`. Default path values in those documents stay as written.
+- A staged-diff and source audit showing the remaining name occurrences are only authorship, maintainer contact, dependency URLs, governing prose deferred below, and append-only history.
+
+## 2026-11-11 13:39 — METHODOLOGY SCOPE — Budget-funded proof admission
+
+Scope: Bounded local correction of the proof-estate manager so it conforms to the existing written rule in policies/test-suite-governance.md that a new proof is funded by either a named approved positive budget or a compensating retirement. Authorized 2026-11-11 by the owner's ruling through the factotum.
+Surfaces: lib/agentic_starter/test_governance.py (admission replay and validation report); the existing family tests/test_test_governance.py::test_positive_growth_requires_named_approval, extended in place, and its proof-estate contract and oracle text.
+Behavior: an admission row whose compensating_retirement is null is funded by the approved budget only when budget_approval is named; each funded admission consumes one family unit exactly once; admissions beyond the approved families budget refuse; a null-funded admission with no approval keeps the original refusal. Retirement-funded admissions, count caps, leaf caps and every other check are unchanged.
+Exclusions: no policy, brief, skill or upstream template change; no qualification lane, deadline, gate or selection change; no new proof family or leaf; no commit, push or publication; no change to Phase 26, 27, 28 or 29 captured authorities.
+
+## 2026-11-11 14:08 — PARK
+Phase 29 — Generic operator wording in source and operations docs — implemented and independently reviewed; aggregate gate and delivery held for an operator custody decision.
+
+Execution trace: 206a97893d3d4ba48e413ada967fda0e
+
+Nothing from this phase has been committed, pushed or released. The change is preserved uncommitted on product candidate e222744afd7116d754a4ca93326f036558c8e436ac45bc283fe803e5ee11624f. The working tree also carries the parked Phase 26 and 28 test changes and a separate, unaccepted local methodology correction to the proof-estate manager; none of them is accepted, resumed or replaced here.
+
+- Runtime docstrings, comments, the package and CLI description, one help string, the capture, index and reindex operations READMEs, the hooks guide and one smoke-script comment now describe the person running Palace as the operator or user, with no personal name, gendered pronoun or travel and laptop detail. Timezone, path and other configured values are unchanged.
+- The consolidator's extraction system prompt now asks for durable facts about the user, their projects or their decisions. This is the phase's only behavior change, deliberate and owner-authorized; everything else is wording.
+- tests/consolidate/test_llm.py drives the real client through an injected mock transport with a synthetic base URL and asserts one request and the exact system prompt; it fails against the pre-phase prompt. The proof is admitted under a named one-family, one-leaf owner budget with no retirement (272 families, 291 leaves, validation passes), and the governance count tests are updated.
+- Independent Opus plan review: 10 findings, 8 adopted, 1 adopted in the methodology correction, 1 declined. The first report was refused at ingest for one non-relative path and ingested through an authorized artifact-only re-emission; the tree moved during that review (plan unchanged), and the plan was marked reviewed before ingest. Independent Opus code critique, covering this phase and the final methodology bytes: 5 findings, 3 adopted, 1 adopted in part, 1 declined; no correctness defect.
+- Focused checks pass: consolidate, governance and hermeticity tests, lint, format, typecheck, proof-estate validation and catalogs. The policy check refuses a stale execution dashboard inherited from the earlier parks' log rows.
+- Excluded and named as follow-ons: governing prose in policies and briefs together with the rename of the sessions authored-predicate helper, and whether the fixed day-partition timezone becomes a declared convention.
+
+Remaining work: the complete-tree gate includes the native watcher proofs whose last full gate failed, and the delivery guard requires every changed path to belong to the delivered candidate. Phase 29 resumes after the operator decides the custody and release route for the parked watcher changes and the methodology correction, then needs its implementation-candidate sequence, two full gates and delivery. Whether the new wording reads well is the operator's manual judgment.
+
+Lessons:
+- Recurrence: lovely-cricket — a reviewer emitted a path with a parent component despite the stated rule; resolved by re-emission.
+- Recurrence: ethereal-weasel — the parked phases' finalized traces left the execution dashboard stale for the next phase.
+- New: venomous-degu — run a recipe's own commands in its order (mark-before-ingest; a hand-built lint call).
+
+## 2026-11-11 14:15 — CORRECTION — Phase 25 execution dashboard refresh
+
+Correction: the Phase 29 PARK block above says the stale execution dashboard was inherited from the earlier parks' log rows. That inference was wrong. Unaccepted parked phases have no reports and do not enter the dashboard index. Regenerating the index in a scratch directory and comparing fields showed that only Phase 25's entry changed: a later failed Phase 25 follow-up trace, 4c657086634844b2a3edf598b4c69473, was finalized after Phase 25's report was generated, so the index now counts two Phase 25 traces, one failed.
+Remedy: Phase 25's report was regenerated from its own accepted trace, 3e6ba05288aa43e9b28b783098bf71a1, and its unchanged handoff with ./bin/execution-telemetry dashboard. Only reports/execution/2026-11-11/phase-25/data.js and reports/execution/index-data.js changed; both match the scratch regeneration byte for byte, and ./bin/check-execution-dashboards passes for 7 phases. No trace, outcome or handoff was rewritten, and nothing was committed.
+
+## 2026-11-11 14:27 — START
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane
+
+Execution trace: 167c92a99afd4a99b8be985c2bb86041
+
+Planned work:
+- Deterministic end-to-end reindex pipeline proofs that run the real `serve()`, `build_observer`, handler, debouncer, writer and shutdown path, with only the native emitter replaced by a test observer built on watchdog's real observer and event queue. They run on macOS and Linux in the default gate.
+- A registered native-lane marker on the existing native server proofs, which stay unchanged in every assertion, deadline and readiness barrier.
+- A default test run that deselects the native lane, and a `./bin/check native` mode that runs exactly the native lane on macOS and records a durable receipt bound to the native inputs it tested, retaining every failed receipt.
+- An executable native-coverage check in the ordinary full gate that refuses a candidate whose changes touch the watching surface unless a passing native receipt exists for its exact native inputs.
+- An executable release verification mode that refuses a missing, failed, stale or wrong-candidate full-gate or native receipt.
+- A continuous-integration step that runs the native lane on macOS as a detector after push.
+- Amendments to the build-gate and test-suite governance policies defining the full retained estate as the default lane plus the mandatory native lane, and the release checklist update.
+- Proof-estate admission records for the new proofs under a named, exactly sized positive budget, and native-lane records for the retained native families.
+- Diagnostic provenance in every new refusal and failure message: the gate, the candidate or native-input identity, the triggering paths or receipt, and the pipeline stage.
+
+## 2026-11-11 14:28 — PARK
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane — captured phase file corrected before planning.
+
+Execution trace: 167c92a99afd4a99b8be985c2bb86041
+
+The phase file captured at initialization listed an executable native-coverage check in the ordinary full gate, which would have required a passing native receipt for any delivery touching the watching surface. The coordinator relayed that this contradicts the operator's approved split: ordinary delivery is gated by the deterministic pipeline proofs on every platform, and the unchanged native watcher proofs are a separate, mandatory release qualification. The run stopped inside planning before any plan, capture or role dispatch, so no review allowance was spent. The phase file is corrected and captured in a fresh run.
+
+Remaining work: the whole phase, from planning, in the fresh run.
+
+Lessons:
+- Candidate filed: none new. This is an occurrence of the standing rule that a later operator ruling supersedes an earlier reviewed proposal; the phase file was written from the reviewed design's adopted findings without re-reading the operator's latest wording against each deliverable.
+
+## 2026-11-11 14:29 — START (resumed)
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane
+
+Execution trace: fc256d959e2442debc90ff291cc15910
+
+Resumes after the park of trace 167c92a99afd4a99b8be985c2bb86041 with the corrected phase file: ordinary delivery is gated deterministically and native qualification is release-only.
+
+Planned work:
+- Deterministic end-to-end reindex pipeline proofs that run the real `serve()`, `build_observer`, handler, debouncer, writer and shutdown path, with only the native emitter replaced by a test observer built on watchdog's real observer and event queue. They run on macOS and Linux in the default gate.
+- A registered native-lane marker on the existing native server proofs, which stay unchanged in every assertion, deadline and readiness barrier.
+- A default test run that deselects the native lane, and a `./bin/check native` mode that runs exactly the native lane on macOS and records a durable receipt bound to the complete candidate it tested, its environment and its host, retaining every failed receipt.
+- An executable release verification mode that refuses a missing, failed, stale, wrong-candidate or other-host full-gate or native receipt.
+- A continuous-integration step that runs the native lane on macOS as a detector after push.
+- Amendments to the build-gate and test-suite governance policies defining the full retained estate as the default lane plus the mandatory native lane, and the release checklist update.
+- Proof-estate admission records for the new proofs under a named, exactly sized positive budget, and native-lane records for the retained native families.
+- Diagnostic provenance in every new refusal and failure message: the gate, the candidate identity, the receipt or refusal reason, and the pipeline stage.
+
+## 2026-11-11 14:45 — PARK
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane — plan review exhausted its turn limit without a report.
+
+Execution trace: fc256d959e2442debc90ff291cc15910
+
+The plan (sha256 f97255ac2d3c8976728a2302df11ffc1c9f597632c1c5d2adcdf0cb2e53f1d0b, 165 lines, concreteness pass) was captured and sent to one independent Opus plan review. The reviewer reached Claude's 50-turn limit after 471 seconds while still reading, and returned only a progress note: no findings and no verdict. Nothing was ingested, the plan was not marked reviewed, and no source, test or policy file changed. The coordinator, relaying root, ruled that the trace does not establish the conditions for the one permitted max-turn rescue, and directed this park without a rescue or relaunch. The consumed review attempt, its session, artifacts and the current candidate are preserved.
+
+Remaining work: the whole phase from plan review onward, after a coordinator or operator ruling on how the plan is reviewed. The release stays blocked: no native qualification lane or release verification exists yet, and the native watcher proofs remain in the ordinary gate.
+
+Lessons:
+- Candidate filed: fast-porcupine — size an external reviewer's reading list to its turn cap; the planning resource already says to scope the reading mandate, and this prompt did not.
+
+## 2026-11-11 14:49 — START
+Phase 31 — Returned-hit evidence for prepared multi-store search
+
+Execution trace: 6cc5a11e695947218a6348777f02e65a
+
+Planned work:
+- An optional evidence mode on `execute_prepared` and `search_stores`. With it off, results, refusals and provider calls are byte-identical to today. With it on, the same hits are returned in the same order with the same scores, plus one evidence entry per hit.
+- An immutable per-hit evidence value carrying the hit's store, path and chunk identifier, a closed status, and, only when verified, the exact stored body, its recorded digest, the exact stored vector bytes and the store's recorded embedding identity.
+- Per-entry statuses for a missing chunk row, a missing vector row, a non-finite vector, a body whose digest differs from the recorded one, and a hit from a store whose vector leg is remote. Only a verified entry carries body or vector bytes.
+- A strict variant that raises a typed error naming the store, path, chunk and status of the first failing hit in result order.
+- The multi-store JSON command output carrying each hit's evidence when requested.
+- Documentation of the guarantees and residual limits in the multi-store guide, and an Unreleased changelog entry.
+- Proof-estate admissions for the new proofs under a named, exactly sized positive budget.
+
+## 2026-11-11 14:55 — PARK
+Phase 31 — Returned-hit evidence for prepared multi-store search — phase scope must add single-store evidence before dispositions.
+
+Execution trace: 6cc5a11e695947218a6348777f02e65a
+
+Plan-1 (sha256 51fe81fb9de9928a569ed14937a6de340dd586eddc5b4e39180559945bd1477b, 126 lines, concreteness pass) covered prepared multi-store search only. Its one bounded independent Opus plan review succeeded in 14 turns with eight advisory findings, all ingested; the plan is marked reviewed. The coordinator's interface check then showed that the consumer also uses single-store `search` and `search_reranked`. A one-store multi-store call is not a substitute: it lacks metadata filters, re-scores fused ranks, refuses a store with no database where `search` returns nothing, has no strict-None posture, and returns a different type. The captured phase file therefore changes, and the work continues in a fresh run that carries this review forward. No source or test file changed.
+
+Remaining work: correct the phase file to include single-store evidence, confirm signatures with the consumer through the coordinator, and continue planning in a fresh run with this review carried forward.
+
+Lessons:
+- Occurrence: fast-porcupine — the bounded reading list (about ten ranges, a twenty-call reading cap) let the reviewer finish in 14 of 50 turns.
+- Candidate filed: none. Checking the consumer's actual call sites before capture would have found the single-store need; the coordinator supplied that check.
+
+## 2026-11-11 14:56 — START (resumed)
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane
+
+Execution trace: cea728bf437c4121ae181e430cfed635
+
+Resumes after the park of trace fc256d959e2442debc90ff291cc15910, whose single plan review reached its turn limit without a report. The operator authorized the phase's remaining and final plan-review pass on the same plan (sha256 f97255ac2d3c8976728a2302df11ffc1c9f597632c1c5d2adcdf0cb2e53f1d0b), with the failed attempt and its consumed allowance carried forward.
+
+Planned work:
+- Deterministic end-to-end reindex pipeline proofs that run the real `serve()`, `build_observer`, handler, debouncer, writer and shutdown path, with only the native emitter replaced by a test observer built on watchdog's real observer and event queue. They run on macOS and Linux in the default gate.
+- A registered native-lane marker on the existing native server proofs, which stay unchanged in every assertion, deadline and readiness barrier.
+- A default test run that deselects the native lane, and a `./bin/check native` mode that runs exactly the native lane on macOS and records a durable receipt bound to the complete candidate it tested, its environment and its host, retaining every failed receipt.
+- An executable release verification mode that refuses a missing, failed, stale, wrong-candidate or other-host full-gate or native receipt.
+- A continuous-integration step that runs the native lane on macOS as a detector after push.
+- Amendments to the build-gate and test-suite governance policies defining the full retained estate as the default lane plus the mandatory native lane, and the release checklist update.
+- Proof-estate admission records for the new proofs under a named, exactly sized positive budget, and native-lane records for the retained native families.
+- Diagnostic provenance in every new refusal and failure message: the gate, the candidate identity, the receipt or refusal reason, and the pipeline stage.
+
+## 2026-11-11 15:02 — PARK
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane — plan reviewed and governing prose prepared; executable work continues in a fresh run.
+
+Execution trace: cea728bf437c4121ae181e430cfed635
+
+The phase's final plan-review pass, authorized by the operator after the first pass reached its turn limit, succeeded in 20 turns with eight findings, one high. All eight are adopted in a dispositions addendum (sha256 39b117164bfb26e40faea6730536b84846d1e31b8e007e6dc6c5f4de09d53ad3); the reviewed plan (sha256 f97255ac2d3c8976728a2302df11ffc1c9f597632c1c5d2adcdf0cb2e53f1d0b) stays immutable. The corrections:
+- release verification refuses while any non-passing native run for the candidate and host is on record;
+- every gate's run records the host on macOS, and release refuses another host's receipt for either gate;
+- an empty focused selection that is not wholly native still fails;
+- native runs get their own run schema and terminal line;
+- the redundant default-lane partition leaf is dropped;
+- the acceptance mapping is explicit;
+- two platform-neutral ignore branches are named as residual.
+
+The final proof request is 12 families and 22 leaves, within the operator's ceiling.
+
+The approved preparation amended policies/build-gates.md (sha256 fcbf567b02925aa0949823ee3681eaf850760a72018ecff57e9c9b815f8af812) and policies/test-suite-governance.md (sha256 e931e3f3ce039cee6353b907cd9b9f7242d7b34ba35e3d4f9dc4ac7e5615f69d). They now declare the ordinary lane, which both close gates, pre-push custody and the full-gate receipt run on every platform, and the mandatory native lane, which release qualification runs. They also declare the native and release modes and their receipt rules. Native proofs never gate ordinary delivery. `./bin/check policy` passes. No source, test or proof-estate file changed.
+
+Remaining work: a fresh run captures the amended authorities and implements the plan with its dispositions through the full-cycle continuation, with one code critique. Open decision D-6 is reported to the coordinator: whether anything other than a new candidate may clear a failed native run. The implemented default is a new candidate only.
+
+Lessons:
+- Occurrence: fast-porcupine — the bounded second-pass prompt (eleven named ranges, a twenty-call cap) finished in 20 of 50 turns where the unbounded first pass ran out.
+
+## 2026-11-11 15:06 — START (resumed)
+Phase 31 — Returned-hit evidence with prepared single- and multi-store search
+
+Execution trace: 9479f4e0eae2428e832873d1cbb54ab8
+
+Resumes after the park of trace 6cc5a11e695947218a6348777f02e65a with the phase file corrected to add the root-authorized single-store prepared seam. The first plan review and its findings are carried forward.
+
+Planned work:
+- A prepared single-store seam: preparation does every pre-provider admission and then the query expansion and embedding, and execution freshly admits the store and retrieves with the prepared inputs only, with or without reranking. The existing single-store search entry points become exactly that composition, with unchanged inputs, batching, candidates, order, hits, scores, refusals and strict posture.
+- An optional evidence flag, bound at preparation, on both the single-store and multi-store prepared searches. With it off, results, refusals and provider calls are unchanged. With it on, the same hits are returned in the same order with the same scores, plus one evidence entry per hit.
+- One immutable per-hit evidence value for both seams. It carries the hit's store, watch root, path, file hash, chunk identifier, section and window position, recorded embedding identity and a closed status. Only a verified entry also carries the exact stored body, its recorded digest, its embedding-input digest and the exact stored vector bytes.
+- Per-entry statuses for a body whose digest differs from the recorded one, a missing vector row, a malformed vector, a missing embedding-input digest, and a hit from a store whose vector leg is remote.
+- Documentation of the guarantees and residual limits in the multi-store guide, and an Unreleased changelog entry.
+- Proof-estate admissions for the new proofs under a named, exactly sized positive budget.
+
+## 2026-11-11 15:10 — PARK
+Phase 31 — Returned-hit evidence with prepared single- and multi-store search — planning complete; implementation sequenced after Phase 30.
+
+Execution trace: 9479f4e0eae2428e832873d1cbb54ab8
+
+Plan-2 (sha256 13bd379423ea450561b974078c08a80e66b4dfb9cb3b42268ea2bb69a71a7c6c, 148 lines, concreteness and growth checks pass) adds the root-authorized single-store prepared seam and resolves the first review's findings. Its final bounded plan review succeeded in 14 turns: it confirmed that the earlier findings are resolved and raised eight more, one high. All eight are adopted in dispositions (sha256 d9d33250cfbb40c2acb78de36d1e864d45ebd7028280894af0e6e890bb70f015):
+- equivalence covers all four recomposed entry points, comparing whole result values;
+- the retrieval route is recorded so no call changes route;
+- the absent-database order stays as today;
+- evidence is collected for every fused id;
+- each seam's rerank position is documented;
+- named commit-hook injection points;
+- the identifying-field deviation is recorded.
+
+The budget stays at 5 families and 12 leaves. No source or test file changed.
+
+Remaining work: implementation, focused checks, one code critique and close in a fresh run through the full-cycle continuation, after Phase 30's implementation under the single-writer sequence.
+
+Lessons:
+- none new; the bounded reading list again finished well inside the turn cap (14 of 50).
+
+## 2026-11-11 15:16 — START (resumed)
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane
+
+Execution trace: edabaf11a77a4f8886e4cac9f0a56267
+
+Resumes after the governing-prose preparation park of trace cea728bf437c4121ae181e430cfed635 through the planned full-cycle continuation. The preserved reviewed plan is plan-1 (sha256 f97255ac2d3c8976728a2302df11ffc1c9f597632c1c5d2adcdf0cb2e53f1d0b) with its primary dispositions, including the correction after the root ruling on failed native runs: release requires the most recent terminal native run for the exact candidate and host to be the passing one, and every earlier failure stays on record and is reported. Both plan-review passes are spent and carried forward; one code critique remains. The prepared build-gate and test-governance prose is captured as final authority.
+
+Planned work:
+- Deterministic end-to-end reindex pipeline proofs that run the real `serve()`, `build_observer`, handler, debouncer, writer and shutdown path, with only the native emitter replaced by a test observer built on watchdog's real observer and event queue. They run on macOS and Linux in the default gate.
+- A registered native-lane marker on the existing native server proofs, which stay unchanged in every assertion, deadline and readiness barrier.
+- A default test run that deselects the native lane, and a `./bin/check native` mode that runs exactly the native lane on macOS and records a durable receipt bound to the complete candidate it tested, its environment and its host, retaining every failed receipt.
+- An executable release verification mode that refuses a missing, failed, stale, wrong-candidate or other-host full-gate or native receipt.
+- A continuous-integration step that runs the native lane on macOS as a detector after push.
+- Amendments to the build-gate and test-suite governance policies defining the full retained estate as the default lane plus the mandatory native lane, and the release checklist update.
+- Proof-estate admission records for the new proofs under a named, exactly sized positive budget, and native-lane records for the retained native families.
+- Diagnostic provenance in every new refusal and failure message: the gate, the candidate identity, the receipt or refusal reason, and the pipeline stage.
+
+## 2026-11-11 15:59 — END
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane
+
+Execution trace: edabaf11a77a4f8886e4cac9f0a56267
+
+The test estate now has two declared lanes. The ordinary lane is everything `./bin/test`, the governed lanes, both close gates and pre-push run, on every platform; it never runs or needs a native watcher proof. Ten new deterministic proofs run the real reindex pipeline (serve, observer, handler, debouncer, writer and shutdown) with only the macOS FSEvents emitter replaced by watchdog's own observer and queue, so the pipeline is now proved on Linux too. The ten real macOS watcher proofs are unchanged apart from a `native` marker and form the native lane, which `./bin/test --native` runs. `./bin/check native` runs that lane on macOS only and records a receipt bound to the complete candidate and an environment that includes the host digest. `./bin/check release` writes nothing and verifies, on a clean tree, passing `all` and `native` receipts for the current candidate on this host. Following the root ruling on failed native runs, the newest native attempt for that candidate and host must be the passing one: a newer failed, interrupted or in-flight attempt refuses, every earlier non-passing run stays on record and is named, and nothing is retried or cleared automatically. This run continued the reviewed plan through the full-cycle route after the governing-prose preparation park of trace cea728bf437c4121ae181e430cfed635; the prepared build-gate and test-governance prose was captured unchanged as final authority.
+
+Files changed:
+- tests/reindex/test_pipeline.py (new), tests/reindex/conftest.py — the stand-in observer fixture and seven pipeline families (ten leaves).
+- tests/reindex/test_server.py — only the module marker, adding `native`; every native assertion, deadline and barrier carried from Phases 26 and 28 is unchanged.
+- pyproject.toml — the registered `native` marker.
+- bin/test — ordinary lane by default and in governed lanes; FOCUSED collects first and accepts an empty ordinary selection only when the same selectors collect wholly native proofs; `--native`.
+- bin/check — `native` (refuses off macOS before any state) and `release` modes, the shared receipt wrapper, gate-named diagnostics.
+- bin/check-receipt — per-gate receipts and schemas, the host digest in every run record and in the native environment, the extracted receipt validator (pre-push reasons unchanged), and release verification with named refusals.
+- tests/test_check.py, tests/test_check_receipt.py, tests/test_toolchain_entrypoints.py, tests/test_test_governance.py — new lane, off-macOS and release proofs; existing oracles updated in place for the new call shape and inventory counts.
+- tests/proof-estate.yaml, reports/test-governance/palace-reset.jsonl — twelve admitted families and twenty-two admission rows under the named budget; the native families' oracles now say they are release-lane only.
+- policies/build-gates.md, policies/test-suite-governance.md — the prepared lane amendment (captured in run 2, unchanged since).
+- .github/workflows/ci.yml, RELEASE.md, bin/README.md — the macOS native detector step after the wheel smoke, the release qualification sequence, and the mode documentation.
+- plan/phase-30.md, plan/INDEX.md — the phase and its row.
+
+Build status:
+- Acceptance attempt 1 (product candidate 413d701f934e9b9152d89e1fd6e31bd64299eaef3222e28ab120de87f579be6a): focused OK (44 passed), governance OK, ./bin/check all FAILED at the test gate, 3 failed and 276 passed. tests/test_toolchain_entrypoints.py, a second independent inventory of the bin/test call shape, still expected the pre-phase form. Its three oracles were corrected in place as a direct fix with no budget change; the failed evidence is retained.
+- Acceptance attempt 2 (product candidate 064d642ea9adb1f535c3a9bdabe70d46497795b84488ec2f139d6d815ad2b87f, successor manifest): focused OK (54 passed), governance OK (valid at 284 families and 313 leaves), ./bin/check all OK: lint, format, typecheck, 279 passed with 10 native deselected in 253.08 s, smoke and all twelve policy checks. Product and full-tree identities were unchanged across the gates. The only warnings are uv's identical notices that the evidence tool's inherited VIRTUAL_ENV was ignored, which are environmental.
+- Not run: any native lane run, and a separate Linux run; no slot was held, by the coordinator's direction. CI's ubuntu job is the Linux witness after push.
+- Handoff gate: runs after this tracked END block; completion is contingent on the ignored receipt from the final bare `./bin/check all`.
+
+Review lane (per `policies/review-lanes.md`):
+- full
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- full cycle — the planned continuation of a reviewed plan after its governing-prose preparation; one direct fix (test oracles only) after the first acceptance attempt.
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus read-only, for reviewer and critic). Preflight recorded the routing fallback: the configured cross-provider reviewer and critic were above 95% weekly usage, so independent Opus was used, consistent with the operator's Opus-only worker direction.
+- Planner: inline primary (opus), in the earlier runs.
+- Reviewer (plan review): requested model=opus effort=default venue=claude; both phase passes were spent in earlier runs (pass 1 reached its turn cap with no report; pass 2 succeeded) and carried forward.
+- Coder: inline primary (opus), not dispatched.
+- Critic (code review): requested model=opus effort=default venue=claude, one pass.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- Planner: inline.
+- Reviewer (plan review): earlier runs.
+- Coder: inline.
+- Critic (code review): 210.5 s; success.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Makespan: 2564.094 s; intelligence 210.477 s; gates 562.692 s; wait 209.993 s; retry or rework 380.322 s; failed work 392.687 s (the failed first acceptance attempt); unattributed 0.763 s (from `kickoff-evidence timing-summary`).
+- Awaiting user input: none.
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=ff66401498d75327e3faf806d556294f80eb657faf2c5663bb590775023c841e reviewed=65dff4e17a05404a638b34cfc6ff64c19facec7759f8bb3b25603da2f5782a4a final=064d642ea9adb1f535c3a9bdabe70d46497795b84488ec2f139d6d815ad2b87f
+- Advisory findings: the carried plan review's 8 (1 high, 4 medium), all adopted as corrected after the root ruling; the code critique's 6 (1 medium), adopted except one optional part declined (shared fixture identity in older receipt tests) and one policy sentence deferred, because the policy was captured authority for this run.
+- Gates: attempt 1 focused, governance and full (full failed); attempt 2 focused, governance and full, all recorded against the final product candidate.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+- Red witnesses: 21 scratch mutants outside the tree, each failing its targeted leaf, covering every new leaf. Among them: the absolute path as relative, deleted ignore or watch-root branches, a removed dispatch wrapper, a skipped shutdown flush, an early missing-root return, a per-producer events file, idle branches that do not wait, removed host, clean-tree, newest-attempt and native-gate checks, unfinished records skipped, and FOCUSED and native-lane mis-selection.
+
+Wall-clock observations:
+- None material; the full gate dominated automated checks at about four minutes.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound):
+  - deterministic pipeline proofs on macOS, each with a red witness;
+  - the native proofs unchanged apart from the marker;
+  - the ordinary lanes never run a native proof, and `./bin/check native` refuses off macOS before any state;
+  - per-gate receipt recording for pass and failure, proved through the receipt tool;
+  - release verification refusing a missing, failed, stale, other-host and unfinished receipt and a dirty tree, and passing with both current receipts;
+  - governance valid with the native families inventoried and the named budget;
+  - both ordinary full gates before close, with no native run required.
+- Pending outside this run: the Linux pass of the pipeline proofs, witnessed by CI's ubuntu job after push; a real `./bin/check native` run, which is release qualification on the clean release commit in a coordinator-confirmed slot. Native qualification stays pending, and every earlier failed native and diagnostic record is retained.
+- Parked for the user: whether the lane split reads as an honest account of coverage, and the release decision.
+
+Delivery:
+- parked: complete-tree coupling. `./bin/deliver` binds the whole tree, and the shared estate, ledger and governance files hold Phases 26, 28 and 29 and the uncommitted proof-manager correction, which alone funds this phase's admissions. The coordinator confirmed the single route: one complete-tree delivery covering Phases 26, 28, 29, 30 and 31 and the methodology correction, after each closes truthfully and both full gates pass on that tree.
+
+Ripple (per `policies/phase-ripple.md`):
+- AUTO: none. plan/phase-31.md names explicit focused test paths and excludes test lanes and gates; nothing it pins changed.
+- DECIDE: none.
+
+Lessons:
+- filed (pending, written after this block): amusing-bug — when a phase changes a wrapper's emitted command line, grep the whole tests tree for the old call before the full gate; scope local.
+- filed (pending, written after this block): rousing-foxhound — when a release rule names the most recent terminal run, count unfinished attempts as non-passing; scope local.
+- occurrences added: none.
+- graduation DECIDE: none.
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — test-lane, gate and policy machinery with no new product surface.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, lessons amusing-bug and rousing-foxhound, the dashboard report, and the bare handoff gate.
+- Deferred: one sentence in policies/build-gates.md stating that the CI native step is a post-push detector that never gates delivery (code critique F004), for the next governing-prose amendment; RELEASE.md already says so.
+- Test protocol: skipped (reason: gate and test-lane machinery only, enforced by automated gates).
+
+## 2026-11-11 16:01 — END (close bookkeeping)
+Phase 30 — Deterministic reindex pipeline proofs and a mandatory native watcher lane: close bookkeeping outcomes
+
+Execution trace: edabaf11a77a4f8886e4cac9f0a56267
+
+Applied after the accepted close: Phase 30 is ✅ in plan/INDEX.md (catalog check OK). Phase 31 remains 🚧 and is the next work by explicit selection, so no row is marked next. Lessons amusing-bug and rousing-foxhound are filed and the ledger validates. The dashboard report and the bare handoff gate follow this record. Delivery stays parked on the single complete-tree route recorded in the END block.
+
+Correction to the END block's lessons tally: graduation-ready lessons were present and should have been carried. `./bin/lessons candidates` lists caped-bonobo (3 occurrences), esoteric-hawk (8), ethereal-weasel (3) and lovely-cricket (3).
+
+Lessons:
+- filed: amusing-bug — grep the whole tests tree for a wrapper's old command line before the full gate (local, 1 occurrence).
+- filed: rousing-foxhound — count unfinished attempts as non-passing when a release rule names the most recent terminal run (local, 1 occurrence).
+- graduation DECIDE (carried, unchanged): caped-bonobo → bin (3), esoteric-hawk → test (8), ethereal-weasel → skill (3) and lovely-cricket → skill (3) meet the graduation threshold and await the operator's ratification; nothing graduated.
+
+## 2026-11-11 16:07 — START (resumed)
+Phase 31 — Returned-hit evidence with prepared single- and multi-store search
+
+Execution trace: 8c7553f168de4d8aab67cf0229ee8536
+
+Resumes after the planning-complete park of trace 9479f4e0eae2428e832873d1cbb54ab8 through the planned full-cycle continuation, now that Phase 30's implementation is closed under the single-writer sequence. The preserved reviewed plan is plan-2 (sha256 13bd379423ea450561b974078c08a80e66b4dfb9cb3b42268ea2bb69a71a7c6c) with its primary dispositions (sha256 d9d33250cfbb40c2acb78de36d1e864d45ebd7028280894af0e6e890bb70f015). Both plan-review passes are spent and carried forward; one code critique remains.
+
+Planned work:
+- A prepared single-store seam: preparation does every pre-provider admission and then the query expansion and embedding, and execution freshly admits the store and retrieves with the prepared inputs only, with or without reranking. The existing single-store search entry points become exactly that composition, with unchanged inputs, batching, candidates, order, hits, scores, refusals and strict posture.
+- An optional evidence flag, bound at preparation, on both the single-store and multi-store prepared searches. With it off, results, refusals and provider calls are unchanged. With it on, the same hits are returned in the same order with the same scores, plus one evidence entry per hit.
+- One immutable per-hit evidence value for both seams. It carries the hit's store, watch root, path, file hash, chunk identifier, section and window position, recorded embedding identity and a closed status. Only a verified entry also carries the exact stored body, its recorded digest, its embedding-input digest and the exact stored vector bytes.
+- Per-entry statuses for a body whose digest differs from the recorded one, a missing vector row, a malformed vector, a missing embedding-input digest, and a hit from a store whose vector leg is remote.
+- Documentation of the guarantees and residual limits in the multi-store guide, and an Unreleased changelog entry.
+- Proof-estate admissions for the new proofs under a named, exactly sized positive budget.
+
+## 2026-11-11 17:14 — END
+Phase 31 — Returned-hit evidence with prepared single- and multi-store search
+
+Execution trace: 8c7553f168de4d8aab67cf0229ee8536
+
+Single-store search now has the same two steps as multi-store search. `prepare_search` checks the store without building any provider, closes that read, then makes exactly the expansion and embedding calls the matching entry point makes, in its order. `execute_prepared_search` checks the store again, refuses a changed configuration or a database that appeared or vanished, searches the rows the store has now with the recorded results, never embeds, and reranks after its read closes. `search`, `search_expanded`, `rerank_candidates` and `search_reranked` are now exactly these two steps, with unchanged signatures, results and refusal texts. Both seams can attach returned-hit evidence when prepared with `evidence=True`: one entry per returned hit, read in the retrieval's own read transaction on every return path, carrying the exact stored body, body hash, embedding-input digest and vector bytes when verified, or a closed status for that one entry. Palace only reports; the caller owns any policy. This run continued the reviewed plan through the full-cycle route after the planning park of trace 9479f4e0eae2428e832873d1cbb54ab8.
+
+Files changed:
+- palace/prepared.py (new) — the shared seal, store binding, backend selector and change-axis comparison moved from palace/multistore.py, plus `HitEvidence`, `HitEvidenceStatus` and the evidence reader.
+- palace/search.py — the provider-free `_admit_store` replacing `_query_snapshot`, the sealed `PreparedSearch` with its recorded route, `prepare_search`, `execute_prepared_search`, order-exact replay of recorded provider results, the four entry points recomposed, and `RerankedSearch.evidence`. The private `_reranker_config` parameter of `rerank_candidates` is removed with its only caller.
+- palace/multistore.py — imports the shared parts; `evidence` on `prepare_store_search` and `search_stores`, sealed into the prepared value, with evidence attached at all four return sites; `MultiStoreSearch.evidence`.
+- palace/index/file_vectors.py — `committed_input_digest` extracted so the file-vector reader and the evidence reader share it.
+- tests/test_prepared_search.py, tests/test_hit_evidence.py (new) — five families, twelve leaves.
+- tests/proof-estate.yaml, reports/test-governance/palace-reset.jsonl — five admitted families and twelve admission rows; `test_budget_delta` 18 families and 35 leaves with the named approval.
+- tests/test_test_governance.py — inventory counts 289/325 (pytest 265/301), and the leaf-ratio oracle aligned with the validator's budget-funded form, as the family oracle already was. It had asserted an unconditional 0.2 leaf ratio that this phase's budgeted leaves exceed; the validator is unchanged.
+- docs/multi-store.md, CHANGELOG.md, README.md — the new section with the field list, status table and limits; the Unreleased entries; the library-caller sentence.
+- plan/phase-31.md, plan/INDEX.md — the phase and its row.
+
+Build status:
+- Acceptance attempt 1 (product candidate 1c7c04663154322389cb15c36cb9884eaf60d3eebf243af986e7517d8ee51d34): focused OK (75 passed), governance OK (valid at 289 families and 325 leaves), ./bin/check all OK: lint, format, typecheck, 291 passed with 10 native deselected in 350.93 s, smoke and every policy check; receipt stored for full tree 2ab95d162bf1704f6fa877bc65146639c8d9f078af4760188c0f4101a97f55a3. Product and full-tree identities were unchanged across the gates. The only warnings are uv's identical notices that the evidence tool's inherited VIRTUAL_ENV was ignored, which are environmental.
+- Not run: any native lane run; nothing in this phase touches the watcher.
+- Handoff gate: runs after this tracked END block; completion is contingent on the ignored receipt from the final bare `./bin/check all`.
+
+Review lane (per `policies/review-lanes.md`):
+- full
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- full cycle — the planned continuation of a reviewed plan; one post-critique correction under root direction, with no further review.
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus read-only, for reviewer and critic), consistent with the operator's Opus-only worker direction.
+- Planner: inline primary (opus), in the earlier runs.
+- Reviewer (plan review): requested model=opus effort=default venue=claude; both phase passes were spent in earlier runs and carried forward.
+- Coder: inline primary (opus), not dispatched.
+- Critic (code review): requested model=opus effort=default venue=claude, one pass.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- Planner: inline.
+- Reviewer (plan review): earlier runs.
+- Coder: inline.
+- Critic (code review): 270.1 s; success.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Makespan: 4001.302 s; intelligence 270.126 s; gates 507.106 s; wait 269.159 s; retry or rework 0 s; failed work 0 s; unattributed 0.742 s (from `kickoff-evidence timing-summary`). The span includes the coordinator-performed context compaction at the start of this run's implementation.
+- Awaiting user input: none (`execution-telemetry phase-summary --phase 31`: no intervals).
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=836f1edd (run init) reviewed=87ec6a6e4dfa8e690c6586b42521b9625adc419cc3af4c4490146a3d518ec787 final=1c7c04663154322389cb15c36cb9884eaf60d3eebf243af986e7517d8ee51d34
+- Advisory findings: the first plan review's 8 and the second's 8, all adopted except plan F006 (superseded when the command-line surface left scope); the code critique's 8 (1 medium), adopted except CODE-F002, declined as unreachable because `_validate_expansion` refuses HyDE with keyword-only search.
+- Post-critique correction (CODE-F001, root direction relayed at 23:52Z: "proceed with the minimum bounded missing-local-row status and falsifying proof to preserve approved equivalence/isolation. No invented waiver and no extra review"): the plan's premise that a hit with no local row arises only for a remote-vector store held for the multi-store seam, whose hydration refuses such a hit, but not for one store, where an orphan vector or keyword posting is returned as a hit. The evidence reader had refused such a call although the same call with evidence off succeeds. It now reports the closed status `missing-local-row`, with no local identity invented, and the hits are unchanged. The first plan review's F001 had asked for exactly this. The reproduction before and after is kept in the run directory.
+- Gates: focused, governance and full, all recorded against the final product candidate.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+- Red witnesses: 11 scratch mutants outside the tree, 21 targeted leaf runs, each failing for its named reason. They cover execution embedding again, the dropped binding comparison, a preparation-time snapshot, evidence collected after the snapshot closes, evidence attached only when reranking applied, evidence stopping at the first damaged entry, a skipped input-digest check, both status-precedence reorderings, and an orphan row refusing or reporting an invented status.
+
+Wall-clock observations:
+- None material; the full gate dominated automated checks at about six minutes.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound):
+  - every existing single- and multi-store proof passes;
+  - each single-store entry point equals preparation followed by execution and the pre-seam interleaved retrieval as whole values, with the same provider calls, inputs and order, duplicate variants included;
+  - execution never embeds or expands, searches current rows, and refuses a changed identity, embedder selector, reranker or database presence before any vector query;
+  - with evidence on, results equal the evidence-off call on every return path, and verified fields equal the rows read before a second connection's concurrent commit;
+  - keyword-only search with evidence refuses before any provider call;
+  - one damaged entry per status, a local orphan posting included, carries that status alone with the hits unchanged; status precedence is pinned;
+  - evidence makes no added remote request, and a remote-vector store's hits are remote-only;
+  - both ordinary full gates.
+- Manual, parked for the operator and the consumer: whether the evidence contract and its stated limits meet the consumer's need.
+- Stated limits, not defects of this phase: evidence attests returned rows only; and a stored NaN vector that the vector query reaches makes the search fail with a `TypeError` before any evidence exists. That is an existing behavior of the unchanged retrieval code, recorded as a follow-up lesson.
+
+Delivery:
+- parked: complete-tree coupling. `./bin/deliver` binds the whole tree, and the shared estate, ledger and governance files hold Phases 26, 28, 29 and 30 and the uncommitted proof-manager correction, which funds this phase's admissions. The single route stands: one complete-tree delivery covering Phases 26, 28, 29, 30 and 31 and the methodology correction, after each closes truthfully and both full gates pass on that tree. No release, tag or pin belongs to this phase.
+
+Ripple (per `policies/phase-ripple.md`):
+- AUTO: none. No incomplete phase depends on or pins anything from this phase (`informs: []`).
+- DECIDE: none.
+
+Lessons:
+- filed (pending, written after this block): chubby-lion — read the code at its definition before disposing a finding as unreachable; scope local.
+- filed (pending, written after this block): rough-ringtail — edit appended JSONL rows by line, never by re-serializing the whole file; scope local. A whole-file round-trip had re-serialized six committed ledger rows; they were restored byte-exact before any gate.
+- filed (pending, written after this block): towering-dormouse — a NULL KNN distance fails retrieval with an unnamed TypeError; a follow-up for a phase that may change retrieval; scope local.
+- occurrences added: amusing-bug — the inventory grep it prescribes found the stale leaf-ratio oracle before the full gate (pending, written after this block).
+- graduation DECIDE: `./bin/lessons candidates` lists caped-bonobo (3), esoteric-hawk (8), ethereal-weasel (3) and lovely-cricket (3), each awaiting the operator's ratification.
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — a library seam proved by deterministic synthetic tests.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, the three lessons and one occurrence, the dashboard report, and the bare handoff gate.
+- Test protocol: skipped (reason: library seam enforced by automated gates).
+
+## 2026-11-11 17:21 — END (close bookkeeping)
+Phase 31 — Returned-hit evidence with prepared single- and multi-store search: close bookkeeping outcomes
+
+Execution trace: 8c7553f168de4d8aab67cf0229ee8536
+
+Applied after the accepted close: Phase 31 is ✅ in plan/INDEX.md (catalog check OK). Phases 26, 27, 28 and 29 remain 🚧 and are resumed by explicit selection, so no row is marked next. The three lessons and one occurrence pending in the END block are written and the ledger validates. `close --verify-handoff` reported no accepted prospective close to verify, which is expected for a major phase closed without a ledger-after binding. The dashboard report and the bare handoff gate follow this record. Delivery stays parked on the single complete-tree route recorded in the END block.
+
+Lessons:
+- filed: chubby-lion — read the code at its definition before disposing a finding as unreachable (local, 1 occurrence).
+- filed: rough-ringtail — edit appended JSONL rows by line, never by re-serializing the whole file (local, 1 occurrence).
+- filed: towering-dormouse — a NULL KNN distance fails retrieval with an unnamed TypeError (local, 1 occurrence).
+- occurrences added: amusing-bug (2 total) — Phase 31 inventory grep found the stale leaf-ratio oracle before the full gate.
+- graduation DECIDE (carried, unchanged): caped-bonobo (3), esoteric-hawk (8), ethereal-weasel (3) and lovely-cricket (3) meet the graduation threshold and await the operator's ratification; nothing graduated.
+
+## 2026-11-11 17:32 — START (resumed)
+Phase 26 — Native watcher readiness witnesses
+
+Execution trace: cb18b765582c406ca259bf7900ada9fc
+
+Resumes after the PARKs of traces b0da8c0302ce4d328cec8a87b2b575c9 (implementation gate failed after proven readiness) and 72ce6eef652e4faeb5feee47c1d20146 (alternate-qualification re-plan refused by the plan-growth guard). The awaited operator decision was given: the native watcher proofs left the ordinary gates for a mandatory macOS native release lane, implemented and closed by Phase 30. Root directed that this phase close ordinary delivery only after its own ordinary gates and required review, with native qualification explicitly pending, every earlier failed and diagnostic receipt retained, and the native assertions unchanged. This run captures the current authorities, including the Phase 30 governing prose, and carries the phase's plan review and code critique with their original identities; no further review pass is used. It changes no test, source, deadline or assertion.
+
+Planned work:
+- A fresh primary delta assessment of the current candidate against the carried reviewed candidate, with dispositions for every carried finding.
+- The ordinary acceptance gates (focused, governance and the full repository gate) against the current candidate; native qualification stays pending in the release lane.
+- A truthful close with the earlier failures cited and retained.
+
+## 2026-11-11 17:46 — END
+Phase 26 — Native watcher readiness witnesses
+
+Execution trace: cb18b765582c406ca259bf7900ada9fc
+
+Every positive native watcher proof now starts its deadline only after an ignored canary has been delivered by the native callback and dispatched by the handler, and on failure it reports which stage the target reached, whether it arrived late, and whether an overflow flag was seen, always re-raising the original assertion. The recovery proof's injected handler exception is armed after readiness, fires only for first.md and must be raised exactly once. This run resumed the phase after its two parks of traces b0da8c0302ce4d328cec8a87b2b575c9 (implementation gate failed after proven readiness) and 72ce6eef652e4faeb5feee47c1d20146 (alternate-qualification re-plan refused by the plan-growth guard). The awaited operator decision was given: the native watcher proofs left the ordinary gates for a mandatory macOS native release lane, implemented and closed by Phase 30. Root directed that this phase close ordinary delivery only after its own ordinary gates and required review, with native qualification explicitly pending, every earlier failed and diagnostic receipt retained, and the native assertions unchanged. This run changed no byte.
+
+Files changed (owned by this phase, unchanged in this run):
+- tests/reindex/test_server.py — the readiness barrier, failure-only stage diagnostics and classification, and the strengthened recovery proof. The current file is this phase's reviewed file plus Phase 28's reviewed diagnostics and Phase 30's native marker, verified by hash in this run: this phase's reviewed bytes are Phase 28's recorded base, and the current file with the marker change reverted hashes to Phase 28's reviewed final.
+- tests/proof-estate.yaml — contract and oracle text of eight existing families, at zero family and leaf growth.
+- plan/phase-26.md, plan/INDEX.md — the phase and its row.
+
+Build status:
+- Acceptance attempt 1 (product candidate c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3, manifest 3ed0a7ec5128d151663f32ba312457be14d30082c91c48f93872601e3c29ea0d): gate.focused FAILED, 1 failed and 35 passed in 47.65 s. The manifest named test paths explicitly, and `./bin/test` forwards explicit arguments to pytest unchanged, so the ten native watcher proofs ran inside this ordinary gate without a coordinator-confirmed slot. test_serve_with_real_sigterm failed its unchanged 5 s target deadline: joint classification native delivery observed; the ok.md native callback arrived 9.137 s after its write and completed 9.290 s after it, which is still a failure; emitter and observer were alive at both readings; no overflow or root-changed flag; the post-deadline canary arrived in 2.241 s; the watcher log was usable with no records. The other nine native proofs and every ordinary proof passed. Governance and the full gate were not run. The record, its review and its log are retained. This was a manifest-composition error by the orchestrator, not a product, test or deadline change.
+- Acceptance attempt 2 (same product candidate, successor manifest 0485da58c4443329ca50ab09993d60bc1d89363f5bea9e4e5c78002c66e8c1d7 superseding attempt 1, by the coordinator's direction; argv and collection verified before execution): focused OK (`./bin/test -m "not native" tests/reindex tests/test_test_governance.py`, 26 passed with 10 native deselected), governance OK (valid at 289 families and 325 leaves), ./bin/check all OK: lint, format, typecheck, 291 passed with 10 native deselected in 307.19 s, smoke and every policy check; receipt stored for full tree 807b0183b4382558fd14568c0fcf120f2021b4240150e6956cda9b4ac827bcde. Product and full-tree identities were unchanged across the gates. The only warnings are uv's identical notices that the evidence tool's inherited VIRTUAL_ENV was ignored, which are environmental.
+- Earlier failures, retained: trace b0da8c0302ce4d328cec8a87b2b575c9's two focused module runs (three and two native proofs failed after proven readiness), its passing gate.focused (10 proofs) and its failed gate.full (1 failed, 267 passed; the recovery proof's targets reached no native callback within the deadline or a further 10 s window); Phase 28's focused gate (late native delivery); and attempt 1 above.
+- Not run: `./bin/check native`. Native qualification of these proofs is pending in the release lane on the clean release candidate and qualifying host.
+- Handoff gate: one bare `./bin/check all` follows after all of this session's remaining close writes; completion is contingent on it.
+
+Review lane (per `policies/review-lanes.md`):
+- full
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- full cycle — resumed with the phase's plan review and code critique carried with their original identities; no further review pass, and no byte changed.
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus read-only, for reviewer and critic), consistent with the operator's Opus-only worker direction.
+- Planner: inline primary (opus), in the first run.
+- Reviewer (plan review): requested model=opus effort=default venue=claude, one pass in the first run, carried.
+- Coder: inline primary (opus), in the first run.
+- Critic (code review): requested model=opus effort=default venue=claude, one pass in the first run, carried.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- No role ran in this run; the carried passes are timed in trace b0da8c0302ce4d328cec8a87b2b575c9.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Makespan: 807.913 s; intelligence 0 s; gates 384.138 s; wait 0 s; retry or rework 335.770 s; failed work 48.368 s; unattributed 0.748 s (from `kickoff-evidence timing-summary`).
+- Awaiting user input: none (`execution-telemetry phase-summary --phase 26`: no intervals).
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3 (run init) carried-reviewed=327f1268d5885af5110269da4ca7c9b0fd2154f1fc0dc5a57c183f7b1933c0fd final=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3
+- Advisory findings: the plan review's 13, all adopted (one in modified form); the code critique's 6: 4 adopted, CODE-F005 deferred to the native criterion, CODE-F006 declined as optional.
+- Primary delta decision: every difference from the carried reviewed candidate belongs to other phases' own reviewed candidates (Phase 28's diagnostics, Phase 29's wording and proof, Phase 30's lane split, Phase 31's prepared search and evidence) or to the local proof-manager methodology correction; this phase's own bytes are intact.
+- Gates: attempt 1 failed as above; attempt 2 focused, governance and full, all recorded against the final product candidate.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+
+Wall-clock observations:
+- The full gate dominated at about five minutes; attempt 1 cost about one minute.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound): the barrier, diagnostics, classification and recovery strengthening exist as reviewed, with every assertion, deadline value and start point carried unchanged; the deterministic pipeline proofs and the governance validation pass; both ordinary full gates.
+- Pending, not met here: "Focused watcher module repeat runs" passing on this host. Native delivery after proven readiness was measured late or absent in every earlier failing run and again in attempt 1. Under the approved lane split that criterion belongs to native release qualification, which remains pending; no native failure is declared cured.
+- Fault controls: run in the first run as scratch controls outside the tree, each failing for its intended reason, and retained there.
+- Manual, parked for the operator: whether the two-second post-readiness deadline should stay a host-load-sensitive assertion. The lane split removed it from the ordinary gates; it is still asserted, unchanged, in the native lane, and any further judgment is the operator's.
+- Imprecision carried from the first run: the acceptance wording "measured from before the target write" does not describe the recovery and real-signal proofs, whose original start points are preserved.
+
+Delivery:
+- parked: the single complete-tree route. One `./bin/deliver` covers Phases 26, 27, 28, 29, 30 and 31 and the methodology correction after each closes truthfully and the final handoff gate passes on that tree. No release, tag or pin belongs to this phase.
+
+Ripple (per `policies/phase-ripple.md`):
+- AUTO: none. Phases 27, 28 and 30 depend on this phase and read its recorded outcome; no pinned value changes.
+- DECIDE: none.
+
+Lessons:
+- filed (pending, written after this block): dazzling-wallaby — read a lane wrapper's argument contract before composing a gate argv; scope local.
+- occurrences added (pending, written after this block): esoteric-hawk — attempt 1's late native delivery after proven readiness.
+- graduation DECIDE: `./bin/lessons candidates` lists caped-bonobo (3), esoteric-hawk (8 before this block), ethereal-weasel (3) and lovely-cricket (3), each awaiting the operator's ratification.
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — test-proof correction with no product surface.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, the lesson and occurrence, the dashboard report (deferred until the other phases' acceptances finish so they share one product candidate), and the shared bare handoff gate.
+- Native qualification pending in the release lane.
+
+## 2026-11-11 17:46 — END (close bookkeeping)
+Phase 26 — Native watcher readiness witnesses: close bookkeeping outcomes
+
+Execution trace: cb18b765582c406ca259bf7900ada9fc
+
+Applied after the accepted close: Phase 26 is ✅ in plan/INDEX.md (catalog check OK). Phases 27, 28 and 29 remain 🚧 and are resumed next by explicit selection, so no row is marked next. The lesson and occurrence pending in the END block are written and the ledger validates. `close --verify-handoff` reported no accepted prospective close to verify, as expected for a phase closed without a ledger-after binding. The dashboard report is deferred until the remaining phases' acceptance gates have run on the same product candidate; it and the shared bare handoff gate follow. Native qualification remains pending.
+
+Lessons:
+- filed: dazzling-wallaby — read a lane wrapper's argument contract before composing a gate argv (local, 1 occurrence).
+- occurrences added: esoteric-hawk (9 total) — attempt 1's real-signal proof target arrived natively 9.137 s after its write after proven readiness.
+- graduation DECIDE (carried, unchanged): caped-bonobo (3), esoteric-hawk (9), ethereal-weasel (3) and lovely-cricket (3) meet the graduation threshold and await the operator's ratification; nothing graduated.
+
+## 2026-11-11 17:47 — START (resumed)
+Phase 28 — Native watcher post-readiness diagnostics
+
+Execution trace: 2b0b6041544d44c8ae5c0a47777dc8be
+
+Resumes after the PARK of trace 9cc42205ff9c4815bc156ae3574f7fba (focused gate failed; the new diagnostics classified the failure as late native delivery). The awaited operator decisions were given: the native watcher proofs left the ordinary gates for a mandatory macOS native release lane, implemented and closed by Phase 30, and Phase 26 is closed. Root directed that this phase close ordinary delivery only after its own ordinary gates and required review, with native qualification explicitly pending, every earlier failed and diagnostic receipt retained, and the native assertions unchanged. This run captures the current authorities, including the Phase 30 governing prose, and carries the phase's plan review and code critique with their original identities; no further review pass is used. It changes no test, source, deadline or assertion.
+
+Planned work:
+- A fresh primary delta assessment of the current candidate against the carried reviewed candidate, with dispositions for every carried finding.
+- The ordinary acceptance gates (focused on the ordinary lane, governance and the full repository gate) against the current candidate; native qualification stays pending in the release lane.
+- A truthful close with the earlier failure cited and retained.
+
+## 2026-11-11 17:53 — END
+Phase 28 — Native watcher post-readiness diagnostics
+
+Execution trace: 2b0b6041544d44c8ae5c0a47777dc8be
+
+When a positive native watcher proof misses its deadline, it now reports the original callback's return or raised exception, records from watchdog's own fsevents logger with a usability check, complete flag words and per-window root-changed counts, enter and return marks for every workload write, emitter and observer liveness read at the failure and again after a bounded post-deadline canary, and one joint classification that is indeterminate whenever an input is missing. The original failure is always re-raised, and on success nothing extra runs. This run resumed the phase after its PARK of trace 9cc42205ff9c4815bc156ae3574f7fba (focused gate failed; classified as late native delivery). The awaited operator decisions were given: the native watcher proofs left the ordinary gates for a mandatory macOS native release lane, implemented and closed by Phase 30, and Phase 26, on which this increment builds, is closed. Root directed that this phase close ordinary delivery only after its own ordinary gates and required review, with native qualification explicitly pending, every earlier failed and diagnostic receipt retained, and the native assertions unchanged. This run changed no byte.
+
+Files changed (owned by this phase, unchanged in this run):
+- tests/reindex/test_server.py — the failure-only diagnostics on top of Phase 26's barrier. The current file with Phase 30's native marker reverted hashes to this phase's reviewed final, verified in the Phase 26 close run.
+- tests/proof-estate.yaml — the five classified oracle lines, at zero family and leaf growth.
+- plan/phase-28.md, plan/INDEX.md — the phase and its row.
+
+Build status:
+- Acceptance attempt 1 (product candidate c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3, manifest 5aba3f7e31674fb1d9c0bb87bc6cfc136d35bb5deabe562561a339fa722704f3; argv and collection verified before execution): focused OK (`./bin/test -m "not native" tests/reindex tests/test_test_governance.py`, 26 passed with 10 native deselected), governance OK (valid at 289 families and 325 leaves), ./bin/check all OK: lint, format, typecheck, 291 passed with 10 native deselected in 227.86 s, smoke and every policy check; receipt stored for full tree 6c04b229b56f532ff50481f14c18f3178db934b4481f4c626c4cf60b06dcd388. Product and full-tree identities were unchanged across the gates. The only warnings are uv's identical notices that the evidence tool's inherited VIRTUAL_ENV was ignored, which are environmental.
+- Earlier failure, retained: trace 9cc42205ff9c4815bc156ae3574f7fba's coordinator-slotted gate.focused, 1 failed and 9 passed: test_serve_emits_jsonl_line_within_two_seconds_of_touch, joint classification native delivery observed, the target's native callback 6.050 s after its write. Its six scratch fault controls each failed with the expected joint line and are retained in that run. The Phase 26 close run's attempt 1 also exercised these diagnostics and classified its failure as native delivery observed.
+- Not run: `./bin/check native`. Native qualification is pending in the release lane on the clean release candidate and qualifying host.
+- Handoff gate: one bare `./bin/check all` follows after all of this session's remaining close writes; completion is contingent on it.
+
+Review lane (per `policies/review-lanes.md`):
+- full
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- full cycle — resumed with the phase's plan review and code critique carried with their original identities; no further review pass, and no byte changed.
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus read-only, for reviewer and critic), consistent with the operator's Opus-only worker direction.
+- Planner: inline primary (opus), in the first run.
+- Reviewer (plan review): requested model=opus effort=default venue=claude, one pass in the first run, carried.
+- Coder: inline primary (opus), in the first run.
+- Critic (code review): requested model=opus effort=default venue=claude, one pass in the first run, carried.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- No role ran in this run; the carried passes are timed in trace 9cc42205ff9c4815bc156ae3574f7fba.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Makespan: 323.795 s; intelligence 0 s; gates 258.846 s; wait 0 s; retry or rework 0 s; failed work 0 s; unattributed 0.693 s (from `kickoff-evidence timing-summary`).
+- Awaiting user input: none (`execution-telemetry phase-summary --phase 28`: no intervals).
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3 (run init) carried-reviewed=877dfd5546c3f92becf2143ae70039f7eddf25565dfa3b7e1b9f697f808b29e4 final=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3
+- Advisory findings: the plan review's 10, all adopted (one in part); the code critique's 5, all adopted (one as a stated limit).
+- Primary delta decision: every difference from the carried reviewed candidate belongs to other phases' own reviewed candidates (Phase 29's wording and proof, Phase 30's lane split, Phase 31's prepared search and evidence) or to the local proof-manager methodology correction; this phase's own bytes are intact.
+- Gates: focused, governance and full, all recorded against the final product candidate.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+
+Wall-clock observations:
+- None material; the full gate dominated at under four minutes.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound): every assertion, deadline value and start point and every workload write position unchanged from the Phase 26 base (79 of 79 checked lines in the first run); no extra wait or write on success and no new collected test; governance valid with no growth; both ordinary full gates.
+- Fault controls: run in the first run in a coordinator-confirmed slot, outside the tree, each failing with the expected joint classification; the rows that rest on a synthetic check and code review only are stated there.
+- Pending, not met here: the coordinator-slotted focused watcher-module run, which failed once with late native delivery and parked the phase as its criterion required. Under the approved lane split it belongs to native release qualification, which remains pending; no native failure is declared cured.
+- Manual, parked for the operator: what the late-delivery classification means for the qualification decisions; the operator's lane split answered the qualification route, and any further reading of the classification is the operator's.
+
+Delivery:
+- parked: the single complete-tree route. One `./bin/deliver` covers Phases 26, 27, 28, 29, 30 and 31 and the methodology correction after each closes truthfully and the final handoff gate passes on that tree. No release, tag or pin belongs to this phase.
+
+Ripple (per `policies/phase-ripple.md`):
+- AUTO: none (`informs: []`; Phase 30 already reads this phase's diagnostics).
+- DECIDE: none.
+
+Lessons:
+- none new. The late native delivery is already recorded under esoteric-hawk.
+- graduation DECIDE: `./bin/lessons candidates` lists caped-bonobo (3), esoteric-hawk (9), ethereal-weasel (3) and lovely-cricket (3), each awaiting the operator's ratification.
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — test diagnostics with no product surface.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, the dashboard report (deferred until the other phases' acceptances finish so they share one product candidate), and the shared bare handoff gate.
+- Native qualification pending in the release lane.
+
+## 2026-11-11 17:53 — END (close bookkeeping)
+Phase 28 — Native watcher post-readiness diagnostics: close bookkeeping outcomes
+
+Execution trace: 2b0b6041544d44c8ae5c0a47777dc8be
+
+Applied after the accepted close: Phase 28 is ✅ in plan/INDEX.md (catalog check OK). Phases 27 and 29 remain 🚧 and are resumed next by explicit selection, so no row is marked next. No lesson write was pending. `close --verify-handoff` reported no accepted prospective close to verify, as expected for a phase closed without a ledger-after binding. The dashboard report is deferred until the remaining phases' acceptance gates have run on the same product candidate; it and the shared bare handoff gate follow. Native qualification remains pending.
+
+Lessons:
+- none — no new observation; the late native delivery is recorded under esoteric-hawk.
+- graduation DECIDE (carried, unchanged): caped-bonobo (3), esoteric-hawk (9), ethereal-weasel (3) and lovely-cricket (3) await the operator's ratification; nothing graduated.
+
+## 2026-11-11 17:54 — START (resumed)
+Phase 29 — Generic operator wording in source and operations docs
+
+Execution trace: 23227c86bad242a58050dbb557b95f38
+
+Resumes after the PARK of trace 206a97893d3d4ba48e413ada967fda0e (implemented and independently reviewed; aggregate gate and delivery held for an operator custody decision). The decision was given: one complete-tree delivery covers Phases 26 to 31 and the local proof-manager methodology correction, after each closes truthfully and the final handoff gate passes on that tree, and the native watcher proofs now run only in the mandatory macOS native release lane (Phase 30). Phases 26 and 28 are closed. This run captures the current authorities, including the Phase 30 governing prose, and carries the phase's two plan-review passes and code critique with their original identities; no further review pass is used. It changes no byte.
+
+Planned work:
+- A fresh primary delta assessment of the current candidate against the carried reviewed candidate, with dispositions for every carried finding, and a fresh name-search audit.
+- The implementation-candidate acceptance gates (focused consolidate, governance and hermeticity tests, governance validation and the full repository gate) against the current candidate.
+- A truthful close.
+
+## 2026-11-11 18:01 — END
+Phase 29 — Generic operator wording in source and operations docs
+
+Execution trace: 23227c86bad242a58050dbb557b95f38
+
+Runtime docstrings, comments, the package and CLI description, one help string, the capture, index and reindex operations READMEs, the hooks guide and one smoke-script comment now describe the person running Palace as the operator or user, with no personal name, gendered pronoun or travel and laptop detail. Timezone, path and other configured values are unchanged. The consolidator's extraction system prompt now asks for durable facts about the user, their projects or their decisions; that is the phase's only behavior change, deliberate and owner-authorized, proved by a synthetic test that drives the real client through an injected mock transport and fails against the pre-phase prompt. This run resumed the phase after its PARK of trace 206a97893d3d4ba48e413ada967fda0e (implemented and independently reviewed; aggregate gate and delivery held for an operator custody decision). The decision was given: one complete-tree delivery covers Phases 26 to 31 and the local proof-manager methodology correction, and the native watcher proofs run only in the mandatory macOS native release lane. This run changed no byte.
+
+Files changed (owned by this phase, unchanged in this run):
+- palace/__init__.py, palace/cli.py, palace/consolidate/{cli,config,contradictions,dreams,extract,llm,pipeline,scoring,sources}.py, palace/daemons/capture/server.py, palace/index/config.py, palace/retrieval_config.py — wording; the extraction prompt in palace/consolidate/llm.py.
+- daemons/capture/README.md, daemons/capture/HOOKS.md, daemons/index/README.md, daemons/reindex/README.md, palace/watch/README.md, bin/palace-scaffold-vault-smoke — wording.
+- tests/consolidate/test_llm.py (new) — the prompt proof.
+- tests/proof-estate.yaml, reports/test-governance/palace-reset.jsonl, tests/test_test_governance.py — its admission under a named one-family, one-leaf owner budget with no retirement, and the governance counts.
+- plan/phase-29.md, plan/INDEX.md — the phase and its row.
+
+Build status:
+- Acceptance attempt 1 (product candidate c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3, manifest 9779fd9df7eb201ac15cc3b7359f5970624fbd63a70176f32186dd67f164cf6a; argv and collection verified before execution): focused OK (`./bin/test -m "not native" tests/consolidate tests/test_test_governance.py tests/test_hermeticity.py`, 35 passed), governance OK (valid at 289 families and 325 leaves), ./bin/check all OK: lint, format, typecheck, 291 passed with 10 native deselected in 274.26 s, smoke and every policy check; receipt stored for full tree 4dcd0c173aaf7f836389bad2e51cd095b62001879e962188ba92740033016f6d. Product and full-tree identities were unchanged across the gates. The only warnings are uv's identical notices that the evidence tool's inherited VIRTUAL_ENV was ignored, which are environmental.
+- Earlier, retained: the first run's focused checks (consolidate, governance and hermeticity tests, lint, format, typecheck, estate validation, catalogs) and its red witness against the pre-phase prompt; its policy check refused a stale execution dashboard inherited from earlier parks, since repaired.
+- Handoff gate: one bare `./bin/check all` follows after all of this session's remaining close writes; completion is contingent on it.
+
+Review lane (per `policies/review-lanes.md`):
+- full
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- full cycle — resumed with the phase's two plan-review passes and code critique carried with their original identities; no further review pass, and no byte changed.
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus read-only, for reviewer and critic), consistent with the operator's Opus-only worker direction.
+- Planner: inline primary (opus), in the first run.
+- Reviewer (plan review): requested model=opus effort=default venue=claude, two passes in the first run (the first refused at ingest for one non-relative path and re-emitted as an authorized artifact-only correction), carried.
+- Coder: inline primary (opus), in the first run.
+- Critic (code review): requested model=opus effort=default venue=claude, one pass in the first run, carried.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- No role ran in this run; the carried passes are timed in trace 206a97893d3d4ba48e413ada967fda0e.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Makespan: 416.878 s; intelligence 0 s; gates 317.224 s; wait 0 s; retry or rework 0 s; failed work 0 s; unattributed 0.763 s (from `kickoff-evidence timing-summary`).
+- Awaiting user input: none (`execution-telemetry phase-summary --phase 29`: no intervals).
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3 (run init) carried-reviewed=e222744afd7116d754a4ca93326f036558c8e436ac45bc283fe803e5ee11624f final=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3
+- Advisory findings: the plan review's 10, 8 adopted, 1 adopted in the methodology correction and 1 declined; the code critique's 5, 3 adopted, 1 adopted in part and 1 declined; no correctness defect.
+- Primary delta decision: a per-path comparison of the carried and final candidate manifests finds 37 differing paths, none changed only by this phase; they belong to Phases 26, 28, 30 and 31, their generated reports, and shared estate, ledger and governance-count files to which this phase's rows and counts are carried. A fresh name-search audit matches the first run's recorded audit file for file; the only extra hit, docs/reference/LICENSE-conric.txt, is a license file the criterion excludes.
+- Gates: focused, governance and full, all recorded against the final product candidate.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+
+Wall-clock observations:
+- None material; the full gate dominated at under five minutes.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound): the name search finds the author's personal name only in the retained classes (authorship credit, maintainer contact, dependency URLs, the random user-action slug, and the deferred governing prose and helper identifier); the prompt proof fails against the pre-phase prompt and passes now with no outbound request; lint, format, typecheck and the focused consolidate tests pass; governance validates with the admission and its approved budget and no unrelated retirement; no configured value, default, schema, CLI option name or file format changed; the full-gate and delivery path was reported to the coordinator before the aggregate gate; both ordinary full gates.
+- Manual, parked for the operator: whether the generic wording reads well.
+- Named follow-ons, not done here: the governing prose in policies and briefs together with the rename of the sessions authored-predicate helper, and whether the fixed day-partition timezone becomes a declared store convention.
+
+Delivery:
+- parked: the single complete-tree route. One `./bin/deliver` covers Phases 26, 27, 28, 29, 30 and 31 and the methodology correction after each closes truthfully and the final handoff gate passes on that tree. No release, tag or pin belongs to this phase.
+
+Ripple (per `policies/phase-ripple.md`):
+- AUTO: none (`informs: []`).
+- DECIDE: none.
+
+Lessons:
+- none new.
+- graduation DECIDE: `./bin/lessons candidates` lists caped-bonobo (3), esoteric-hawk (9), ethereal-weasel (3) and lovely-cricket (3), each awaiting the operator's ratification.
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — wording and one prompt string, with no new product surface.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, the dashboard report (deferred until Phase 27's acceptance finishes on the same product candidate), and the shared bare handoff gate.
+
+## 2026-11-11 18:01 — END (close bookkeeping)
+Phase 29 — Generic operator wording in source and operations docs: close bookkeeping outcomes
+
+Execution trace: 23227c86bad242a58050dbb557b95f38
+
+Applied after the accepted close: Phase 29 is ✅ in plan/INDEX.md (catalog check OK). Phase 27 remains 🚧 and is resumed next by explicit selection, so no row is marked next. No lesson write was pending. `close --verify-handoff` reported no accepted prospective close to verify, as expected for a phase closed without a ledger-after binding. The dashboard report is deferred until Phase 27's acceptance gates have run on the same product candidate; it and the shared bare handoff gate follow.
+
+Lessons:
+- none — no new observation.
+- graduation DECIDE (carried, unchanged): caped-bonobo (3), esoteric-hawk (9), ethereal-weasel (3) and lovely-cricket (3) await the operator's ratification; nothing graduated.
+
+## 2026-11-11 18:02 — START (resumed)
+Phase 27 — Native watcher qualification design
+
+Execution trace: 65efa44ae89b406db68afd3db994d48a
+
+Resumes after the PARK of trace 05a85e42ddcc4a7dada954196bfeb70a (reviewed design awaiting the operator's decision) to record a truthful design close. The operator decided: the split by obligation (deterministic default-lane pipeline proofs plus a required macOS native-qualification lane) was approved and implemented and closed by Phase 30, after the failure-only diagnostic increment of Phase 28; no cross-host substitution; and no permanent veto on a failed native run, with release requiring a fresh passing native receipt for the exact clean candidate and host. Root confirmed a transparent no-product-change design close. This run carries the phase's plan-review passes and primary dispositions with their original identities, adds no review and changes no byte. It uses the evidence tool's no-role follow-up route because the phase produced no code to critique.
+
+Planned work:
+- A primary decision recording the carried plan-review dispositions and the operator's rulings, with no new product bytes.
+- Present closure validation through the ordinary acceptance gates of the final implementation, which Phase 30 delivered; the original design work ran no test, and these gates do not stand in for that criterion.
+- A truthful design close; native release qualification stays pending.
+
+## 2026-11-11 18:09 — END
+Phase 27 — Native watcher qualification design
+
+Execution trace: 65efa44ae89b406db68afd3db994d48a
+
+This design-only phase produced, in trace 05a85e42ddcc4a7dada954196bfeb70a, a qualification-policy design for the native watcher proofs (sha256 ca7921076c0f5c2162c58dbf123905875b71566975ce7c9ba6d3509d10be9298), an independent plan review and a decision addendum, then parked for the operator. The operator decided, and the design's outcome is fulfilled: a failure-only diagnostic increment (Phase 28), then a split by obligation, with deterministic default-lane pipeline proofs on every platform and a required macOS native-qualification lane whose release verification refuses unless the newest native attempt for the exact clean candidate and host passed (Phase 30). This run records that close. It changed no byte: the phase's only tracked files are this phase file, its INDEX row and the log. It is not a release or native-qualification claim.
+
+Files changed:
+- plan/phase-27.md, plan/INDEX.md — the phase and its row. No other tracked file belongs to this phase.
+
+Build status:
+- Historical design work (trace 05a85e42ddcc4a7dada954196bfeb70a): ran no test and changed no tracked file other than the phase file, its INDEX row and the log, as its acceptance required.
+- Present closure validation (product candidate c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3, manifest 5aba3f7e31674fb1d9c0bb87bc6cfc136d35bb5deabe562561a339fa722704f3; argv and collection verified before execution): focused OK (`./bin/test -m "not native" tests/reindex tests/test_test_governance.py`, 26 passed with 10 native deselected: the deterministic pipeline proofs that implement the recommended option), governance OK (valid at 289 families and 325 leaves), ./bin/check all OK: lint, format, typecheck, 291 passed with 10 native deselected in 274.23 s, smoke and every policy check; receipt stored for full tree 01f96abd002d9e626dea2fb80a345b91b3e5559d2fe77cd095603f06ce5dcbfb. Product and full-tree identities were unchanged across the gates. The only warnings are uv's identical notices that the evidence tool's inherited VIRTUAL_ENV was ignored, which are environmental. These gates validate the final implementation delivered by Phase 30; they are not offered as satisfying the original design's no-tests criterion, which described the design work and held then.
+- Not run: `./bin/check native`; native release qualification is mandatory and pending.
+- Handoff gate: one bare `./bin/check all` follows after all of this session's remaining close writes; completion is contingent on it.
+
+Review lane (per `policies/review-lanes.md`):
+- full (plan review only; the phase produced no code)
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- direct fix — used as the evidence tool's no-role route for a design close with no product change, as root confirmed; it is not a code correction. The full-cycle and initial routes require a code critique, and this phase produced no code to critique, so no review was fabricated and no pass was added.
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (claude --model opus read-only), consistent with the operator's Opus-only worker direction.
+- Planner: inline primary (opus), in the first run.
+- Reviewer (plan review): requested model=opus effort=default venue=claude, two attempts in the first run: attempt 1 (12 findings, 4 high) was refused at ingest for citing the out-of-tree plan artifact and is preserved unchanged and not ingested; attempt 2 (reexecution, recorded cause; 11 findings, 2 high) is ingested and carried.
+- Coder and critic: none; the phase produced no code.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- No role ran in this run; the carried passes are timed in trace 05a85e42ddcc4a7dada954196bfeb70a.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- Makespan: 398.535 s; intelligence 0 s; gates 302.696 s; wait 0 s; retry or rework 0 s; failed work 0 s; unattributed 0.886 s (from `kickoff-evidence timing-summary`).
+- Awaiting user input: one decision interval, opened 2026-11-11T19:02:17Z and closed 2026-11-12T01:09:19Z, 22022.039 s exact monotonic (`execution-telemetry phase-summary --phase 27`). It was closed after this run's acceptance gates rather than before resuming phase work, as the recovery resource directs; the interval's end therefore overstates the wait by this run's duration.
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3 (run init) final=c86b9adf1fb5576c4a987afe4d6f2b53b4b4ca117b3cf528595f00d47c578af3; the reviewed design is identified by its plan sha256 above.
+- Advisory findings: attempt 2's 11, all adopted as stated corrections and requirements in the decision addendum; attempt 1's four high findings carried into it at high severity.
+- Operator rulings: D-1 the split by obligation after the diagnostic increment; D-2 no cross-host substitution; D-3 the proof budget as Phase 30's named budget; D-4 Phase 26 closed with native qualification pending; D-5 the amended full-retained-estate clauses, landed in Phase 30's governing prose; D-6 no permanent veto on a failed native run, every failure retained, release requiring a fresh passing native receipt for the exact clean candidate and host.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+
+Wall-clock observations:
+- None material.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Design criteria, met in the first run and reviewed: every failure observation stated with its candidate identity and mechanism limits, with no unproved operating-system causal claim; every native-only pipeline obligation given an unconditional proof route in the recommended option or named as lost; fail-closed native release enforcement naming its trigger, receipt and refusal; one independent advisory plan review recorded with primary dispositions; no other tracked file changed and no test ran during the design work.
+- Manual, decided by the operator: the option and every listed decision, recorded above.
+- Not claimed: native qualification, which remains mandatory before any release.
+
+Delivery:
+- parked: the single complete-tree route. One `./bin/deliver` covers Phases 26, 27, 28, 29, 30 and 31 and the methodology correction after the final handoff gate passes on that tree. No release, tag or pin belongs to this phase.
+
+Ripple (per `policies/phase-ripple.md`):
+- AUTO: none (`informs: []`).
+- DECIDE: none.
+
+Lessons:
+- occurrences added (pending, written after this block): precious-kangaroo — the open decision interval was closed after the resumed run's gates instead of before resuming, because the recovery resource's park-close step was not re-read at resume.
+- graduation DECIDE: `./bin/lessons candidates` lists caped-bonobo (3), esoteric-hawk (9), ethereal-weasel (3) and lovely-cricket (3), each awaiting the operator's ratification.
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — design proposal with no product surface.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, the lesson occurrence, the dashboard reports, the methodology-correction record and the shared bare handoff gate.
+- Native qualification pending in the release lane.
+
+## 2026-11-11 18:10 — END (close bookkeeping)
+Phase 27 — Native watcher qualification design: close bookkeeping outcomes
+
+Execution trace: 65efa44ae89b406db68afd3db994d48a
+
+Applied after the accepted close: Phase 27 is ✅ in plan/INDEX.md (catalog check OK). No phase in plan/INDEX.md remains incomplete, so no row is marked next. The lesson occurrence pending in the END block is written and the ledger validates. `close --verify-handoff` reported no accepted prospective close to verify, as expected for a phase closed without a ledger-after binding. The deferred dashboard reports for Phases 26, 27, 28 and 29, the methodology-correction record and the shared bare handoff gate follow. Native qualification remains pending.
+
+Lessons:
+- occurrences added: precious-kangaroo (3 total) — the decision interval was closed late at this resume.
+- graduation DECIDE: precious-kangaroo (3) now meets the graduation threshold, joining caped-bonobo (3), esoteric-hawk (9), ethereal-weasel (3) and lovely-cricket (3); each awaits the operator's ratification; nothing graduated.
+
+## 2026-11-11 18:10 — METHODOLOGY — Budget-funded proof admission
+
+Scope: Bounded local correction of the proof-estate manager so it conforms to the existing written rule in policies/test-suite-governance.md that a new proof is funded by either a named approved positive budget or a compensating retirement, as declared in the METHODOLOGY SCOPE block of 2026-11-11 13:39. Authorized by the owner's ruling through the factotum.
+
+Files changed:
+- lib/agentic_starter/test_governance.py — admission replay and validation report: an admission row with a null compensating retirement is funded by the approved budget only when `budget_approval` is named and non-blank and both the family and leaf budgets are positive; each funded admission consumes one family unit and its own leaves exactly once; admissions beyond the approved budget refuse; an unfunded admission with no approval keeps the original refusal. Retirement-funded admissions, count caps, leaf caps and every other check are unchanged.
+- tests/test_test_governance.py — the existing family `test_positive_growth_requires_named_approval`, extended in place; tests/proof-estate.yaml — its contract and oracle text. Later phases' inventory counts in the same test file belong to those phases.
+
+Verification:
+- Red witnesses (scratch, outside the tree): the extended test failed against the original manager with its original refusal, and against the first, looser version of the fix.
+- One independent advisory review of the fix, requested by the coordinator, found that the budget was charged per test function instead of per test case; corrected and re-witnessed. Phase 29's independent code critique then covered the final bytes, with no correctness finding against them. The methodology route itself requires no independent review; these are recorded because they ran.
+- Every full gate in this session exercised the final bytes: Phase 30's and Phase 31's acceptance and handoff gates and the acceptance gates of Phases 26, 27, 28 and 29, each `./bin/check all` passing with the proof estate valid; the shared bare handoff gate follows this record.
+
+Remaining: none for the operator beyond ordinary review of the rule's wording; delivery rides the single complete-tree route with Phases 26 to 31. No policy, brief, skill or upstream template changed.

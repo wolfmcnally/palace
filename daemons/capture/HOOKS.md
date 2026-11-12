@@ -116,7 +116,7 @@ If Claude Code invoked a subagent during the session, the same session file will
 
 ## Known properties
 
-- **Loopback only.** The daemon binds `127.0.0.1` only; both hooks post to `127.0.0.1`. No cloud egress, per `policies/local-first.md`. Any local process on the laptop can POST to the daemon — for palace's single-user threat model that's correct, but worth re-opening if palace ever runs for a non-interactive user.
+- **Loopback only.** The daemon binds `127.0.0.1` only; both hooks post to `127.0.0.1`. No cloud egress, per `policies/local-first.md`. Any local process on the host can POST to the daemon — for palace's single-user threat model that's correct, but worth re-opening if palace ever runs for a non-interactive user.
 - **No daemon authentication.** Same threat-model context as loopback-only. Re-open if multi-user.
 - **Append-only.** The daemon writes; the hooks never touch `sessions/` directly. The hook log is also append-only.
 - **Greenfield.** A stale palace entry under either `hooks.Stop` / `hooks.SubagentStop` (Claude Code) or `[[hooks.Stop]]` (Codex) is replaced in place, not migrated.

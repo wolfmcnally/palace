@@ -12,8 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 0
-  leaves: 0
+  families: 18
+  leaves: 35
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once."
 critical_risks:
   custody:
     state: applicable
@@ -2323,9 +2324,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve and bootstrap can share events log.
+  contract: After native readiness, daemon and bootstrap append to one events log whose every line parses and which contains at least one bootstrap event.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately with the probe's stage observations.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2343,9 +2344,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Exact target is fsynced within one two-second deadline measured before the write; historical watch-root replay cannot satisfy or extend it.
+  contract: After native readiness, the exact target is fsynced within one two-second deadline measured before the write; historical watch-root replay cannot satisfy or extend it.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2363,9 +2364,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve emits no line for dotfile change.
+  contract: After native readiness, a dotfile change produces no events record within one second and the daemon exits cleanly.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately with the probe's stage observations.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2383,9 +2384,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve emits no line for gitignored change.
+  contract: After native readiness, a gitignored change produces no events record within one second and the daemon exits cleanly.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately with the probe's stage observations.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2403,9 +2404,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Executable proof for test serve recovers from one observer callback exception.
+  contract: A handler exception armed only after native readiness is raised exactly once, by the first workload write; the daemon survives and the later exact target is recorded within five seconds measured after the existing pauses.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2423,9 +2424,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Exact native target enters the accumulator within two seconds; held test clock prevents ordinary polling, and shutdown persists the pending event. Historical selector uses the shutdown-event seam, not a process signal.
+  contract: After native readiness, the exact native target enters the accumulator within two seconds measured before the write; held test clock prevents ordinary polling, and shutdown persists the pending event. Historical selector uses the shutdown-event seam, not a process signal.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2443,9 +2444,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Missing root is refused and the exact live-root target is observed within two seconds; unrelated log lines cannot satisfy the witness.
+  contract: Missing root is refused and, after native readiness, the exact live-root target is observed within two seconds measured before the write; unrelated log lines cannot satisfy the witness.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2465,7 +2466,7 @@ families:
   - palace/reindex/**
   contract: Executable proof for test serve with all roots missing idles until signal.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2485,7 +2486,7 @@ families:
   - palace/reindex/**
   contract: Executable proof for test serve with empty config idles until signal.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2503,9 +2504,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Native stream registration, observed file delivery and clean shutdown-event exit; historical selector does not assert process-signal coverage.
+  contract: End-to-end native readiness replaces the registration-return proxy; the exact target is delivered within five seconds measured after the write, and the shutdown-event exit is clean. Historical selector does not assert process-signal coverage.
   risk_class: watching
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -4917,9 +4918,9 @@ families:
   - .claude/**
   - policies/**
   - briefs/**
-  contract: Executable proof for test positive growth requires named approval.
+  contract: Positive growth requires a named, non-blank approval. An admission row with no compensating retirement refuses without such an approval or with no leaf budget, and otherwise consumes one approved leaf unit, so each unit funds exactly one admitted leaf, including each leaf of a parametrized family; admissions beyond the leaf budget refuse, and family growth stays bounded by the family cap.
   risk_class: methodology
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Validation of the live estate with the manifest and named ledger admission rows rewritten in memory, matching each refusal message and the reported count of budget-funded admissions for single-leaf and four-leaf parametrized cases.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -5990,3 +5991,402 @@ families:
   flake_rate: 0.0
   replacement_lineage:
   - pytest:tests/index/test_core.py::test_delete_path_keys_on_relative_path
+- id: consolidation-extraction-prompt
+  kind: pytest
+  selectors:
+  - tests/consolidate/test_llm.py::test_extraction_prompt_targets_the_user_generically
+  source_paths:
+  - tests/consolidate/test_llm.py
+  covers:
+  - tests/consolidate/test_llm.py
+  - palace/consolidate/llm.py
+  contract: The consolidator's Ollama extraction request carries a system prompt that asks for durable facts about the user, their projects or their decisions and excludes transient task chatter, with no personal name.
+  risk_class: consolidation
+  oracle: An injected in-process httpx.MockTransport records the single POST to the synthetic base URL's /api/chat; the decoded first message must equal the full expected system prompt exactly, and the parsed result must be empty.
+  admission: Phase 29 budget-funded admission under the named owner approval; no retirement.
+  nearest_overlap: No retained proof constructs the Ollama client; the consolidate suite's fake LLM never sees the prompt. The reset deleted six earlier parsing, scoring, contradiction and probe-error proofs in a file of the same name; none asserted the system prompt.
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reindex-pipeline-exact-target
+  kind: pytest
+  selectors:
+  - tests/reindex/test_pipeline.py::test_pipeline_records_the_exact_target
+  source_paths:
+  - tests/reindex/test_pipeline.py
+  covers:
+  - tests/reindex/test_pipeline.py
+  - tests/reindex/conftest.py
+  - palace/reindex/**
+  contract: "One injected created event for a real file passes through serve, build_observer, the handler, debouncer and writer and yields exactly one fsynced record whose relative path, change kind, watch root and path are the target's, and whose id equals build_change_event recomputed from the record's own fields; serve returns 0."
+  risk_class: watching
+  oracle: "The parsed events log has one record; field equalities and the independent id recomputation hold."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The native test_server family proves the same stage against real FSEvents on macOS only and is release-lane; this deterministic proof runs on every platform in the ordinary gate with only the native emitter replaced."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reindex-pipeline-ignored-drops
+  kind: pytest
+  selectors:
+  - tests/reindex/test_pipeline.py::test_pipeline_drops_ignored_changes
+  source_paths:
+  - tests/reindex/test_pipeline.py
+  covers:
+  - tests/reindex/test_pipeline.py
+  - tests/reindex/conftest.py
+  - palace/reindex/**
+  contract: "A dotfile change, a gitignored change, or an event for the watch root itself produces no record, while a later sentinel target is recorded; FIFO dispatch makes the sentinel the drain barrier."
+  risk_class: watching
+  oracle: "The events log holds exactly the sentinel record."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The native test_server family proves the same stage against real FSEvents on macOS only and is release-lane; this deterministic proof runs on every platform in the ordinary gate with only the native emitter replaced."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reindex-pipeline-handler-exception
+  kind: pytest
+  selectors:
+  - tests/reindex/test_pipeline.py::test_pipeline_survives_one_handler_exception
+  source_paths:
+  - tests/reindex/test_pipeline.py
+  covers:
+  - tests/reindex/test_pipeline.py
+  - tests/reindex/conftest.py
+  - palace/reindex/**
+  contract: "A handler exception raised once for the first change is logged exactly once and the observer keeps dispatching: the second change is recorded and serve returns 0."
+  risk_class: watching
+  oracle: "One raise observed, one handler-failed stderr line, and the events log holds only the second change."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The native test_server family proves the same stage against real FSEvents on macOS only and is release-lane; this deterministic proof runs on every platform in the ordinary gate with only the native emitter replaced."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reindex-pipeline-shutdown-flush
+  kind: pytest
+  selectors:
+  - tests/reindex/test_pipeline.py::test_pipeline_shutdown_flush_persists_a_pending_event
+  source_paths:
+  - tests/reindex/test_pipeline.py
+  covers:
+  - tests/reindex/test_pipeline.py
+  - tests/reindex/conftest.py
+  - palace/reindex/**
+  contract: "With the debouncer clock held so polling never emits, a change that reached submit is persisted exactly once by shutdown."
+  risk_class: watching
+  oracle: "No record before shutdown; after shutdown the log holds exactly the pending modified record."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The native test_server family proves the same stage against real FSEvents on macOS only and is release-lane; this deterministic proof runs on every platform in the ordinary gate with only the native emitter replaced."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reindex-pipeline-missing-root
+  kind: pytest
+  selectors:
+  - tests/reindex/test_pipeline.py::test_pipeline_skips_a_missing_root_and_observes_the_live_root
+  source_paths:
+  - tests/reindex/test_pipeline.py
+  covers:
+  - tests/reindex/test_pipeline.py
+  - tests/reindex/conftest.py
+  - palace/reindex/**
+  contract: "A configured root missing on disk is skipped with an operator-visible skip-root line, and the live root's target is recorded."
+  risk_class: watching
+  oracle: "Captured stderr carries the exact skip-root line and observing 1 roots; the log holds the live target only."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The native test_server family proves the same stage against real FSEvents on macOS only and is release-lane; this deterministic proof runs on every platform in the ordinary gate with only the native emitter replaced."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reindex-pipeline-shared-log
+  kind: pytest
+  selectors:
+  - tests/reindex/test_pipeline.py::test_pipeline_and_bootstrap_share_one_events_log
+  source_paths:
+  - tests/reindex/test_pipeline.py
+  covers:
+  - tests/reindex/test_pipeline.py
+  - tests/reindex/conftest.py
+  - palace/reindex/**
+  contract: "Bootstrap and the live pipeline append to one events day file whose every line parses and which holds both the bootstrap record and the live target."
+  risk_class: watching
+  oracle: "Exactly one events file exists, every line parses, and the relative paths are the bootstrap and live targets."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The native test_server family proves the same stage against real FSEvents on macOS only and is release-lane; this deterministic proof runs on every platform in the ordinary gate with only the native emitter replaced."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reindex-pipeline-idle
+  kind: pytest
+  selectors:
+  - tests/reindex/test_pipeline.py::test_pipeline_idles_until_signal
+  source_paths:
+  - tests/reindex/test_pipeline.py
+  covers:
+  - tests/reindex/test_pipeline.py
+  - tests/reindex/conftest.py
+  - palace/reindex/**
+  contract: "With no configured roots, or with every root missing, serve prints its idle line, stays alive until the shutdown event, returns 0, and starts no observer."
+  risk_class: watching
+  oracle: "The idle line appears, the serve thread is alive after a bounded probe, serve returns 0 after the event, and no stand-in observer was started."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No retained proof covers either idle branch."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: check-native-lane-partition
+  kind: pytest
+  selectors:
+  - tests/test_check.py::test_native_marker_partitions_ordinary_and_native_lanes
+  source_paths:
+  - tests/test_check.py
+  covers:
+  - tests/test_check.py
+  - bin/**
+  - lib/agentic_starter/**
+  - pyproject.toml
+  - tests/reindex/test_server.py
+  - .claude/**
+  - policies/**
+  - briefs/**
+  contract: "The native marker partitions the estate: the native collection is exactly the native server module, disjoint from the ordinary collection and together equal to the unmarked suite, and bin/test --native runs only it; a governed FOCUSED selection whose ordinary collection is empty passes only when the unmarked selection is non-empty and wholly native, and otherwise exits 5 with the named error."
+  risk_class: methodology
+  oracle: "Real pytest collections of this repository compared as sets and counts; the fixture uv call log and exit status and messages of bin/test and bin/check vital."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "test_governed_iteration_lanes_dispatch_selected_tests_without_receipt proves governed dispatch, not the native partition or the empty-selection branches."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: check-native-off-macos-refusal
+  kind: pytest
+  selectors:
+  - tests/test_check.py::test_native_mode_refuses_off_macos_before_any_receipt
+  source_paths:
+  - tests/test_check.py
+  covers:
+  - tests/test_check.py
+  - bin/**
+  - lib/agentic_starter/**
+  - pyproject.toml
+  - tests/reindex/test_server.py
+  - .claude/**
+  - policies/**
+  - briefs/**
+  contract: "./bin/check native off macOS exits 1 with the named uname refusal before writing any receipt state or running pytest."
+  risk_class: methodology
+  oracle: "Exit status, exact stderr line, absent .kickoff directory and a call log with no pytest run."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No retained proof covers the native mode."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: check-release-verify
+  kind: pytest
+  selectors:
+  - tests/test_check_receipt.py::test_release_verify
+  source_paths:
+  - tests/test_check_receipt.py
+  covers:
+  - tests/test_check_receipt.py
+  - bin/**
+  - lib/agentic_starter/**
+  - .claude/**
+  - policies/**
+  - briefs/**
+  contract: "release-verify passes only on a clean tree with passing all and native receipts for the current candidate recorded on this host, and only when the newest native attempt for that candidate and host is the passing one; it refuses a missing receipt for either gate, a stale candidate, an other-host receipt for either gate, a dirty tree, a failure after the pass and a newer unfinished attempt, and on success names every earlier non-passing native run, which stays on record."
+  risk_class: methodology
+  oracle: "Real begin and complete runs in a fixture repository with a fixture ioreg supplying host identities; exact refusal lines with gate, reason and candidate, the verified line and failure notes, and the retained failed run record."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "Pre-push receipt proofs validate the all receipt only; none checks a native receipt, host binding or release refusal."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: gate-native
+  kind: gate
+  selectors:
+  - native
+  source_paths:
+  - bin/check
+  covers:
+  - bin/check
+  - bin/check-receipt
+  - bin/test
+  contract: "Executable proof for gate:native: the macOS-only native lane run under a receipt bound to the complete candidate, environment and host."
+  risk_class: methodology
+  oracle: "Fail-closed command status of ./bin/test --native inside the native receipt wrapper."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "gate:test runs the ordinary lane only."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: gate-release
+  kind: gate
+  selectors:
+  - release
+  source_paths:
+  - bin/check
+  covers:
+  - bin/check
+  - bin/check-receipt
+  contract: "Executable proof for gate:release: release verification of both receipts for the clean current candidate on this host, writing nothing."
+  risk_class: methodology
+  oracle: "Fail-closed command status of check-receipt release-verify."
+  admission: "Phase 30 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other gate verifies the native receipt."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: search-prepared-single-store-equivalence
+  kind: pytest
+  selectors:
+  - tests/test_prepared_search.py::test_single_store_entry_points_equal_prepare_then_execute
+  source_paths:
+  - tests/test_prepared_search.py
+  covers:
+  - tests/test_prepared_search.py
+  - palace/search.py
+  - palace/prepared.py
+  - palace/multistore.py
+  - palace/index/file_vectors.py
+  contract: "search and search_expanded (retrieval) and rerank_candidates and search_reranked (reranked) each equal prepare_search followed by execute_prepared_search and equal the pre-seam interleaved retrieval core as whole values, including status, detail and reranker identity (vector usage is None on these sqlite-vec stores; a non-None single-store vector usage through search_reranked is proved by tests/test_search.py::test_s3vectors_backend_query_composes_with_fusion); each injected embedder, expander and reranker receives exactly the reference's calls, inputs and order, duplicate variants included; an absent database returns the entry point's empty result constructing no provider, refuses metadata filters, and the reranked route loads the reranker configuration before the absent check."
+  risk_class: retrieval
+  oracle: "The pre-seam core (_search_conn or _fuse_variants with a live embedder and expander in one read snapshot, then hydration and rerank) computed in the test; FakeEmbedder batch logs and recording expander and reranker call lists compared exactly."
+  admission: "Phase 31 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The existing single-store search proofs in tests/test_search.py and tests/test_private_providers.py exercise each entry point's results but not equality with the pre-seam interleaved core or exact provider call logs across the two steps."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: search-prepared-single-store-refusals
+  kind: pytest
+  selectors:
+  - tests/test_prepared_search.py::test_prepared_single_store_refuses_changed_bindings_and_altered_values
+  source_paths:
+  - tests/test_prepared_search.py
+  covers:
+  - tests/test_prepared_search.py
+  - palace/search.py
+  - palace/prepared.py
+  - palace/multistore.py
+  - palace/index/file_vectors.py
+  contract: "Execution refuses, before any retrieval call and with no embedding or rerank, an altered or hand-sealed value, a reranker-injection mismatch either way, a database that vanished or appeared since preparation, and a changed configured reranker, recorded identity or embedder selector, naming the changed axis."
+  risk_class: retrieval
+  oracle: "Exact refusal texts with retrieval functions replaced by failing sentinels, an unchanged embedder call count after preparation, and an uncalled reranker."
+  admission: "Phase 31 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The multi-store binding proofs in tests/test_search.py cover the shared axis comparison for several stores, not the single-store seam's refusals."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: search-prepared-single-store-current-rows
+  kind: pytest
+  selectors:
+  - tests/test_prepared_search.py::test_prepared_single_store_execution_never_embeds_and_searches_current_rows
+  source_paths:
+  - tests/test_prepared_search.py
+  covers:
+  - tests/test_prepared_search.py
+  - palace/search.py
+  - palace/prepared.py
+  - palace/multistore.py
+  - palace/index/file_vectors.py
+  contract: "Execution searches the store's current rows, finding a file indexed and dropping one removed between the two steps, with no embedding or expansion call; any unprepared embedding, passage or rewrite request during retrieval refuses; a value retargeted to another store refuses."
+  risk_class: retrieval
+  oracle: "Hit paths after an incremental rebuild between the steps; unchanged embedder and expander call logs; exact refusal texts."
+  admission: "Phase 31 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The existing single-store search proofs in tests/test_search.py and tests/test_private_providers.py exercise each entry point's results but not equality with the pre-seam interleaved core or exact provider call logs across the two steps."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: search-hit-evidence-attestation
+  kind: pytest
+  selectors:
+  - tests/test_hit_evidence.py::test_hit_evidence_attests_returned_hits_in_the_retrieval_snapshot
+  source_paths:
+  - tests/test_hit_evidence.py
+  covers:
+  - tests/test_hit_evidence.py
+  - palace/search.py
+  - palace/prepared.py
+  - palace/multistore.py
+  - palace/index/file_vectors.py
+  contract: "With evidence on, results equal the evidence-off result on every return path (single-store disabled, applied, failed and empty; multi-store applied, disabled, failed and empty) and each entry equals the verified evidence read from the store before the search, although a second connection commits changed bodies, hashes and file hashes after retrieval returns and before evidence is collected; evidence with bm25 refuses before any provider call on both seams."
+  risk_class: retrieval
+  oracle: "Rows read with an independent connection before the search, compared field by field and byte for byte; a monkeypatched retrieval wrapper commits from a second connection inside the snapshot."
+  admission: "Phase 31 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No retained proof reads per-hit evidence; the multi-store prepared proofs in tests/test_search.py cover the seam without evidence."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: search-hit-evidence-damaged-entry
+  kind: pytest
+  selectors:
+  - tests/test_hit_evidence.py::test_hit_evidence_isolates_one_damaged_entry
+  source_paths:
+  - tests/test_hit_evidence.py
+  covers:
+  - tests/test_hit_evidence.py
+  - palace/search.py
+  - palace/prepared.py
+  - palace/multistore.py
+  - palace/index/file_vectors.py
+  contract: "One damaged chunk among healthy hits carries its status with identifying fields and no content while every other entry is verified and the hits equal the evidence-off hits; a published S3 Vectors store's hits are remote-only with no added request, local identifying fields kept, and a hit with no local row is remote-only with no identifying fields, including on the no-candidates rerank failure; and an orphan vector in a local store, returned as a hit with evidence off, is a missing-local-row entry with no identifying fields while the hits stay equal."
+  risk_class: retrieval
+  oracle: "Rows read before damage; the damaged entry equals its verified entry with status set and content cleared; FakeS3Vectors request counts compared with evidence on and off."
+  admission: "Phase 31 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No retained proof reads per-hit evidence; the multi-store prepared proofs in tests/test_search.py cover the seam without evidence."
+  historical_evidence: []
+  mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []

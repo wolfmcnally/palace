@@ -14,9 +14,14 @@ project_root="$repo_root"
 
 usage() {
   cat <<'EOF'
-Usage: ./bin/check [all|lint|format|typecheck|test|smoke|policy|vital|changed <ref>]
+Usage: ./bin/check [all|lint|format|typecheck|test|smoke|policy|vital|changed <ref>|native|release]
 
-Run the repository's authoritative build gates. The default mode is "all".
+Run the repository's authoritative build gates. The default mode is "all",
+every ordinary gate, which never runs the native lane. "native" runs exactly
+the native lane on macOS and records a receipt bound to the complete
+candidate, its environment and its host; it is release qualification only.
+"release" writes nothing: on a clean tree it verifies a passing "all"
+receipt and a passing "native" receipt for the same candidate and host.
 EOF
 }
 
@@ -27,7 +32,7 @@ fi
 
 gate_mode="${1:-all}"
 case "$gate_mode" in
-  all|lint|format|typecheck|test|smoke|policy|vital)
+  all|lint|format|typecheck|test|smoke|policy|vital|native|release)
     if [[ $# -gt 1 ]]; then
       usage >&2
       exit 2
@@ -163,7 +168,9 @@ run_all() {
   run_policy || return $?
 }
 
-run_all_with_receipt() {
+run_with_receipt() {
+  local receipt_gate="$1"
+  local gate_runner="$2"
   local receipt_tool="$repo_root/bin/check-receipt"
   local candidate_before
   local candidate_after
@@ -176,11 +183,11 @@ run_all_with_receipt() {
   local -a pipeline_status
 
   candidate_before="$("$receipt_tool" candidate --root "$repo_root")"
-  log_path="$("$receipt_tool" begin --root "$repo_root" --candidate "$candidate_before")"
+  log_path="$("$receipt_tool" begin --root "$repo_root" --gate "$receipt_gate" --candidate "$candidate_before")"
   echo "CHECK RECEIPT LOG ${log_path#"$repo_root"/}"
 
   set +e
-  run_all 2>&1 | tee "$log_path"
+  "$gate_runner" 2>&1 | tee "$log_path"
   pipeline_status=("${PIPESTATUS[@]}")
   set -e
   gate_exit="${pipeline_status[0]}"
@@ -196,16 +203,16 @@ run_all_with_receipt() {
   if [[ "$log_exit" -ne 0 ]]; then
     final_exit="$log_exit"
     outcome="log-failed"
-    echo "CHECK ERROR durable log write failed (exit $log_exit): $log_path" >&2
+    echo "CHECK ERROR gate=$receipt_gate durable log write failed (exit $log_exit): $log_path" >&2
   elif [[ "$candidate_exit" -ne 0 ]]; then
     candidate_after="ERROR"
     final_exit=1
     outcome="identity-error"
-    echo "CHECK ERROR could not identify the candidate after the full gate" >&2
+    echo "CHECK ERROR gate=$receipt_gate could not identify the candidate after the gate (before=$candidate_before)" >&2
   elif [[ "$candidate_before" != "$candidate_after" ]]; then
     final_exit=1
     outcome="candidate-drift"
-    echo "CHECK ERROR candidate changed during the full gate" >&2
+    echo "CHECK ERROR gate=$receipt_gate candidate changed during the gate (before=$candidate_before after=$candidate_after)" >&2
   elif [[ "$gate_exit" -eq 0 ]]; then
     final_exit=0
     outcome="passed"
@@ -214,6 +221,7 @@ run_all_with_receipt() {
   set +e
   "$receipt_tool" complete \
     --root "$repo_root" \
+    --gate "$receipt_gate" \
     --log "$log_path" \
     --candidate-before "$candidate_before" \
     --candidate-after "$candidate_after" \
@@ -222,12 +230,29 @@ run_all_with_receipt() {
   local receipt_exit=$?
   set -e
   if [[ "$receipt_exit" -ne 0 ]]; then
-    echo "CHECK ERROR could not persist the full-gate result (exit $receipt_exit)" >&2
+    echo "CHECK ERROR gate=$receipt_gate could not persist the gate result (exit $receipt_exit, candidate=$candidate_before)" >&2
     if [[ "$final_exit" -eq 0 ]]; then
       return "$receipt_exit"
     fi
   fi
   return "$final_exit"
+}
+
+run_native() {
+  run_gate native "$repo_root/bin/test" --native
+}
+
+run_release() {
+  run_gate release "$repo_root/bin/check-receipt" release-verify --root "$repo_root"
+}
+
+refuse_native_off_macos() {
+  local host_system
+  host_system="$(uname)"
+  if [[ "$host_system" != "Darwin" ]]; then
+    echo "CHECK ERROR native lane requires macOS (uname=$host_system)" >&2
+    exit 1
+  fi
 }
 
 cd "$repo_root"
@@ -242,5 +267,10 @@ case "$gate_mode" in
   policy) run_policy ;;
   vital) run_gate vital "$repo_root/bin/test" --vital ;;
   changed) run_gate changed "$repo_root/bin/test" --changed-from "$2" ;;
-  all) run_all_with_receipt ;;
+  all) run_with_receipt all run_all ;;
+  native)
+    refuse_native_off_macos
+    run_with_receipt native run_native
+    ;;
+  release) run_release ;;
 esac

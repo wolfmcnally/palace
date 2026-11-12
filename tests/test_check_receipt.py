@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import shutil
 import subprocess
@@ -142,6 +143,7 @@ def record_pass(
     *,
     output: str = "gate output\n",
     environment: dict[str, str] | None = None,
+    gate: str = "all",
 ) -> tuple[Path, Path]:
     identity = candidate(root)
     begun = run_receipt(
@@ -149,6 +151,8 @@ def record_pass(
         "begin",
         "--root",
         str(root),
+        "--gate",
+        gate,
         "--candidate",
         identity,
         environment=environment,
@@ -161,6 +165,8 @@ def record_pass(
         "complete",
         "--root",
         str(root),
+        "--gate",
+        gate,
         "--log",
         str(log),
         "--candidate-before",
@@ -174,10 +180,66 @@ def record_pass(
         environment=environment,
     )
     assert completed.returncode == 0, completed.stderr
-    assert "CHECK ALL PASS" in completed.stdout
-    receipts = list((root / ".kickoff" / "check-all" / "receipts").glob("*.json"))
+    assert f"CHECK {gate.upper()} PASS" in completed.stdout
+    receipts = list((root / ".kickoff" / f"check-{gate}" / "receipts").glob("*.json"))
     assert len(receipts) == 1
     return log, receipts[0]
+
+
+def record_native_failure(root: Path, environment: dict[str, str]) -> Path:
+    identity = candidate(root)
+    begun = run_receipt(
+        root,
+        "begin",
+        "--root",
+        str(root),
+        "--gate",
+        "native",
+        "--candidate",
+        identity,
+        environment=environment,
+    )
+    assert begun.returncode == 0, begun.stderr
+    log = Path(begun.stdout.strip())
+    log.write_text("native lane failed\n", encoding="utf-8")
+    completed = run_receipt(
+        root,
+        "complete",
+        "--root",
+        str(root),
+        "--gate",
+        "native",
+        "--log",
+        str(log),
+        "--candidate-before",
+        identity,
+        "--candidate-after",
+        identity,
+        "--exit-code",
+        "1",
+        "--outcome",
+        "failed",
+        environment=environment,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return log.with_suffix(".json")
+
+
+def host_environment(tmp_path: Path, host: str) -> dict[str, str]:
+    """A fixture ``ioreg`` on PATH supplies a deterministic host identity."""
+    tools = tmp_path / f"host-{host}"
+    tools.mkdir(exist_ok=True)
+    write_executable(
+        tools / "ioreg",
+        f'#!/usr/bin/env bash\necho \'  "IOPlatformUUID" = "{host}"\'\n',
+    )
+    environment = dict(os.environ)
+    environment["PATH"] = f"{tools}:{environment['PATH']}"
+    return environment
+
+
+def release_verify(root: Path, environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return run_receipt(root, "release-verify", "--root", str(root), environment=environment)
 
 
 def test_passed_run_is_durable_and_reusable_for_exact_clean_head(
@@ -292,3 +354,94 @@ def test_pre_push_hook_skips_only_a_verified_hit(repository: Path) -> None:
     assert miss.returncode == 0, miss.stderr
     assert "reason=working-tree-not-clean" in miss.stderr
     assert marker.read_text(encoding="utf-8") == "called\n"
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "both-current",
+        "receipt-missing",
+        "stale-candidate",
+        "other-host",
+        "dirty-tree",
+        "native-failure-after-pass",
+    ],
+)
+def test_release_verify(repository: Path, tmp_path: Path, case: str) -> None:
+    host_a = host_environment(tmp_path, "HOST-A")
+    host_b = host_environment(tmp_path, "HOST-B")
+    identity = candidate(repository)
+
+    def refused(result: subprocess.CompletedProcess[str], gate: str, reason: str) -> None:
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert f"CHECK RELEASE REFUSED gate={gate} reason={reason}" in result.stderr
+        assert "CHECK RELEASE VERIFIED" not in result.stdout
+
+    if case == "receipt-missing":
+        result = release_verify(repository, host_a)
+        refused(result, "all", "receipt-not-found")
+        assert f"candidate={candidate(repository)}" in result.stderr
+        record_pass(repository, environment=host_a)
+        refused(release_verify(repository, host_a), "native", "receipt-not-found")
+        return
+    if case == "other-host":
+        record_pass(repository, environment=host_a)
+        record_pass(repository, environment=host_a, gate="native")
+        refused(release_verify(repository, host_b), "all", "host-mismatch")
+        record_pass(repository, environment=host_b)
+        refused(release_verify(repository, host_b), "native", "host-mismatch")
+        return
+    if case == "native-failure-after-pass":
+        record_pass(repository, environment=host_a)
+        record_pass(repository, environment=host_a, gate="native")
+        failed_run = record_native_failure(repository, host_a)
+        failed_name = failed_run.relative_to(repository).as_posix()
+        result = release_verify(repository, host_a)
+        refused(result, "native", "native-failure-after-pass")
+        assert f"latest-failed-run={failed_name}" in result.stderr
+        # A later passing run on the exact candidate and host qualifies, and
+        # the earlier failure stays on record and is named.
+        record_pass(repository, environment=host_a, gate="native")
+        verified = release_verify(repository, host_a)
+        assert verified.returncode == 0, verified.stderr
+        assert f"CHECK RELEASE NOTE earlier-failed-native-run={failed_name} status=failed" in (
+            verified.stdout
+        )
+        assert "native-failed-runs=1" in verified.stdout
+        assert failed_run.is_file()
+        # A newer attempt that never finished is not a pass and refuses.
+        unfinished = run_receipt(
+            repository,
+            "begin",
+            "--root",
+            str(repository),
+            "--gate",
+            "native",
+            "--candidate",
+            identity,
+            environment=host_a,
+        )
+        assert unfinished.returncode == 0, unfinished.stderr
+        result = release_verify(repository, host_a)
+        refused(result, "native", "native-run-unfinished")
+        assert "native-failed-runs=2" in result.stderr
+        return
+
+    record_pass(repository, environment=host_a)
+    record_pass(repository, environment=host_a, gate="native")
+    if case == "both-current":
+        result = release_verify(repository, host_a)
+        assert result.returncode == 0, result.stderr
+        assert f"CHECK RELEASE VERIFIED candidate={identity} all=.kickoff/check-all/logs/" in (
+            result.stdout
+        )
+        assert " native=.kickoff/check-native/logs/" in result.stdout
+        assert "native-failed-runs=0" in result.stdout
+    elif case == "stale-candidate":
+        (repository / "LOG.md").write_text("changed\n", encoding="utf-8")
+        subprocess.run(["git", "commit", "-qam", "change"], cwd=repository, check=True)
+        assert candidate(repository) != identity
+        refused(release_verify(repository, host_a), "all", "receipt-identity-mismatch")
+    else:
+        (repository / "untracked.txt").write_text("dirt\n", encoding="utf-8")
+        refused(release_verify(repository, host_a), "release", "working-tree-not-clean")
