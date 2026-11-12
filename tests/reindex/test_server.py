@@ -88,6 +88,26 @@ _ROOT_CHANGED = 0x00000020  # kFSEventStreamEventFlagRootChanged
 _PIPELINE_STAGES = ("dispatch", "submit", "emit", "fsync")
 _FLAG_WORDS_PER_NAME = 8
 _POST_CANARY_BOUND = 5.0
+# Hang bounds, not performance claims: Apple documents no FSEvents delivery bound
+# ("inherently non-deterministic latency"). Each is the longest published measurement
+# plus 10% (operator ruling, 2026-11-12), rounded up to a whole second. Delivery: a
+# write's first event 49.5 s after it under a saturated fseventsd. Readiness, which
+# includes stream registration: an FSEventStreamStart stall of 68.753 s.
+_DELIVERY_HANG_BOUND = 55.0
+_READINESS_HANG_BOUND = 76.0
+# Operator ruling, 2026-11-12: "Large jitter and latency are a fact of life with FSEvents.
+# If this still causes us problems then you are authorized to set these tests to skip for
+# release qualification." Applied only to the proofs FSEvents jitter actually failed on the
+# qualifying host after the hang bounds: each one's post-readiness write was not delivered
+# within the delivery hang bound while later writes arrived. Skipped, not removed; see the
+# Phase 26 END (correction) in LOG.md.
+_FSEVENTS_JITTER_SKIP = pytest.mark.skip(
+    reason=(
+        "skipped for release qualification by operator ruling (2026-11-12): FSEvents did not "
+        "deliver this proof's post-readiness write within the delivery hang bound on the "
+        "qualifying host"
+    )
+)
 
 
 class _FseventsRecords(logging.Handler):
@@ -277,7 +297,7 @@ class _NativeProbe:
                 self._observer = observer
         return "observer.start"
 
-    def wait_ready(self, timeout: float = 10.0) -> None:
+    def wait_ready(self, timeout: float = _READINESS_HANG_BOUND) -> None:
         """Rewrite the ignored canary until the observer has dispatched it.
 
         A readiness failure is reported as such, never as a target outcome.
@@ -616,16 +636,21 @@ def _add_watch_root(store: Path, root: Path) -> None:
     config.save(config_path)
 
 
+@_FSEVENTS_JITTER_SKIP
 def test_serve_emits_jsonl_line_within_two_seconds_of_touch(
     tmp_store: Path, tmp_watch_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """The exact target is recorded within the delivery hang bound.
+
+    The historical two-second selector is retained for proof lineage.
+    """
     _add_watch_root(tmp_store, tmp_watch_root)
     probe = _NativeProbe(monkeypatch, tmp_watch_root, targets=("notes.md",))
     events_file = _today_events_path(tmp_store)
     thread, shutdown, result = _start_serve(store=tmp_store)
     try:
         probe.wait_ready()
-        deadline = time.monotonic() + 2.0
+        deadline = time.monotonic() + _DELIVERY_HANG_BOUND
         probe.write("notes.md", "hello\n", target=True)
         try:
             record = _poll_for_event(events_file, relative_path="notes.md", deadline=deadline)
@@ -734,6 +759,7 @@ def test_serve_with_all_roots_missing_idles_until_signal(
     assert result.get("rc") == 0
 
 
+@_FSEVENTS_JITTER_SKIP
 def test_serve_skips_missing_on_disk_root(
     tmp_store: Path,
     tmp_watch_root: Path,
@@ -755,7 +781,7 @@ def test_serve_skips_missing_on_disk_root(
     try:
         probe.wait_ready()
         # The live root still emits.
-        deadline = time.monotonic() + 2.0
+        deadline = time.monotonic() + _DELIVERY_HANG_BOUND
         probe.write("alive.md", "alive\n", target=True)
         try:
             _poll_for_event(events_file, relative_path="alive.md", deadline=deadline)
@@ -776,6 +802,7 @@ def test_serve_skips_missing_on_disk_root(
     assert result.get("rc") == 0
 
 
+@_FSEVENTS_JITTER_SKIP
 def test_serve_recovers_from_one_observer_callback_exception(
     tmp_store: Path, tmp_watch_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -789,6 +816,7 @@ def test_serve_recovers_from_one_observer_callback_exception(
     from palace.reindex import observer as observer_mod
 
     armed = threading.Event()
+    fired = threading.Event()
     raised: list[str] = []
     original_on_modified = observer_mod.ChangeHandler.on_modified
 
@@ -797,6 +825,7 @@ def test_serve_recovers_from_one_observer_callback_exception(
         name = Path(source.decode() if isinstance(source, bytes) else source).name
         if armed.is_set() and not raised and name == "first.md":
             raised.append(name)
+            fired.set()
             raise RuntimeError("simulated handler failure")
         original_on_modified(self, event)
 
@@ -809,15 +838,21 @@ def test_serve_recovers_from_one_observer_callback_exception(
             probe.wait_ready()
             armed.set()
             # First write triggers the raised on_modified path once; the
-            # daemon must stay alive.
-            probe.write("first.md", "first\n")
-            time.sleep(1.0)
+            # daemon must stay alive. FSEvents may deliver a later write
+            # before an earlier one, so wait for the injection itself rather
+            # than for a fixed pause.
+            deadline = time.monotonic() + _DELIVERY_HANG_BOUND
+            probe.write("first.md", "first\n", target=True)
+            try:
+                assert fired.wait(timeout=max(0.0, deadline - time.monotonic())), (
+                    "first.md did not reach the handler within the delivery hang bound"
+                )
+            except AssertionError as exc:
+                probe.annotate(exc, target="first.md", deadline=deadline, completed=fired.is_set)
+                raise
             # Second write should still be observed; the writer keeps draining.
+            deadline = time.monotonic() + _DELIVERY_HANG_BOUND
             probe.write("second.md", "second\n", target=True)
-            # FSEvents has up-to-1-second latency by default on macOS; give
-            # the second write plenty of room before polling.
-            time.sleep(0.5)
-            deadline = time.monotonic() + 5.0
             try:
                 _poll_for_event(events_file, relative_path="second.md", deadline=deadline)
             except AssertionError as exc:
@@ -837,6 +872,7 @@ def test_serve_recovers_from_one_observer_callback_exception(
     assert result.get("rc") == 0
 
 
+@_FSEVENTS_JITTER_SKIP
 def test_serve_sigterm_drains_inflight_debouncer(
     tmp_store: Path, tmp_watch_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -872,11 +908,11 @@ def test_serve_sigterm_drains_inflight_debouncer(
     events_file = _today_events_path(tmp_store)
     try:
         probe.wait_ready()
-        deadline = time.monotonic() + 2.0
+        deadline = time.monotonic() + _DELIVERY_HANG_BOUND
         probe.write("burst.md", "a\n", target=True)
         try:
             assert received.wait(timeout=max(0.0, deadline - time.monotonic())), (
-                "native burst event did not enter debouncer within two seconds"
+                "native burst event did not enter debouncer within the delivery hang bound"
             )
         except AssertionError as exc:
             probe.annotate(exc, target="burst.md", deadline=deadline, completed=received.is_set)
@@ -954,7 +990,7 @@ def test_serve_with_real_sigterm(
     try:
         probe.wait_ready()
         probe.write("ok.md", "ok\n", target=True)
-        deadline = time.monotonic() + 5.0
+        deadline = time.monotonic() + _DELIVERY_HANG_BOUND
         try:
             _poll_for_event(events_file, relative_path="ok.md", deadline=deadline)
         except AssertionError as exc:

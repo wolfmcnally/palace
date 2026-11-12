@@ -2765,3 +2765,99 @@ Lessons:
 - recalibration: not run; no timeout or configuration change.
 
 Wall-clock observations: the full gate dominated gate time (265 s of 287 s). The acceptance span's 4737 s includes about 71 minutes, from 05:39Z to 06:50Z, held idle at a coordinator-directed context checkpoint; it was not an operator-input wait, so no park was opened and the time is reported as orchestration.
+
+## 2026-11-12 09:38 — START (correction)
+Phase 26 — native watcher readiness witnesses: delivery hang bounds
+
+Execution trace: d700d23090d24589b73c0f6f433a958a
+
+The Palace 0.5.0 release commit e4a064bc8ae3be4e43d78db01c27efc7d040a604 failed native qualification twice on this host (receipts 20261112T070131.964501Z-90969-57583b50 and 20261112T162831.827343Z-21899-0c20267e, both retained): three positive watcher proofs missed their two- and five-second deadlines. Diagnosis found FSEvents delivery latency, not a Palace pipeline fault: delivered target events arrived 2.14 to 6.37 s after the write, with Palace's own pipeline after delivery taking about 0.13 s; and the recovery proof assumed that a write made one second earlier is delivered first, while FSEvents delivered the later write first. Apple documents no delivery bound ("inherently non-deterministic latency"). This resolves Phase 26's open manual item on the two-second deadline.
+
+Operator rulings, relayed by the authenticated coordinator, recorded verbatim:
+- 2026-11-12 16:30:58 UTC: Y to "changing the test deadlines to longer hang bounds, keeping all correctness checks, and investigating the two missing notices before another qualification run." This replaces the Phase 30 freeze of the native proofs' deadlines for this bounded correction.
+- 16:32:03 UTC: "Large jitter and latency are a fact of life with FSEvents. If this still causes us problems then you are authorized to set these tests to skip for release qualification."
+- 16:33:44 UTC: "In any case the deadline should be the longest known delivery time for arrival of FSEvents plus a margin, like 10%."
+- 16:34:51 UTC: "And by “longest known” I mean the longest that can be expected based on docs, and public records about the longest latencies developers have experienced."
+
+Direct-fix route: test-only, localized to the native server proofs and their contract text; no runtime, API or assertion change.
+
+Planned work:
+- Delivery hang bound of 55 s (longest published measured delivery, 49.5 s, plus 10%) for every positive target deadline, and a readiness hang bound of 76 s (longest published FSEvents stream-start stall, 68.753 s, plus 10%). Exact-target, readiness-first, debouncer, shutdown-flush and recovery assertions are unchanged.
+- The recovery proof waits, within the delivery bound, for the injected handler exception to fire on the first write before making the second write, instead of a fixed one-second sleep.
+- Contract text in tests/proof-estate.yaml updated to the hang bounds.
+- A diagnostic native run of the corrected module before acceptance; package, Linux, disclosure and full gates on the new candidate; guarded delivery; then one native qualification and the already-approved 0.5.0 release.
+
+## 2026-11-12 09:55 — END (correction)
+Phase 26 — native watcher readiness witnesses: delivery hang bounds
+
+Execution trace: d700d23090d24589b73c0f6f433a958a
+
+The native watcher proofs no longer treat FSEvents delivery time as a performance contract. Every positive target deadline is now a 55-second hang bound and native readiness a 76-second hang bound, each the longest published measurement plus 10%. The recovery proof waits for its injected exception instead of assuming an earlier write is delivered first. Four proofs whose post-readiness write FSEvents still did not deliver on the qualifying host are skipped for release qualification by the operator's ruling and stay in the estate. Accepted close is recorded here; delivery, branch CI, native qualification on the delivered commit, the release check, tag and publication remain pending at this record.
+
+Authority (operator, relayed by the authenticated coordinator, verbatim):
+- 2026-11-12 16:30:58 UTC: Y to "changing the test deadlines to longer hang bounds, keeping all correctness checks, and investigating the two missing notices before another qualification run." This replaces, for this bounded correction, the Phase 30 ruling that the native proofs' deadlines stay unchanged, and settles Phase 26's open manual item on the two-second deadline.
+- 16:32:03 UTC: "Large jitter and latency are a fact of life with FSEvents. If this still causes us problems then you are authorized to set these tests to skip for release qualification."
+- 16:33:44 UTC: "In any case the deadline should be the longest known delivery time for arrival of FSEvents plus a margin, like 10%."
+- 16:34:51 UTC: "And by “longest known” I mean the longest that can be expected based on docs, and public records about the longest latencies developers have experienced."
+Phase 26 stays complete; its historical END and the earlier rulings are unchanged.
+
+Evidence and bounds (sources retrieved 2026-11-12):
+- Apple documents no delivery bound: "inherently non-deterministic latency" (File System Events Programming Guide); the latency parameter is a coalescing wait, and FSEventStreamFlushSync covers only events that have already occurred.
+- Delivery: 55 s = 49.5 s × 1.1, rounded up. The 49.5 s figure is a measured first event after a write on a saturated fseventsd (memrynote/memry pull request 4229, 2026-11-11).
+- Readiness: 76 s = 68.753 s × 1.1, rounded up. The 68.753 s figure is a measured FSEventStreamStart stall under watcher churn (dotnet/runtime issue 131323, 2026-07-24).
+- Reports that saw no event within a window (one at 30 s, one at 5 s, and this host's own 14 s and 115 s windows) are censored. They are recorded as unknown, not as maxima.
+- On this host, measured deliveries ranged from 0.15 to 6.37 s and readiness from 0.15 to 7.94 s. Palace's own pipeline after delivery took about 0.13 s. fseventsd ran at about 100% CPU with about 26 GiB resident, the runaway state described in anthropics/claude-code issue 98769.
+
+Investigation of the two missing notices:
+- The recovery proof's first write was not missing in the sense the test assumed. FSEvents delivered a later write before it, and the proof had shut down after a fixed one-second pause. With the injection wait it arrived 0.525 s after the write.
+- The live-root target arrived late (+4.46 s) in one diagnostic run.
+- In the corrected-module diagnostic, two post-readiness writes, notes.md and alive.md, were not delivered within the 55 s bound plus a 60 s diagnostic window. Later writes on the same stream arrived in 0.49 s. An independent CoreServices stream had earlier lost identical events at identical times, so the absence lies below watchdog and Palace. Its cause remains unresolved.
+- The earlier hypothesis that the failures followed test position was refuted: the failing set changed between runs.
+
+Files changed:
+- tests/reindex/test_server.py — the two hang-bound constants with their sources, applied to readiness and to every positive target deadline. The recovery proof now waits, within the delivery bound, for its injected exception on first.md before writing second.md; a fixed sleep and an incorrect one-second latency comment are removed. A single skip marker, citing the ruling, is applied to test_serve_emits_jsonl_line_within_two_seconds_of_touch, test_serve_skips_missing_on_disk_root, test_serve_recovers_from_one_observer_callback_exception and test_serve_sigterm_drains_inflight_debouncer.
+- tests/proof-estate.yaml — five contract strings now say "delivery hang bound", and the four skipped proofs' oracles state the skip. The proofs stay in the estate.
+- LOG.md and EXECUTION_LOG.jsonl — append-only START/END evidence and the finalized trace.
+
+Build status:
+- Focused, ordinary reindex suite: OK, 15 passed and 10 native deselected.
+- Packages: OK. Two macOS builds are byte-identical, and the wheel (5945b68f9cc87023cdf7d65e6974c7ef5d85d7e80c627d6698fb1f94d3216753) and source archive (35439735d1afda99b11765b1b11dbc0f23c289e96a4c2a8003b226371017e223) match the earlier qualified artifacts, since tests are not packaged. The hash-locked clean install and package smoke pass.
+- Linux ARM64: OK. Exact-wheel install and smoke pass; the six warning lines are three harmless uv hardlink fallback notices from the container filesystem.
+- Disclosure scan: OK. Zero consumer and zero archive findings; the 26 tree private-path matches are the identical pre-existing set.
+- Full gate ./bin/check all: OK. 291 passed and 10 native deselected in 226.03 s, with every policy check including test governance passing. The nine warnings are uv's notice that the inherited environment is ignored.
+- Native diagnostics, with no receipt and outside the gate ledger:
+  - Normal order before the correction: 3 failed and 7 passed. All three failures were late or out-of-order deliveries.
+  - Corrected module before the skips: 8 passed and 2 failed. Those two are now skipped.
+- Earlier failures, retained: native receipts 20261112T070131.964501Z-90969-57583b50 and 20261112T162831.827343Z-21899-0c20267e for candidate 47243d11568a329214d4ebb4733990bdbf0488b65a7825c6b5866faeebc1b1ca, each with 3 failed and 7 passed.
+- Handoff gate: runs after the tracked bookkeeping; completion is contingent on the final bare ./bin/check all.
+
+Review lane: none. Evidence lane: full. Follow-up route: direct fix — test-only and localized, with its shape set by explicit operator instruction.
+
+Role model/venue — orchestrated by Claude Code, primary mode:
+- Preflight: OK.
+- Planner and coder: inline on the primary, Claude Opus 5.5 at high effort.
+- Reviewer and critic: not run; the direct-fix route requires no role.
+
+Candidate-bound evidence:
+- Product candidate 57be7533b6a9fde38b0509ee6fa5cadd2c63f4b40037e7ae203f8262c2b3cced; full tree 8c0a4213f109bd6dbb1fdc531a5eb2c7d7de38fc16c22c4550047107fd430a3d, unchanged through every gate.
+- Manifest da307c01d613393c30749b6ca95a110c5ad451318beaa59c586ec5eb49d0acce. Five managed final gates with reviewed diagnostics: focused b27f9dc9318ab927fd88cfcc539bf63dad7f412540a5c304174ee0639ecda4a5, package 534a0f9fcc43ec7cd1c4f3d70ed6021221a1ae3a8d18714b458c186c04f5fe41, linux-package bd17ecc19c187e1d733c53a548e351712691aedc1e30fd6860b575c6a4ded53e, disclosure 6b64af23b2f979b00a037254cf40b14329c1034831c5da6a0b1558af540143bd, full 293eda2fe30fcb40920fa370ad557cf4e2a851634144356612df0f617a88327d. Acceptance validation passed.
+
+Acceptance:
+- Objective: hang bounds derived from documented and published evidence; every exact-target, readiness, debouncer, shutdown-flush and recovery assertion kept; the recovery proof free of its ordering assumption; skips limited to the proofs FSEvents jitter actually failed, applied under the ruling and disclosed; the native lane still runs test_serve_with_real_sigterm and the five other native proofs; all ordinary gates passing.
+- Disclosed limitations:
+  - Under a saturated fseventsd, a single write can go undelivered for at least 115 s while later writes arrive promptly, and the reindex daemon has no rescan. A change can therefore wait until the file changes again or a bootstrap runs.
+  - The negative dotfile and gitignore proofs keep a one-second settle, which can pass vacuously when delivery takes several seconds.
+  - The macOS CI native step runs the same lane and skips the same four proofs.
+- Parked for the user: whether to restart this host's fseventsd (requires root; it reportedly resets the runaway state) and, later, whether the four skipped proofs return to release qualification.
+
+Delivery: ordinary guarded commit and fast-forward push after the handoff gate. Then one `./bin/check native` and `./bin/check release` on the delivered commit; on CHECK RELEASE VERIFIED, the already-approved v0.5.0 tag, tag CI, GitHub release with the qualified artifacts and verification of the public download, followed by the local tool update.
+
+Ripple: none. There are no downstream sketches and no blocking decisions; phase markers are unchanged.
+
+Lessons:
+- filed: none in the tree. The private evidence holds observations for a permitted follow-up: classifying an OS behavior as a fault before reading the vendor contract and upstream test practice, applying a directory-level guide to a file-level stream mode, and a measurement race in my own diagnostic.
+- occurrences added: none.
+- graduation DECIDE: caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket and precious-kangaroo remain optional human judgments; no rule changed.
+- recalibration: not run; no timeout or configuration change.
+
+Wall-clock observations: the full gate dominated gate time, 232 s of 251 s.

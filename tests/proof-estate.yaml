@@ -2344,9 +2344,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: After native readiness, the exact target is fsynced within one two-second deadline measured before the write; historical watch-root replay cannot satisfy or extend it.
+  contract: After native readiness, the exact target is fsynced within one delivery hang bound measured before the write; historical watch-root replay cannot satisfy or extend it. The bound is a hang bound, not a latency claim; the historical two-second selector is retained for lineage.
   risk_class: watching
-  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
+  oracle: Native lane; release qualification only; skipped in release qualification since 2026-11-12 by operator ruling (FSEvents did not deliver the post-readiness write within the delivery hang bound on the qualifying host), retained in the estate. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2404,9 +2404,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: A handler exception armed only after native readiness is raised exactly once, by the first workload write; the daemon survives and the later exact target is recorded within five seconds measured after the existing pauses.
+  contract: A handler exception armed only after native readiness is raised exactly once, by the first workload write, which must reach the handler within one delivery hang bound before the second write is made; the daemon survives and the later exact target is recorded within one delivery hang bound measured before its write.
   risk_class: watching
-  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
+  oracle: Native lane; release qualification only; skipped in release qualification since 2026-11-12 by operator ruling (FSEvents did not deliver the post-readiness write within the delivery hang bound on the qualifying host), retained in the estate. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2424,9 +2424,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: After native readiness, the exact native target enters the accumulator within two seconds measured before the write; held test clock prevents ordinary polling, and shutdown persists the pending event. Historical selector uses the shutdown-event seam, not a process signal.
+  contract: After native readiness, the exact native target enters the accumulator within one delivery hang bound measured before the write; held test clock prevents ordinary polling, and shutdown persists the pending event. Historical selector uses the shutdown-event seam, not a process signal.
   risk_class: watching
-  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
+  oracle: Native lane; release qualification only; skipped in release qualification since 2026-11-12 by operator ruling (FSEvents did not deliver the post-readiness write within the delivery hang bound on the qualifying host), retained in the estate. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2444,9 +2444,9 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: Missing root is refused and, after native readiness, the exact live-root target is observed within two seconds measured before the write; unrelated log lines cannot satisfy the witness.
+  contract: Missing root is refused and, after native readiness, the exact live-root target is observed within one delivery hang bound measured before the write; unrelated log lines cannot satisfy the witness.
   risk_class: watching
-  oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
+  oracle: Native lane; release qualification only; skipped in release qualification since 2026-11-12 by operator ruling (FSEvents did not deliver the post-readiness write within the delivery hang bound on the qualifying host), retained in the estate. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2504,7 +2504,7 @@ families:
   covers:
   - tests/reindex/test_server.py
   - palace/reindex/**
-  contract: End-to-end native readiness replaces the registration-return proxy; the exact target is delivered within five seconds measured after the write, and the shutdown-event exit is clean. Historical selector does not assert process-signal coverage.
+  contract: End-to-end native readiness replaces the registration-return proxy; the exact target is delivered within one delivery hang bound measured after the write, and the shutdown-event exit is clean. Historical selector does not assert process-signal coverage.
   risk_class: watching
   oracle: Native lane; release qualification only. Independent executable assertion after the same native stream has delivered and dispatched an ignored canary; readiness timeout fails separately, and on a deadline failure probe notes classify the target as natively absent, late, or stalled after a named pipeline stage, with post-write overflow flags, and a joint lifecycle, stream-stall, target non-delivery or indeterminate classification from failure-time liveness, captured watcher log records and a post-deadline canary, deferring to the stage classification when the target was delivered natively, and re-raise the original failure.
   admission: Retained by the Palace whole-estate Pareto reset.
