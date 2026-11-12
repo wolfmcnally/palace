@@ -2861,3 +2861,87 @@ Lessons:
 - recalibration: not run; no timeout or configuration change.
 
 Wall-clock observations: the full gate dominated gate time, 232 s of 251 s.
+
+## 2026-11-12 10:37 — START (correction)
+Phase 25 — release procedure: dogfood each release
+
+Execution trace: ba416c45326d45af9bb6956a98170b8a
+
+Palace 0.5.0 was published, but this host's supervised daemons were still running code loaded on 2026-10-26: the editable tool had been updated, while the launchd services run from the checkout and keep the code they started with. The operator directed, relayed by the authenticated coordinator on 2026-11-12 at 17:32:01 UTC: "When we release a Palace update we need to dogfood it." The services were moved onto 0.5.0 under that direction, and the release procedure now records the step for future releases.
+
+Direct-fix route: release-documentation change only; no runtime, API, test or assertion change.
+
+Planned work:
+- RELEASE.md gains a "Dogfood the release" section after native qualification: reinstall the editable tool, confirm read-only that the release opens the operator's existing store, back up the derived index non-destructively, confirm installed plists equal their rendered tracked templates, restart each supervised daemon with `launchctl kickstart -k`, and verify the running release and a real change flowing through it without writing to the watched root.
+
+## 2026-11-12 10:45 — END (correction)
+Phase 25 — release procedure: dogfood each release
+
+Execution trace: ba416c45326d45af9bb6956a98170b8a
+
+Outcome: failed; superseded by a fresh evidence run. Acceptance validation refused with "declared authority changed; re-review in a fresh evidence run". This run declared RELEASE.md as authority and then changed that same file. Its policy gate (905e0ecc104a9d028975bf25631ea25273f1c0092e47e35f62f2529f009012cf) and full gate (4356c30af05cc5e05f453d04a6213ba9b350f50d7f5139e2391e00c2221ac509, 291 passed) both passed, but they are bound to this invalid run and are not reused. Nothing was delivered. The RELEASE.md change moves unchanged to a fresh run whose declared authority excludes it.
+
+Lessons:
+- filed: none in the tree. A private note records the observation: a file the run changes must not be declared as its authority.
+
+## 2026-11-12 10:46 — START (correction)
+Phase 25 — release procedure: dogfood each release (fresh evidence run)
+
+Execution trace: bba54da439a34603b342d74b761bd760
+
+This run supersedes trace ba416c45326d45af9bb6956a98170b8a, which failed acceptance validation because RELEASE.md was declared as authority while it was also the changed file. The unchanged RELEASE.md edit carries over, under the operator's 2026-11-12 17:32:01 UTC direction relayed by the authenticated coordinator: "When we release a Palace update we need to dogfood it."
+
+Direct-fix route: release-documentation change only; no runtime, API, test or assertion change.
+
+Planned work:
+- The RELEASE.md "Dogfood the release" section, with fresh policy and full gates, close, handoff gate and guarded delivery.
+
+## 2026-11-12 10:52 — END (correction)
+Phase 25 — release procedure: dogfood each release (fresh evidence run)
+
+Execution trace: bba54da439a34603b342d74b761bd760
+
+RELEASE.md now says that a release is dogfooded on the publishing host after publication, and how. This run supersedes trace ba416c45326d45af9bb6956a98170b8a, which failed acceptance validation because RELEASE.md was declared as authority while it was also the changed file. Accepted close is recorded here; the handoff gate and delivery follow.
+
+Authority: the operator, relayed by the authenticated coordinator on 2026-11-12 at 17:32:01 UTC: "When we release a Palace update we need to dogfood it." Phase 25 stays complete; its historical END is unchanged.
+
+The procedure was carried out for 0.5.0 before being recorded:
+- Release state:
+  - the editable tool was reinstalled against the lock and reports 0.5.0;
+  - the existing store opened under 0.5.0 with no migration. Status reported identity OK; the default embedder and the sqlite-vec backend equal the stamped identity;
+  - an online SQLite backup passed its integrity check.
+- Restarts:
+  - the installed plists equal their rendered tracked templates;
+  - the index, reindex and capture daemons were restarted one at a time with `launchctl kickstart -k`;
+  - each has a new start time and runs as a single instance;
+  - the capture daemon's `/health` reports version 0.5.0.
+- Read-only verification:
+  - every vault markdown file hash-matched its index row;
+  - representative searches in all three modes returned relevant results;
+  - a documented forced bootstrap was consumed by the 0.5.0 index daemon with no re-embedding.
+- An isolated disposable watched directory and store saw create, modify and delete flow through the released reindex and index daemons, with hash-verified rows and search results.
+- An ordinary vault edit was observed from file to event (4 s) to index (5 s), with the stored hash equal to the file's bytes.
+
+Files changed:
+- RELEASE.md — a "Dogfood the release" section after native qualification.
+- reports/execution/2026-11-11/phase-25/data.js, reports/execution/2026-11-12/phase-25/data.js, reports/execution/index-data.js — dashboards refreshed after the superseded run's failed close changed their source digest.
+- LOG.md and EXECUTION_LOG.jsonl — append-only START/END evidence and the finalized traces.
+
+Build status:
+- Attempt 1 policy gate (7680d98dff4e1c5aa4aeee1ee576e26dbf43238711d3bcf52ede3d9536ad9ebf) FAILED with exit 1: "stale dashboard artifact: reports/execution/index-data.js". The failure is retained. My first review of it wrongly said it passed; that review was superseded by an accurate one.
+- Attempt 2, under successor manifest d0e2833ee407cbf6a54dea52771aeb63aa152a7de732b5d8cb167d1f58deea68: the policy gate (813848686f01a6a5f4d8647b6d6d05b85dff7ffda3c900522133bfebfcf1cf3b) passed. The full gate (61582253339cba4b70046bcfbafce5fb2a92dbeafee59af91843eeed7350158e) passed with 291 passed and 10 native deselected in 220.92 s. Its warnings are uv's notice that the inherited environment is ignored.
+- Handoff gate: runs after the tracked bookkeeping.
+
+Review lane: none. Evidence lane: full. Follow-up route: direct fix — release documentation only.
+
+Candidate-bound evidence: product candidate 6499f0e5485ccf7a74b90926de1f222e0890e725048dd5eb857af32e317d3ee9; full tree d8d6ac4718116bfe0ff27aea7170b92127539f811c9830ee6ab9a27d904b3a16, unchanged through both attempt 2 gates. Acceptance validation passed.
+
+Acceptance: a future release's procedure names the dogfood steps, uses the documented restart verb, keeps the operator's data intact and forbids manufactured writes to the watched root.
+
+Delivery: ordinary guarded commit and fast-forward push after the handoff gate.
+
+Ripple: none.
+
+Lessons:
+- filed: none in the tree. Private notes hold three observations for a permitted follow-up: a file the run changes must not be declared as its authority; a gate's exit code must be read before its review is written; and the tool's span outcome vocabulary must be checked before closing spans.
+- graduation DECIDE: unchanged.
