@@ -2697,3 +2697,71 @@ Verification:
 - Every full gate in this session exercised the final bytes: Phase 30's and Phase 31's acceptance and handoff gates and the acceptance gates of Phases 26, 27, 28 and 29, each `./bin/check all` passing with the proof estate valid; the shared bare handoff gate follows this record.
 
 Remaining: none for the operator beyond ordinary review of the rule's wording; delivery rides the single complete-tree route with Phases 26 to 31. No policy, brief, skill or upstream template changed.
+
+## 2026-11-11 22:31 — START (correction)
+Phase 25 — ordinary 0.5.0 release follow-up (resumed)
+
+Execution trace: 4dc4b21fd2984f0b98e657d76e3654df
+
+Resumes the release follow-up parked in trace 4c657086634844b2a3edf598b4c69473 (full gate failed twice on the native watcher proofs). Its resume condition is met: the native watcher readiness witnesses and diagnostics (Phases 26 and 28), the qualification design (Phase 27) and the lane split (Phase 30) are closed and delivered, together with Phases 29 and 31, in commit 22c4af677cfeae7ff467842a687e792c6265bb73. The operator approved resuming the remaining qualification and release work under the existing scope, through the authenticated factotum; that approval is prospective and does not ratify the earlier alternate-path delivery, whose evidence is preserved. The stale earlier candidate and its receipts are not reused.
+
+Direct-fix route: version, changelog and release-documentation changes only, with no runtime, API or assertion change.
+
+Planned work:
+- Version 0.5.0 in pyproject.toml and uv.lock; the Unreleased changelog entries dated as 0.5.0, with entries for the delivered extraction-wording change and the native release lane; README, RELEASE.md, package smoke, CI workflow and smoke-test version strings.
+- Release qualification per RELEASE.md on the new candidate: two compared builds, archive inspection, artifact hashes, hash-locked clean installations with synthetic smoke on macOS ARM64 and Linux ARM64, a disclosure scan, and the full gate.
+- Guarded delivery and branch CI; then, on the clean delivered release commit and this host, `./bin/check all`, `./bin/check native` in a coordinator-confirmed slot and `./bin/check release`; a tag requires CHECK RELEASE VERIFIED.
+- Guarded v0.5.0 tag push, tag CI, GitHub release with the qualified artifacts, and verification of the public download; then the authorized local tool and launchd update.
+
+## 2026-11-11 23:52 — END (correction)
+Phase 25 — ordinary 0.5.0 release follow-up (resumed)
+
+Execution trace: 4dc4b21fd2984f0b98e657d76e3654df
+
+Palace 0.5.0 is prepared and its packages are qualified. The version, lockfile, changelog and release documentation now say 0.5.0; the changelog dates the prepared single- and multi-store search and hit-evidence entries as 0.5.0 and adds entries for the delivered extraction-wording change and the native release lane. Two macOS builds are byte-identical, hash-locked clean installations of the exact wheel pass the synthetic package smoke on macOS ARM64 and Linux ARM64, the disclosure scan finds no consumer or archive match, and the full gate passes. Accepted close is recorded here; the handoff gate, delivery, branch CI, native qualification on the delivered commit, `./bin/check release`, the tag and publication remain pending at this record. This is not a release or native-qualification claim.
+
+Authority: the operator approved resuming the remaining qualification and release work under the existing scope, including the required native release checks, while preserving the incident evidence (relayed through the authenticated coordinator, 2026-11-12). That approval is prospective and does not ratify the earlier alternate-path delivery of commit 22c4af677cfeae7ff467842a687e792c6265bb73, whose evidence is preserved outside the tree. Phase 25 stays complete; its historical END, the parked release attempt in trace 4c657086634844b2a3edf598b4c69473 and its two failed full gates are unchanged, and none of that attempt's candidates or receipts is reused.
+
+Files changed:
+- pyproject.toml and uv.lock — version 0.5.0; the lock changes only Palace's own version line and `uv lock --check` passes.
+- CHANGELOG.md — the 0.5.0 heading and two added entries: the consolidator extraction-wording behavior change and the contributor/release native lane.
+- README.md and RELEASE.md — 0.5.0 version text and artifact names.
+- .github/package-smoke.py, .github/workflows/ci.yml, tests/test_smoke.py — 0.5.0 version and artifact names with the same assertions.
+- LOG.md and EXECUTION_LOG.jsonl — append-only START/END evidence and the finalized trace.
+
+Build status:
+- Focused version smoke: OK, 3 passed.
+- Packages: OK. Wheel and source archive byte-identical across two macOS builds; every archive member allowlisted; hash-locked clean macOS ARM64 install with the pinned Conric commit verified; package smoke, CLI help and provider list pass. Wheel palace-0.5.0-py3-none-any.whl SHA-256 5945b68f9cc87023cdf7d65e6974c7ef5d85d7e80c627d6698fb1f94d3216753; source archive palace-0.5.0.tar.gz SHA-256 35439735d1afda99b11765b1b11dbc0f23c289e96a4c2a8003b226371017e223, prepublication values.
+- Linux ARM64: OK, fresh directory, transferred wheel digest verified, hash-locked exact-wheel install and smoke pass; six warning lines are three uv hardlink-to-copy fallback notices from the container filesystem, harmless.
+- Disclosure scan: OK. Zero consumer and zero archive findings across 585 tracked files, 819 reachable blobs and 247 archive members. The 26 tree private-path matches are the identical pre-existing set (test fixtures, log and policy examples); 12-digit matches are nanosecond durations. A named-pattern screen, not proof of universal absence.
+- Full gate ./bin/check all: OK, 291 passed and 10 native deselected in 259.88 s, with lint, format, typecheck, smoke and every policy check; nine uv notices that the inherited environment is ignored for the locked project environment.
+- Native lane: not run in this record. `./bin/check native` runs once on the clean delivered commit on this host, after its start and bound are reported to the coordinator; a failure is retained and blocks the release.
+- Handoff gate: runs after the tracked bookkeeping; completion is contingent on the final bare ./bin/check all.
+
+Review lane: none. Evidence lane: full. Follow-up route: direct fix — version, changelog and release-documentation strings only, with no runtime, API or assertion change, so no code critique is required.
+
+Role model/venue — orchestrated by Claude Code, primary mode:
+- Preflight: OK.
+- Planner and coder: inline on the primary, Claude Opus 5.5 at high effort.
+- Reviewer and critic: not run — direct-fix route requires no role.
+
+Candidate-bound evidence:
+- Product candidate 70362f46c4e0d184295e042f6e37f78879d57339e72f76968f61f3a0e3c8acb1; full tree f10a4d7d0c9b4184dbc979d7324bc658a57be05cbd62697102ccf56ca73a33bf unchanged through every gate.
+- Five managed final gates with reviewed diagnostics under manifest 8d646820d38afe56f32508040112ac7cc805d0d37a7f1dab26b1e980e10f81d5 (focused 467183121723cfdd0b1b94c3b38ad723aae0447aa5d5d41928c7c2548f81a905, package 8a8835542f3f33465ff14bac5ea42dfe45e65c79e5f8f7704e88ff6b4c978c92, linux-package 3a1abb20835e94d80c26f079f9f51aed2131dcab43fa69448b64e8770d14b01c, disclosure 6fa86298a50b9a880e3faff18ac3edb57208e897c06a4c2f3a6503c27efe3612, full 6206b78c53646805aa382f9dc3c56837f407194392140a9dea858f24f8034128); acceptance validation passed.
+
+Acceptance:
+- Objective: consistent 0.5.0 version across metadata, lockfile, documentation, package smoke, CI and the version smoke test; reproducible packages; clean exact-wheel installs on macOS ARM64 and Linux ARM64; disclosure scan; full gate.
+- Pending before release: guarded delivery and branch CI; a passing native receipt and CHECK RELEASE VERIFIED for the exact clean delivered candidate on this host; then the tag, tag CI, GitHub release with these qualified artifacts and verification of the public download.
+- Parked for the user: none new.
+
+Delivery: ordinary guarded commit and fast-forward push after the handoff gate, then the authorized new v0.5.0 tag and GitHub release on the existing destination. Earlier tags v0.1.0 to v0.4.1 and their releases are preserved. Nothing is published at this record.
+
+Ripple: none — no downstream sketches and no blocking decisions; phase markers unchanged.
+
+Lessons:
+- filed: none. Applying the preserved release patch with `git apply -3` updated the index as well as the working tree; the paths were unstaged at once, before any gate, and delivery stages only through the guard. That observation and the earlier delivery-refusal lesson are held in private evidence for a permitted follow-up, per coordinator direction, rather than changing this candidate.
+- occurrences added: none.
+- graduation DECIDE: caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket and precious-kangaroo remain optional human judgments; no rule changed.
+- recalibration: not run; no timeout or configuration change.
+
+Wall-clock observations: the full gate dominated gate time (265 s of 287 s). The acceptance span's 4737 s includes about 71 minutes, from 05:39Z to 06:50Z, held idle at a coordinator-directed context checkpoint; it was not an operator-input wait, so no park was opened and the time is reported as orchestration.

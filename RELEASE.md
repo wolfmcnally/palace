@@ -1,6 +1,6 @@
 # Preparing a release
 
-This checklist governs the 0.4.1 packages; building them alone does not publish a release. Preserve the historical v0.1.0 tag and assets. The MIT license covers this package's code, not separate model weights, dependencies or operator content. Publication, tagging, stable-compatibility policy and disclosure decisions remain with the owner. No command below uploads artifacts or changes a remote.
+This checklist governs the 0.5.0 packages; building them alone does not publish a release. Preserve the historical v0.1.0 tag and assets. The MIT license covers this package's code, not separate model weights, dependencies or operator content. Publication, tagging, stable-compatibility policy and disclosure decisions remain with the owner. No command below uploads artifacts or changes a remote.
 
 ## Build and inspect
 
@@ -53,7 +53,7 @@ uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "conric 
 ```
 
 ```bash
-uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "$PALACE_RELEASE_DIR/dist/palace-0.4.1-py3-none-any.whl"
+uv pip install --python "$PALACE_RELEASE_DIR/venv/bin/python" --no-deps "$PALACE_RELEASE_DIR/dist/palace-0.5.0-py3-none-any.whl"
 ```
 
 Move outside the checkout before checking import provenance:
@@ -66,7 +66,7 @@ cd "$PALACE_RELEASE_DIR"
 ./venv/bin/python -c 'import palace; print(palace.__version__, palace.__file__)'
 ```
 
-Expect version `0.4.1` and a module path inside this new environment. Inspect the installed CLI and provider registry:
+Expect version `0.5.0` and a module path inside this new environment. Inspect the installed CLI and provider registry:
 
 ```bash
 ./venv/bin/palace --help

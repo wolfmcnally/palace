@@ -6,7 +6,7 @@ Applications can search a single knowledge store or combine results across multi
 
 Palace provides library and command-line interfaces for building agent memory, personal knowledge tools, and other RAG applications, with explicit control over storage, provenance, and inference boundaries.
 
-Version 0.4.1 admits Bedrock API keys (bearer tokens) for the Bedrock provider and corrects the declared AWS SDK minimum; 0.4.0 added explicit per-file embedding composition, committed vector snapshots and finite snapshot-budget admission; 0.1.0 remains the first tagged MIT release. Package registry publication is separate. APIs and storage contracts remain experimental; review the changelog before upgrading.
+Version 0.5.0 adds prepared single- and multi-store search, which embeds a query before a caller opens its own consistency window and then searches the stores' current content, with optional per-hit evidence read in the retrieval's own snapshot; 0.4.1 admitted Bedrock API keys (bearer tokens) for the Bedrock provider and corrected the declared AWS SDK minimum; 0.4.0 added explicit per-file embedding composition, committed vector snapshots and finite snapshot-budget admission; 0.1.0 remains the first tagged MIT release. Package registry publication is separate. APIs and storage contracts remain experimental; review the changelog before upgrading.
 
 ## Supported retrieval surfaces
 
