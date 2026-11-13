@@ -3091,3 +3091,71 @@ Applied after the accepted close: Phase 32 is ✅ in plan/INDEX.md. There is no 
 Lessons:
 - filed: puzzling-oryx (local, 1 occurrence) — convert a third-party loader's leaked exceptions at the load boundary instead of enumerating them.
 - graduation DECIDE (carried, unchanged): caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket, precious-kangaroo and venomous-degu meet the graduation threshold and await the operator's ratification; nothing graduated.
+
+## 2026-11-12 21:27 — START (correction)
+Phase 32 — ordinary 0.5.1 release follow-up
+
+Execution trace: 7b4a651471644c64936c9c2aaabdf6de
+
+The operator directed a release of the delivered Phase 32 fixes, asking "What good are fixes without a release?". The authenticated factotum relayed this direction: publish the verified release tag and artifacts through the established process, preserve the existing review, signing and security boundaries, dogfood the release on the qualifying host, and notify the consumers for published-tag pinning. This authorizes the ordinary forward tag v0.5.1 and its GitHub release only. Historical tags, permissions, history and the experimental compatibility policy are unchanged.
+
+Direct-fix route: version, changelog and release-documentation changes only, with no runtime, API or assertion change. Phase 32 stays complete; its accepted evidence and spent review allowances carry forward. Both normal gates, release artifact qualification and native qualification on the delivered commit remain required.
+
+Planned work:
+- Version 0.5.1 in pyproject.toml and uv.lock; the Unreleased changelog entry dated as 0.5.1; README, RELEASE.md, package smoke, CI workflow and smoke-test version strings.
+- Release qualification per RELEASE.md: two compared builds, archive inspection, artifact hashes, hash-locked clean installations with synthetic smoke on macOS ARM64 and Linux ARM64, and a disclosure scan.
+- Guarded delivery, branch CI, native qualification, guarded v0.5.1 tag push, tag CI, GitHub release with the qualified artifacts and checksums, then the dogfood restart of the supervised daemons.
+
+## 2026-11-12 21:34 — END (correction)
+Phase 32 — ordinary 0.5.1 release follow-up
+
+Execution trace: 7b4a651471644c64936c9c2aaabdf6de
+
+Palace 0.5.1 is prepared and its packages are qualified. The version, lockfile, changelog and release documentation now say 0.5.1, and the changelog dates the Phase 32 entries as 0.5.1. Two macOS builds are byte-identical. Hash-locked clean installations of the exact wheel pass the synthetic package smoke on macOS ARM64 and Linux ARM64. The disclosure scan finds no consumer, credential or archive match, and the full gate passes. Accepted close is recorded here. The handoff gate, delivery, branch CI, native qualification on the delivered commit, `./bin/check release`, the tag and publication remain pending at this record. This is not a release or native-qualification claim.
+
+Authority: the operator directed releasing the delivered fixes ("What good are fixes without a release?"), relayed through the authenticated factotum on 2026-11-13 04:24 UTC with the established process, boundaries and dogfood requirement. Phase 32 stays complete, and its accepted END is unchanged.
+
+Files changed:
+- pyproject.toml and uv.lock — version 0.5.1; the lock changes only Palace's own version line, and `uv lock --check` passes.
+- CHANGELOG.md — the Unreleased heading dated 0.5.1 — 2026-11-12.
+- README.md and RELEASE.md — 0.5.1 version text and artifact names.
+- .github/package-smoke.py, .github/workflows/ci.yml, tests/test_smoke.py — 0.5.1 version and artifact names with the same assertions.
+- lessons/ultra-stallion.md — one occurrence (below).
+- LOG.md and EXECUTION_LOG.jsonl — append-only START/END evidence and the finalized trace.
+
+Build status:
+- Focused version smoke: OK, 3 passed.
+- Packages: OK. The wheel and source archive are byte-identical across two macOS builds (uv 0.9.26), and every archive member is allowlisted. A hash-locked clean macOS ARM64 install, with the pinned Conric commit verified, passes the package smoke, CLI help and provider list. Prepublication values: wheel palace-0.5.1-py3-none-any.whl SHA-256 07f2aa8dd02e5a3c642dba061fc9022c6bc110483c64a2917a32fe00ea4f1a71; source archive palace-0.5.1.tar.gz SHA-256 14c09443a3c5eb7b9246f9c0464ba2ab05bc67112bb6883723eebd9415d20dc5.
+- Linux ARM64: OK. In a fresh directory, the transferred wheel digest was verified and the hash-locked exact-wheel install and smoke pass. The six warning lines are three uv hardlink-to-copy fallback notices from the container filesystem.
+- Disclosure scan: OK. Zero consumer, credential and archive findings across 601 tracked files, 881 reachable blobs and 249 archive members. Every tree match that is new since the 0.5.0 scan is a 12-digit numeric value in execution evidence; there is no new private path. This is a named-pattern screen, not proof of universal absence.
+- Full gate ./bin/check all: OK, 291 passed and 10 native deselected in 235.94 s, with lint, format, typecheck, smoke and every policy check. Nine uv notices that the inherited environment is ignored are environmental.
+- Native lane: not run in this record. `./bin/check native` runs on the clean delivered commit on this host; a failure is retained and blocks the release.
+- Handoff gate: runs after the tracked bookkeeping; completion is contingent on the final bare ./bin/check all.
+
+Review lane: none. Evidence lane: full. Follow-up route: direct fix — version, changelog and release-documentation strings only, with no runtime, API or assertion change, so no code critique is required.
+
+Role model/venue — orchestrated by Claude Code, primary mode:
+- Preflight: OK.
+- Planner and coder: inline on the primary (opus).
+- Reviewer and critic: not run; the direct-fix route requires no role.
+
+Execution timing: makespan 391.325 s; gates 265.979 s; intelligence 0 s; failed work 0 s; unattributed 0.387 s (from `kickoff-evidence timing-summary`). Awaiting user input: none.
+
+Candidate-bound evidence:
+- Product candidate 8cdb3cd174f88bc52bf2836169d50a6aa2ea37aff8ed706fe6be7f6b7c7120c8; full tree 9fbd45cfda2652ca100f35e0511dc5782e3c0eb1cdd9c83998578ab5848f764e, unchanged through every gate.
+- Five managed final gates with reviewed diagnostics under manifest 1f48997d69c09f17e2bb6150483a22e5ea14112d30f465155fb4af4214329495 (focused d154c45ac45eab8c5448fefbdefceb63e6442de39c813a710e0dcf54060d60b1, package a7a24e285cbb738f2705008fededd6a96a11b80750643323d273cd993be2a816, linux-package df5d8d7a2d553bccbd54f6d59dc90142f1414c93c01bcfb221ebd655436884a1, disclosure 34329b3103a4996e3d354ef25a35b874856e3fa3ec5394a25abfbee84bf7c5c3, full af426580dd6763d8788907c4e4091f79b37f622f937035b1b1cb97244e1d9127). Acceptance validation passed.
+
+Acceptance:
+- Objective: the 0.5.1 version is consistent across metadata, lockfile, documentation, package smoke, CI and the version smoke test; the packages are reproducible; clean exact-wheel installs pass on macOS ARM64 and Linux ARM64; the disclosure scan and the full gate pass.
+- Pending before release: guarded delivery and branch CI; a passing native receipt and CHECK RELEASE VERIFIED for the exact clean delivered candidate on this host; then the tag, tag CI, the GitHub release with these qualified artifacts, verification of the public download, and the dogfood restart.
+- Parked for the user: none new.
+
+Delivery: ordinary guarded commit and fast-forward push after the handoff gate, then the authorized new v0.5.1 tag and GitHub release on the existing destination. Earlier tags and releases are preserved. Nothing is published at this record.
+
+Ripple: none — no downstream sketches and no blocking decisions; phase markers unchanged.
+
+Lessons:
+- occurrences added: ultra-stallion. The lesson's own example pattern allows one separator character, so it missed the smoke test's two-character escaped form of the old version; caught by reading the test, before any gate.
+- filed: none.
+- graduation DECIDE: unchanged (caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket, precious-kangaroo and venomous-degu await the operator); ultra-stallion now has two occurrences.
+- recalibration: not run; no timeout or configuration change.

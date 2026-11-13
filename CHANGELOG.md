@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 — 2026-11-12
 
 - Front matter that `yaml.safe_load` cannot load for any reason is now malformed front matter. Beyond YAML syntax errors, the loader raises Python's own exceptions for some input: a calendar-invalid date such as `2026-02-30`, an out-of-range time or offset, an integer literal past Python's digit limit, an explicit `!!bool`, `!!int`, `!!float` or `!!timestamp` tag on a value it cannot convert, a long sexagesimal float, or nesting past the recursion limit. Those escaped the Markdown parser and stopped indexing at that note. The note now indexes from its body with empty front matter and one `malformed-frontmatter` stderr line naming its path, as malformed YAML already did. The capture and fact parsers raise their attributed errors for the same input. A `MemoryError` still propagates.
 - Listing a store's indexed watch roots, done by every search admission, each store of a multi-store search, the remote-vector publication check and the full build, walks the existing `watch_root` index once per root instead of visiting every chunk. Results are unchanged and returned in ascending order.
