@@ -9,6 +9,8 @@ source: kickoff
 occurrences:
   - date: 2026-11-12
     ref: "FSEvents flush diagnostic: per-cycle booleans reported watchdog missing events that its raw callback log showed arriving within 0.6 ms of the independent stream"
+  - date: 2026-11-12
+    ref: "0.5.1 dogfood flow check: a watcher compared the stored file hash right after the first index of a note, while a second save was already accepted; it reported a mismatch, and the settled store matched the file bytes after the second index"
 ---
 
 As of 2026-11-12, a scratch diagnostic compared an independent CoreServices stream with watchdog's stream. It read watchdog's "seen" flag immediately after the first client reported the target, so in five of fifteen cycles watchdog appeared to miss an event that its raw callback log recorded a fraction of a millisecond later, with the same event id. The summary row was wrong; the retained raw log was right, and the report was corrected.

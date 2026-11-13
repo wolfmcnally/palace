@@ -3159,3 +3159,27 @@ Lessons:
 - filed: none.
 - graduation DECIDE: unchanged (caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket, precious-kangaroo and venomous-degu await the operator); ultra-stallion now has two occurrences.
 - recalibration: not run; no timeout or configuration change.
+
+## 2026-11-12 22:05 — END (correction bookkeeping)
+Phase 32 — ordinary 0.5.1 release follow-up: publication and dogfood outcomes
+
+Execution trace: 7b4a651471644c64936c9c2aaabdf6de
+
+Palace 0.5.1 is published and running on the qualifying host. Every pending item in the END (correction) above is now done:
+- Delivery: commit b0fd01ea2278b260877eeb306e9192a0b95f1dd0 by the guarded deliver after a passing handoff gate (291 passed). Branch CI run 43366887913 passed on macOS and Ubuntu.
+- Native qualification on the clean delivered commit: CHECK NATIVE PASS (6 passed, 4 skipped by the standing ruling) and CHECK RELEASE VERIFIED with zero failed native runs. A rebuild from `git archive` of the commit matched the qualified wheel and source archive byte for byte.
+- Tag: annotated v0.5.1 (tag object a0a624ffe548674fd00757cdb476a58df326c17d) pushed through the normal pre-push full gate (CHECK ALL PASS). Tag CI run 43368027076 passed: 291 tests on Linux and macOS, macOS native 6 passed and 4 skipped, package smoke on both.
+- GitHub release v0.5.1, published 2026-11-13T04:55:13Z, not draft or prerelease, with palace-0.5.1-py3-none-any.whl (SHA-256 07f2aa8dd02e5a3c642dba061fc9022c6bc110483c64a2917a32fe00ea4f1a71), palace-0.5.1.tar.gz (SHA-256 14c09443a3c5eb7b9246f9c0464ba2ab05bc67112bb6883723eebd9415d20dc5) and SHA256SUMS. Anonymous downloads re-hashed equal, and fresh hash-locked installs with the package smoke passed on macOS ARM64 and Linux ARM64. Earlier tags and releases are unchanged.
+- Dogfood per RELEASE.md:
+  - the editable tool was reinstalled against the lock and reports 0.5.1;
+  - the existing store opened read-only with identity OK and indexing active, after an online backup with integrity ok;
+  - all three installed LaunchAgent plists equal their rendered templates;
+  - each daemon was restarted with `launchctl kickstart -k` and runs as exactly one new instance with clean startup lines; the capture daemon's /health reports 0.5.1;
+  - an ordinary vault edit flowed from file to reindex accept to index within 5 s, twice, and the settled stored file hash equals the file's bytes. Nothing was written to the watched root.
+- The two consumers were notified with the tag, commit and asset digests. One downstream consumer depends on the other's exact pin, so its move waits for that pin to change.
+
+My first flow check reported a hash mismatch. It compared right after the first of two saves was indexed, while the second save was already accepted, and was rechecked after both settled. Its retained output shows both.
+
+Lessons:
+- occurrence added: blond-wapiti (local, 2 occurrences) — sample asynchronous outcomes after a settle window, not at the first arrival.
+- graduation DECIDE: unchanged; nothing graduated.
