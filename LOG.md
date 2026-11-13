@@ -2945,3 +2945,149 @@ Ripple: none.
 Lessons:
 - filed: none in the tree. Private notes hold three observations for a permitted follow-up: a file the run changes must not be declared as its authority; a gate's exit code must be read before its review is written; and the tool's span outcome vocabulary must be checked before closing spans.
 - graduation DECIDE: unchanged.
+
+## 2026-11-12 20:15 — START
+Phase 32: Unloadable front matter and a bounded indexed-root lookup
+
+Execution trace: dbe62b3fe7184f3da8f1eaa28e77ecb6
+
+Planned work:
+- One shared definition of the front-matter load failures (`yaml.YAMLError`, `ValueError`, `RecursionError`), used by the Markdown index parser, the capture parser and the fact parser.
+- The Markdown index parser treats every such failure as malformed front matter; the capture and fact parsers raise their existing attributed errors for it.
+- One shared indexed-watch-root lookup that walks the existing `watch_root` index with a recursive skip-scan, replacing the four `SELECT DISTINCT watch_root FROM chunks` statements in single-store search admission, multi-store admission, the remote-vector publication check and the full-build remaining-roots check.
+- Focused tests: each failure class at each parser; a store indexing a note with an invalid date and a valid note, both indexed; lookup equality with the `DISTINCT` statement across empty, single-root, many-root, prefix-related, case-distinct and non-ASCII roots; and a falsifying bound showing the lookup's virtual-machine steps do not grow with the chunk count.
+- An Unreleased changelog entry and proof-estate admissions for the new proofs.
+
+## 2026-11-12 20:23 — PARK
+Phase 32: Unloadable front matter and a bounded indexed-root lookup — light lane escalated to full.
+
+Execution trace: dbe62b3fe7184f3da8f1eaa28e77ecb6
+
+The phase file declared the light review lane, so this run skipped plan review. The independent code critique found the declaration inadmissible: the work changes front-matter input parsing and user-visible indexing behavior, both excluded from the light lane by the review-lanes policy. Policy requires escalation to the full lane, with the skipped plan review run retroactively against the plan as built. The critique also found, and the primary confirmed with the locked PyYAML, that the safe loader lets more exception types escape than the implemented catch covers (KeyError and IndexError from explicit bool/int/float tags, AttributeError from an explicit timestamp tag, OverflowError from a long sexagesimal float). That correction belongs to the continuation.
+
+Preserved: the implemented candidate in the working tree, its change manifest, the plan, the critique report and its ingested advice, all in the run directory outside the tree. No implementation gate, close or delivery ran. Nothing was committed.
+
+Resume: a fresh full-lane run for Phase 32 that carries this critique forward, captures the plan as built plus the exception-coverage correction, obtains independent plan review, implements the correction, and closes through both full gates.
+
+Lessons:
+- filed: copper-quail (local) — check the light-lane exclusion list against the deliverables before declaring a lane.
+
+## 2026-11-12 20:24 — START (resumed)
+Phase 32: Unloadable front matter and a bounded indexed-root lookup
+
+Execution trace: 328a8b9cb951499a9184145f0b88430a
+
+Resumes the parked light-lane run in the full lane: the skipped plan review runs against the plan as built plus the exception-coverage correction, and the first code critique is carried forward.
+
+Planned work:
+- One shared definition of the front-matter load failures (`yaml.YAMLError` and the Python exception classes the safe loader lets escape for input: `ValueError`, `LookupError`, `AttributeError`, `ArithmeticError`, `RecursionError`), caught only around the load call and used by the Markdown index parser, the capture parser and the fact parser.
+- The Markdown index parser treats every such failure as malformed front matter; the capture and fact parsers raise their existing attributed errors for it.
+- One shared indexed-watch-root lookup that walks the existing `watch_root` index with a recursive skip-scan, replacing the four `SELECT DISTINCT watch_root FROM chunks` statements in single-store search admission, multi-store admission, the remote-vector publication check and the full-build remaining-roots check.
+- Focused tests: each failure class at each parser; a store indexing a note with an invalid date and a valid note, both indexed; lookup equality with the `DISTINCT` statement across empty, single-root, many-root, prefix-related, case-distinct and non-ASCII roots; and a falsifying bound showing the lookup's virtual-machine steps do not grow with the chunk count.
+- An Unreleased changelog entry and proof-estate admissions for the new proofs.
+
+## 2026-11-12 20:43 — END
+Phase 32: Unloadable front matter and a bounded indexed-root lookup
+
+Execution trace: 328a8b9cb951499a9184145f0b88430a
+
+A note whose front matter cannot be loaded no longer stops indexing. That includes a calendar-invalid date such as `2026-02-30`, a tagged value the loader cannot convert, an over-long number or over-deep nesting. The note now indexes from its body with empty front matter and one `malformed-frontmatter` stderr line naming its path, which is how malformed YAML was already handled. The capture and fact parsers now give their named errors for the same input instead of a bare Python exception. Separately, every search admission, each store of a multi-store search, the remote-vector publication check and the full build now list a store's indexed watch roots by walking the existing index once per root, instead of visiting every chunk. Results are unchanged and come back in ascending order.
+
+How the exception boundary was settled: PyYAML's safe loader raises Python's own exceptions for some input. The first run caught three classes. The first code critique found four more, and the retroactive plan review then found `TypeError`. Since a hand-kept list kept missing classes, the shared loader (`palace/frontmatter.py`) now wraps only the `yaml.safe_load` call and converts every `Exception` except `MemoryError` into `FrontmatterLoadError`. The parsers catch only that error, and their messages are unchanged. This refines the phase's enumerated deliverable to a superset.
+
+Run history: this phase was first run in the light lane, which skipped plan review. That run was parked when the code critique showed the lane was inadmissible for an input-parsing change (PARK above). This full-lane run carried that critique forward and ran the plan review retroactively against the plan as built.
+
+Files changed:
+- palace/frontmatter.py — new: `load_frontmatter` and `FrontmatterLoadError`.
+- palace/index/markdown.py, palace/consolidate/captures.py, palace/fact/schema.py — load through the shared loader and catch only its error.
+- palace/index/schema.py — new `indexed_watch_roots` skip-scan.
+- palace/search.py, palace/multistore.py, palace/index/s3vectors.py, palace/index/build.py — the four call sites; the private s3vectors helper is removed.
+- tests/conftest.py — shared `UNLOADABLE_FRONTMATTER_VALUES`.
+- tests/index/test_core.py, tests/consolidate/test_captures.py, tests/fact/test_schema.py — new assertions inside four existing families.
+- tests/proof-estate.yaml — contract, oracle and covers text for those families; zero family and leaf growth.
+- CHANGELOG.md — Unreleased entries.
+- plan/phase-32.md, plan/INDEX.md — the phase and its row.
+
+Build status:
+- Focused gate (parser and watch-root families plus their call-site neighbors): OK, 96 passed. Two uv notices that the evidence tool's inherited VIRTUAL_ENV was ignored are environmental.
+- Implementation gate ./bin/check all: OK. Lint, format, typecheck, 291 tests passed (10 native deselected) in 221.83 s, smoke and every policy check passed. Nine identical uv VIRTUAL_ENV notices are environmental. Product and full-tree identities were unchanged across both gates.
+- Handoff gate: runs after this tracked END block; completion is contingent on the ignored receipt from the final bare `./bin/check all`.
+
+Review lane (per `policies/review-lanes.md`):
+- light → full (escalated: input parsing and user-visible behavior are excluded from the light lane; found by the first code critique)
+
+Evidence lane (per `policies/review-lanes.md`):
+- full
+
+Follow-up route (per `policies/review-lanes.md`):
+- N/A (initial implementation, resumed in the full lane)
+
+Role model/venue (per `policies/role-models.md`) — orchestrated by claude:
+- Preflight: OK (codex --model gpt-6-astra, effort high, read-only, for reviewer and critic), in both runs.
+- Planner: inline primary (opus), not dispatched.
+- Reviewer (plan review): requested model=astra effort=high venue=codex, one retroactive pass.
+- Coder: inline primary (opus), not dispatched.
+- Critic (code review): requested model=astra effort=high venue=codex, two passes. The first was in the parked light run and was carried forward. The second recorded its cause: the design change after the plan review.
+
+For each role separately: harness_version=unreported, observed_model=unreported, observed_effort=unreported; observation_errors=none.
+
+Role timing (per `policies/role-timeouts.md`):
+- Planner: inline.
+- Reviewer (plan review): 225.6 s; success.
+- Coder: inline.
+- Critic (code review): about 176 s in the parked run (03:18:11Z to 03:21:07Z, measured in that run's trace) and 168.7 s here; success both.
+
+Execution timing (per `policies/execution-telemetry.md`):
+- This run: makespan 1133.418 s; intelligence 394.222 s; gates 285.379 s; wait 393.092 s; retry or rework 168.650 s; failed work 0 s; unattributed 0.440 s (from `kickoff-evidence timing-summary`). The parked light run is a separate finalized trace.
+- Awaiting user input: none.
+- Timing validation: exact monotonic nanoseconds, overlap-safe unions, trace joins OK.
+
+Candidate-bound evidence (per `policies/orchestration-evidence.md`):
+- Candidate: initial=f147232fd55a023028097a8975e143d7795cc67274431b6ab2bfeeced47e54bb approved=d3c539235ce41fb8d1ed1407b61133c25fa4ec3700cd957db77a6feae09f1304 final=d3c539235ce41fb8d1ed1407b61133c25fa4ec3700cd957db77a6feae09f1304
+- Advisory findings: first critique 2, plan review 3, second critique 1; all 6 adopted by primary decision; none declined or deferred.
+- Gates: focused=1 implementation-final=1, both recorded against the approved product candidate.
+- Evidence validation: `kickoff-evidence validate --level acceptance` OK.
+- Red witnesses: narrowing the loader to `yaml.YAMLError` fails all three parser families. Reimplementing the lookup as sorted `DISTINCT` fails the watch-root family; its step count grew from 609 to 12009 between 200 and 4000 chunks while the skip-scan's stayed constant. Both mutations were byte-restored.
+
+Wall-clock observations:
+- The full gate dominated automated checks at 227 s.
+
+Acceptance (per `policies/human-in-the-loop.md`):
+- Objective (independently reviewed, gate-proved, candidate-bound):
+  - a note with an invalid date, or any other unloadable front matter, indexes from its body with empty front matter and one attributed stderr line, and a valid note beside it keeps its front matter;
+  - the capture and fact parsers raise their attributed errors, never a bare loader exception, and `MemoryError` propagates;
+  - the shared lookup equals sorted `DISTINCT` on every fixture, and its step count does not grow with the chunk count;
+  - no `SELECT DISTINCT watch_root FROM chunks` remains in the package;
+  - both repository gates pass, with independent plan and code advice and primary dispositions retained.
+- Parked for the user and the consumers: whether the fixes meet each consumer's need.
+
+Delivery:
+- default — commit + fast-forward push after the handoff gate. No tag, release, version change or artifact publication is authorized.
+
+Ripple (per `policies/phase-ripple.md`):
+- none — no downstream sketches.
+
+Lessons:
+- filed: copper-quail (local), in the PARK above — check the light-lane exclusion list before declaring a lane.
+- filed (pending, written after this block): puzzling-oryx (local). When a third-party loader leaks exceptions, wrap only the load call and convert at that boundary. Each review pass here found another leaked class, so enumerating them is not sound.
+- occurrences added: none.
+- graduation DECIDE: unchanged (caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket, precious-kangaroo, venomous-degu remain at three or more occurrences awaiting the operator).
+- recalibration: insufficient samples (no group has the required 30 successful samples).
+
+User demo (per `policies/user-demo-protocols.md`):
+User Demo: N/A — library behavior proved by deterministic synthetic tests.
+
+Remaining:
+- Pending writes after this block: INDEX ✅, lesson puzzling-oryx, the dashboard report, and the bare handoff gate; then guarded delivery.
+- A release and consumer adoption are outside this phase. The operator's running index daemon keeps the 0.5.0 code until it restarts.
+
+## 2026-11-12 20:44 — END (close bookkeeping)
+Phase 32: Unloadable front matter and a bounded indexed-root lookup: close bookkeeping outcomes
+
+Execution trace: 328a8b9cb951499a9184145f0b88430a
+
+Applied after the accepted close: Phase 32 is ✅ in plan/INDEX.md. There is no downstream phase, so no row is marked next. Lesson puzzling-oryx is filed and the ledger validates. The Phase 32 dashboard is rendered and the dashboard check passes. The bare handoff gate follows this record.
+
+Lessons:
+- filed: puzzling-oryx (local, 1 occurrence) — convert a third-party loader's leaked exceptions at the load boundary instead of enumerating them.
+- graduation DECIDE (carried, unchanged): caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket, precious-kangaroo and venomous-degu meet the graduation threshold and await the operator's ratification; nothing graduated.

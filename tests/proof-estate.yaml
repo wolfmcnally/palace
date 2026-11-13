@@ -442,9 +442,11 @@ families:
   covers:
   - tests/consolidate/test_captures.py
   - palace/consolidate/**
-  contract: Executable proof for test malformed frontmatter raises with path.
+  - palace/frontmatter.py
+  - tests/conftest.py
+  contract: Malformed capture front matter raises ConsolidationError naming the path. An unclosed fence is rejected by the fence splitter before loading; closed fences around a value for every loader failure class (a YAML syntax error and the Python errors yaml.safe_load lets escape for input) are converted by the shared front-matter loader into the malformed-capture-frontmatter error.
   risk_class: consolidation
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: pytest.raises on ConsolidationError with the path for the unclosed fence, and on ConsolidationError with the malformed-capture-frontmatter message and the path for each shared unloadable front-matter value.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -1444,9 +1446,11 @@ families:
   covers:
   - tests/fact/test_schema.py
   - palace/fact/**
-  contract: Executable proof for test parse round trips fact ignoring raw.
+  - palace/frontmatter.py
+  - tests/conftest.py
+  contract: A serialized fact parses back to equal fields; a fact whose front matter holds a value for any loader failure class (a YAML syntax error and the Python errors yaml.safe_load lets escape for input) raises FactError; and a MemoryError from the loader propagates unconverted.
   risk_class: facts
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Field-by-field equality of the round trip, pytest.raises on FactError with the malformed-frontmatter message for each shared unloadable front-matter value, and pytest.raises on MemoryError with the loader patched to raise it.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -1924,9 +1928,9 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Executable proof for test core chunk id includes watch root.
+  contract: Identical content under two watch roots gets distinct chunk ids that stay stable on re-index; the shared indexed-watch-root lookup equals SELECT DISTINCT watch_root on empty, prefix-related, case-distinct, spaced and non-ASCII roots, and its virtual-machine steps do not grow with the chunk count.
   risk_class: index
-  oracle: Independent executable assertion or fail-closed command status.
+  oracle: Chunk-id set disjointness and equality, lookup equality with the sorted DISTINCT statement, and SQLite progress-handler step counts equal at 200 and 4000 chunks for the lookup while the DISTINCT statement's count grows more than tenfold.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []
@@ -2064,9 +2068,11 @@ families:
   covers:
   - tests/index/test_core.py
   - palace/index/**
-  contract: Typed indexing plus the original isolated embedding-input reconstruction assertions.
+  - palace/frontmatter.py
+  - tests/conftest.py
+  contract: Typed indexing plus the original isolated embedding-input reconstruction assertions, and front matter holding a value for any loader failure class (a YAML syntax error and the Python errors yaml.safe_load lets escape for input) indexes the note's body with empty front matter and one attributed stderr line while a valid note beside it keeps its front matter.
   risk_class: index
-  oracle: Original positive-index assertions and unchanged isolated reconstruction fixture/assertions.
+  oracle: Original positive-index assertions and unchanged isolated reconstruction fixture/assertions, plus stored body and NULL frontmatter_json per unloadable note, the valid note's stored front matter, and exactly one malformed-frontmatter stderr line naming each unloadable path.
   admission: Retained by the Palace whole-estate Pareto reset.
   nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
   historical_evidence: []

@@ -27,7 +27,7 @@ from palace.index.s3vectors import (
     VectorUsageSummary,
     resolve_vector_backend,
 )
-from palace.index.schema import assert_identity, assert_identity_readable
+from palace.index.schema import assert_identity, assert_identity_readable, indexed_watch_roots
 from palace.prepared import (
     HitEvidence,
     _changed_axis,
@@ -239,9 +239,7 @@ def _admit_stores(
         stack.callback(conn.close)
         conn.execute("BEGIN")
         connections[root] = conn
-        watch_roots = [
-            Path(row[0]) for row in conn.execute("SELECT DISTINCT watch_root FROM chunks")
-        ]
+        watch_roots = [Path(root) for root in indexed_watch_roots(conn)]
         watch_roots_by_store[root] = watch_roots
         if rerank_enabled and not injected_reranker:
             selected_reranker = load_rerank_config(root)

@@ -7,8 +7,10 @@ import hashlib
 import json
 from typing import Any
 
+import pytest
 import yaml
 
+from palace.fact._errors import FactError
 from palace.fact.schema import (
     Fact,
     build_fact,
@@ -18,6 +20,7 @@ from palace.fact.schema import (
     patch_valid,
     serialize_fact,
 )
+from tests.conftest import UNLOADABLE_FRONTMATTER_VALUES
 
 
 def _json_safe(value: Any) -> Any:
@@ -198,6 +201,27 @@ def test_parse_round_trips_fact_ignoring_raw() -> None:
         assert parsed.tags == fact.tags
         assert parsed.refs == fact.refs
         assert parsed.superseded_by == fact.superseded_by
+
+    _assert_unloadable_frontmatter_raises_fact_error()
+
+
+def _assert_unloadable_frontmatter_raises_fact_error() -> None:
+    """Every loader failure class raises the attributed FactError."""
+    text = serialize_fact(_sample_scalar())
+    assert "\nevent_time: 2026-01-15\n" in text
+    for value in UNLOADABLE_FRONTMATTER_VALUES:
+        bad = text.replace("\nevent_time: 2026-01-15\n", f"\nevent_time: {value}\n")
+        with pytest.raises(FactError, match="malformed frontmatter in fact section"):
+            parse_fact(bad)
+
+    # Resource exhaustion is not malformed input: MemoryError propagates.
+    def exhausted(_text: str) -> object:
+        raise MemoryError
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("palace.frontmatter.yaml.safe_load", exhausted)
+        with pytest.raises(MemoryError):
+            parse_fact(text)
 
 
 def test_serialize_fact_matches_policy_example_shape() -> None:

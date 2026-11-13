@@ -32,10 +32,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-import yaml
-
 from palace.daemons.capture.ids import compute_record_id
 from palace.fact._errors import FactError
+from palace.frontmatter import FrontmatterLoadError, load_frontmatter
 
 __all__ = [
     "EventTime",
@@ -192,8 +191,8 @@ def parse_fact(section_text: str) -> Fact:
     """
     heading, frontmatter_text, body = _split_section(section_text)
     try:
-        data = yaml.safe_load(frontmatter_text)
-    except yaml.YAMLError as exc:
+        data = load_frontmatter(frontmatter_text)
+    except FrontmatterLoadError as exc:
         raise FactError(f"malformed frontmatter in fact section: {exc}") from exc
     if not isinstance(data, dict):
         raise FactError("fact section frontmatter is not a YAML mapping")

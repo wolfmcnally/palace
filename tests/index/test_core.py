@@ -36,8 +36,9 @@ from palace.index.core import (
 )
 from palace.index.embedder_config import resolve_identity
 from palace.index.enrich import scored_text
-from palace.index.schema import init_db, verify_fts_rowid_map
+from palace.index.schema import indexed_watch_roots, init_db, verify_fts_rowid_map
 from palace.index.writer import WriterWorker, _Sentinel, _WorkItem
+from tests.conftest import UNLOADABLE_FRONTMATTER_VALUES
 
 from .conftest import FakeEmbedder
 
@@ -115,6 +116,7 @@ def test_index_markdown_through_core_inserts_chunks(
     tmp_store: Path,
     tmp_watch_root: Path,
     embedder: FakeEmbedder,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     note = tmp_watch_root / "notes.md"
     note.write_text("## A\nbody A\n## B\nbody B\n## C\nbody C\n", encoding="utf-8")
@@ -144,6 +146,52 @@ def test_index_markdown_through_core_inserts_chunks(
     _assert_markdown_input_reconstruction(
         tmp_store / "reconstruction", tmp_watch_root, FakeEmbedder()
     )
+    _assert_unloadable_frontmatter_indexes_body(tmp_store, tmp_watch_root, capsys)
+
+
+def _assert_unloadable_frontmatter_indexes_body(
+    tmp_store: Path, tmp_watch_root: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Front matter that cannot be loaded indexes the body with empty front matter.
+
+    Covers every loader failure class; a valid note beside them keeps its
+    front matter.
+    """
+    store, root = _isolated(tmp_store, tmp_watch_root, "unloadable-frontmatter")
+    unloadable = {
+        f"unloadable-{index}.md": f"date: {value}"
+        for index, value in enumerate(UNLOADABLE_FRONTMATTER_VALUES)
+    }
+    for name, frontmatter in unloadable.items():
+        (root / name).write_text(f"---\n{frontmatter}\n---\n## Body\n{name} body\n", "utf-8")
+    (root / "good.md").write_text("---\ndate: 2026-02-28\n---\n## Body\ngood body\n", "utf-8")
+    capsys.readouterr()
+    conn = _open(store)
+    try:
+        for name in (*unloadable, "good.md"):
+            outcome = _index_markdown(
+                conn=conn, embedder=FakeEmbedder(), path=root / name, watch_root=root
+            )
+            assert outcome == IndexOutcome(kind="markdown", new=1, embedded=1)
+        rows = {
+            path: (body, frontmatter_json)
+            for path, body, frontmatter_json in conn.execute(
+                "SELECT path, body, frontmatter_json FROM chunks"
+            )
+        }
+    finally:
+        conn.close()
+    stderr_lines = capsys.readouterr().err.splitlines()
+    for name in unloadable:
+        assert rows[name] == (f"## Body\n{name} body", None)
+        named = [
+            line
+            for line in stderr_lines
+            if "malformed-frontmatter" in line and f"path={root / name} " in line
+        ]
+        assert len(named) == 1
+    assert rows["good.md"] == ("## Body\ngood body", '{"date":"2026-02-28"}')
+    assert sum("malformed-frontmatter" in line for line in stderr_lines) == len(unloadable)
 
 
 def _assert_markdown_input_reconstruction(
@@ -686,6 +734,66 @@ def test_core_chunk_id_includes_watch_root(
     assert ids_a.isdisjoint(ids_b)
     # (b) Within one root, re-index → stable chunk-ids.
     assert ids_a == ids_a_again
+
+    _assert_indexed_watch_roots_bounded(tmp_path / "watch-root-lookup")
+
+
+_DISTINCT_WATCH_ROOTS = "SELECT DISTINCT watch_root FROM chunks"
+
+
+def _insert_chunk_rows(conn: sqlite3.Connection, watch_root: str, count: int) -> None:
+    """Insert ``count`` bare ``chunks`` rows under ``watch_root``."""
+    offset = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+    conn.executemany(
+        "INSERT INTO chunks (chunk_id, path, watch_root, kind, section_index, window_index, "
+        "heading_depth, body, body_hash, wikilinks_json, tags_json, dataview_fields_json, "
+        "embeds_json, ingest_time) "
+        "VALUES (?, ?, ?, 'markdown', 0, 0, 0, '', '', '[]', '[]', '[]', '[]', '')",
+        [(f"c{offset + i}", f"n{offset + i}.md", watch_root) for i in range(count)],
+    )
+
+
+def _vm_steps(conn: sqlite3.Connection, run: Callable[[], object]) -> int:
+    """Count the SQLite virtual-machine steps ``run`` executes on ``conn``."""
+    steps = 0
+
+    def tick() -> int:
+        nonlocal steps
+        steps += 1
+        return 0
+
+    conn.set_progress_handler(tick, 1)
+    try:
+        run()
+    finally:
+        conn.set_progress_handler(None, 1)
+    return steps
+
+
+def _assert_indexed_watch_roots_bounded(store: Path) -> None:
+    """The skip-scan equals ``SELECT DISTINCT`` and does not grow with chunk count."""
+    store.mkdir()
+    conn = _open(store)
+    try:
+        assert indexed_watch_roots(conn) == []
+        roots = ["/a", "/a/b", "/A", "/\u00e4", "/a b"]
+        for root in roots:
+            _insert_chunk_rows(conn, root, 3)
+        distinct = [row[0] for row in conn.execute(_DISTINCT_WATCH_ROOTS)]
+        assert indexed_watch_roots(conn) == sorted(distinct) == sorted(roots)
+
+        conn.execute("DELETE FROM chunks")
+        _insert_chunk_rows(conn, "/only", 200)
+        small = _vm_steps(conn, lambda: indexed_watch_roots(conn))
+        small_distinct = _vm_steps(conn, lambda: conn.execute(_DISTINCT_WATCH_ROOTS).fetchall())
+        _insert_chunk_rows(conn, "/only", 3800)
+        assert indexed_watch_roots(conn) == ["/only"]
+        large = _vm_steps(conn, lambda: indexed_watch_roots(conn))
+        large_distinct = _vm_steps(conn, lambda: conn.execute(_DISTINCT_WATCH_ROOTS).fetchall())
+    finally:
+        conn.close()
+    assert small == large
+    assert large_distinct > 10 * small_distinct
 
 
 def _assert_stored_path_refuses_path_outside_watch_root() -> None:

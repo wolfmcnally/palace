@@ -304,6 +304,26 @@ def assert_schema_version(store: Path) -> None:
         )
 
 
+_INDEXED_WATCH_ROOTS_SQL = (
+    "WITH RECURSIVE r(w) AS ("
+    "SELECT min(watch_root) FROM chunks "
+    "UNION ALL "
+    "SELECT (SELECT min(watch_root) FROM chunks WHERE watch_root > r.w) FROM r "
+    "WHERE r.w IS NOT NULL"
+    ") SELECT w FROM r WHERE w IS NOT NULL"
+)
+
+
+def indexed_watch_roots(conn: sqlite3.Connection) -> list[str]:
+    """Return every distinct ``chunks.watch_root``, ascending in BINARY order.
+
+    A skip-scan over ``idx_chunks_watch_root``: one index probe per root
+    plus one, independent of the chunk count, where ``SELECT DISTINCT``
+    visits every chunk. The stored strings are returned unchanged.
+    """
+    return [row[0] for row in conn.execute(_INDEXED_WATCH_ROOTS_SQL)]
+
+
 def read_identity(conn: sqlite3.Connection) -> RecordedIdentity:
     """Read the complete identity in one query; absence stays explicit."""
     table_exists = conn.execute(

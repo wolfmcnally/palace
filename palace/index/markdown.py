@@ -5,10 +5,10 @@ ParsedMarkdown``. No I/O beyond the input bytes.
 
 What "Obsidian-native" means in 2.3:
 
-- **YAML frontmatter**, parsed via :func:`yaml.safe_load`. Malformed
-  frontmatter logs-and-continues — the body still indexes with
-  ``frontmatter_json = "{}"``. Empty / absent frontmatter resolves to
-  ``{}``.
+- **YAML frontmatter**, parsed via :func:`yaml.safe_load`. Frontmatter
+  that cannot be loaded, whether malformed or holding an unloadable value
+  such as an invalid date, logs-and-continues — the body still indexes
+  with empty frontmatter. Empty / absent frontmatter resolves to ``{}``.
 - **Wikilinks** (``[[name|alias#anchor]]``) and **embeds**
   (``![[name]]``) survive verbatim in ``body``. The negative lookbehind
   on the wikilink regex excludes embeds; the inner text is captured as
@@ -39,8 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from palace.frontmatter import FrontmatterLoadError, load_frontmatter
 from palace.index.config import (
     MARKDOWN_HEADING_DEPTH,
     MARKDOWN_MAX_SECTION_CHARS,
@@ -219,8 +218,9 @@ def _split_frontmatter(text: str, *, source_path: Path) -> tuple[dict[str, Any],
     """Strip a YAML frontmatter block from the start of ``text``.
 
     Returns ``({}, text)`` when no block matches or the YAML parses to a
-    non-mapping. Malformed YAML logs a single stderr line naming the
-    source path and resolves to ``{}`` — the body still indexes.
+    non-mapping. YAML that cannot be loaded (:class:`FrontmatterLoadError`)
+    logs a single stderr line naming the source path and resolves to
+    ``{}`` — the body still indexes.
 
     The returned dict is JSON-safe: ``yaml.safe_load`` decodes bare
     ISO-8601 literals into ``datetime.date`` / ``datetime.datetime`` /
@@ -234,10 +234,10 @@ def _split_frontmatter(text: str, *, source_path: Path) -> tuple[dict[str, Any],
     yaml_text = match.group(1)
     body = text[match.end() :]
     try:
-        parsed = yaml.safe_load(yaml_text)
-    except yaml.YAMLError as exc:
+        parsed = load_frontmatter(yaml_text)
+    except FrontmatterLoadError as exc:
         print(
-            f"palace index: malformed-frontmatter path={source_path} reason={exc!r}",
+            f"palace index: malformed-frontmatter path={source_path} reason={exc.__cause__!r}",
             file=sys.stderr,
             flush=True,
         )

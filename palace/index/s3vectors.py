@@ -58,7 +58,7 @@ from palace.index._errors import IndexError
 from palace.index.config import EmbeddingIdentity, chunks_db_path
 from palace.index.egress import append_record
 from palace.index.embedder_config import identity_for, load_embedder_config
-from palace.index.schema import assert_identity, assert_identity_readable
+from palace.index.schema import assert_identity, assert_identity_readable, indexed_watch_roots
 from palace.provider_config import assert_outside_personal_boundary, write_selector
 
 __all__ = [
@@ -674,10 +674,6 @@ def _open_snapshot(store: Path) -> sqlite3.Connection:
     return conn
 
 
-def _watch_roots(conn: sqlite3.Connection) -> list[Path]:
-    return [Path(row[0]) for row in conn.execute("SELECT DISTINCT watch_root FROM chunks")]
-
-
 def _checked_identity(conn: sqlite3.Connection, store: Path) -> EmbeddingIdentity:
     identity = identity_for(load_embedder_config(store))
     assert_identity_readable(conn)
@@ -877,7 +873,7 @@ def publish_vectors(
     try:
         with closing(_open_snapshot(store)) as conn:
             identity = _checked_identity(conn, store)
-            _assert_publishable(store, _watch_roots(conn))
+            _assert_publishable(store, [Path(root) for root in indexed_watch_roots(conn)])
             store_keys = {str(row[0]) for row in conn.execute("SELECT chunk_id FROM chunks_vec")}
             if text_metadata:
                 _check_text_metadata(conn)

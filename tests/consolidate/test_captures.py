@@ -19,6 +19,7 @@ from palace.consolidate.captures import (
     read_captures_dir,
     source_is_user_authored,
 )
+from tests.conftest import UNLOADABLE_FRONTMATTER_VALUES
 
 _USER_ID = "67cb5bccc877d880d63429d78e975368ec7270e9b44c3005625c22f875ccbfb1"
 _JOURNAL_ID = "828d61a5087c4197a41d240c85cc26b7674d4bb56390499c686c33cb0f8a9b87"
@@ -105,6 +106,19 @@ def test_malformed_frontmatter_raises_with_path(tmp_path: Path) -> None:
     with pytest.raises(ConsolidationError) as excinfo:
         read_captures_dir(captures)
     assert str(bad) in str(excinfo.value)
+
+    # Closed fences around a value the loader cannot load, for every loader
+    # failure class: the attributed error naming the path, never a bare one.
+    for index, value in enumerate(UNLOADABLE_FRONTMATTER_VALUES):
+        unloadable_dir = tmp_path / f"unloadable-{index}"
+        unloadable_dir.mkdir()
+        unloadable = unloadable_dir / f"bad-cap-{_USER_ID[:12]}.md"
+        unloadable.write_text(
+            _capture(cid=_USER_ID, source="user", body="b", event_time=value), encoding="utf-8"
+        )
+        with pytest.raises(ConsolidationError, match="malformed capture frontmatter") as excinfo:
+            read_captures_dir(unloadable_dir)
+        assert str(unloadable) in str(excinfo.value)
 
 
 def test_missing_or_invalid_id_raises(tmp_path: Path) -> None:

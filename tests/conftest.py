@@ -11,6 +11,25 @@ import pytest
 import palace.index.embedder as embedder_module
 import palace.rerank_model as rerank_model_module
 
+# One front-matter value per loader failure class ``yaml.safe_load`` raises for
+# input: a syntax error (``yaml.YAMLError``), a calendar-invalid date and an
+# over-long integer (``ValueError``), over-deep nesting (``RecursionError``), an
+# explicit ``!!bool`` / ``!!int`` tag on an unrecognized or empty value
+# (``KeyError`` / ``IndexError``), an explicit ``!!timestamp`` tag on a
+# non-timestamp (``AttributeError``) and on a value-key mapping (``TypeError``),
+# and a long sexagesimal float (``OverflowError``).
+UNLOADABLE_FRONTMATTER_VALUES: tuple[str, ...] = (
+    "[unclosed",
+    "2026-02-30",
+    "9" * 5000,
+    "[" * 5000 + "]" * 5000,
+    "!!bool invalid",
+    '!!int ""',
+    "!!timestamp invalid",
+    "!!timestamp {=: 2026-01-01}",
+    "1:" * 200 + "1.0",
+)
+
 
 def aws_env_credential_names() -> tuple[str, ...]:
     """Every variable botocore's ``EnvProvider`` reads, from the installed SDK itself."""

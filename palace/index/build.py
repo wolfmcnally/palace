@@ -81,6 +81,7 @@ from palace.index.scheduler import (
 from palace.index.schema import (
     assert_identity,
     assert_vector_width,
+    indexed_watch_roots,
     init_db,
     read_data_version,
     stamp_identity,
@@ -469,10 +470,7 @@ def _build(
             else:
                 try:
                     data_version_now = read_data_version(conn)
-                    indexed_roots = {
-                        str(row[0])
-                        for row in conn.execute("SELECT DISTINCT watch_root FROM chunks").fetchall()
-                    }
+                    indexed_roots = set(indexed_watch_roots(conn))
                     remaining = indexed_roots - walked_roots
                     if data_version_now != data_version_start:
                         conn.execute("ROLLBACK")

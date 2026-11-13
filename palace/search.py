@@ -95,7 +95,7 @@ from palace.index.s3vectors import (
     resolve_vector_backend,
     vector_usage_scope,
 )
-from palace.index.schema import assert_identity, assert_identity_readable
+from palace.index.schema import assert_identity, assert_identity_readable, indexed_watch_roots
 from palace.metadata import (
     MetadataError,
     MetadataFilter,
@@ -339,9 +339,7 @@ def _admit_store(
             conn.execute("BEGIN")
             if filters:
                 metadata_generation(conn)
-            watch_roots = [
-                Path(row[0]) for row in conn.execute("SELECT DISTINCT watch_root FROM chunks")
-            ]
+            watch_roots = [Path(root) for root in indexed_watch_roots(conn)]
             if reranker_config is not None:
                 preflight_reranker(reranker_config, store=store, watch_roots=watch_roots)
             config: EmbedderConfig | None = None

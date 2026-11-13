@@ -30,8 +30,6 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-import yaml
-
 from palace.consolidate._errors import ConsolidationError
 from palace.consolidate.config import CAPTURE_FILENAME_RE, USER_TRUST_PREFIXES
 from palace.consolidate.sources import SourceUnit
@@ -40,6 +38,7 @@ from palace.consolidate.sources import SourceUnit
 # ``2026-06-15`` event_time hashes/compares identically whether it arrived as a
 # Python string or a YAML-decoded date. One canonicalizer, no shared util.
 from palace.fact.schema import _json_safe
+from palace.frontmatter import FrontmatterLoadError, load_frontmatter
 
 __all__ = ["parse_capture", "read_captures_dir", "source_is_user_authored"]
 
@@ -85,8 +84,8 @@ def parse_capture(text: str, *, path: Path) -> SourceUnit:
     """
     frontmatter, body = _split_frontmatter(text, path=path)
     try:
-        data = yaml.safe_load(frontmatter)
-    except yaml.YAMLError as exc:
+        data = load_frontmatter(frontmatter)
+    except FrontmatterLoadError as exc:
         raise ConsolidationError(f"malformed capture frontmatter {path}: {exc}") from exc
     if not isinstance(data, dict):
         raise ConsolidationError(f"capture frontmatter {path} is not a YAML mapping")
