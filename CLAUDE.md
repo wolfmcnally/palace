@@ -43,6 +43,7 @@ Palace is a personal-memory substrate for agents and applications. Preserve prov
 - [eval fixture corpus](briefs/eval-fixture-corpus.md)
 - [eval set candidates](briefs/eval-set-candidates.md)
 - [project index generator](briefs/project-index-generator.md)
+- [provider throttling and request pacing](briefs/provider-throttling-and-request-pacing.md)
 - [remote embedding throughput](briefs/remote-embedding-throughput.md)
 - [reranker defaults and providers](briefs/reranker-defaults-and-providers.md)
 - [sota memory and recall](briefs/sota-memory-and-recall.md)

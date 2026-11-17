@@ -3246,3 +3246,61 @@ Lessons:
 - occurrences added: none.
 - graduation DECIDE: unchanged (caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket, precious-kangaroo and venomous-degu await the operator).
 - recalibration: not run; no timeout or configuration change.
+
+## 2026-11-17 16:16 — START
+Phase 34 — Release 0.6.0 with typed provider throttling
+
+Execution trace: 9ba7cc96ccee455caf7c0537ff4df68a
+
+Planned work:
+- A capability brief for provider throttling and request pacing: who owns retry, pacing and outcome classification, the delivery vocabulary, the byte unit, the process-local scope of a pacer, what a deadline does and does not bound, and what is deferred.
+- `docs/bedrock.md` and the index README, already updated in Phase 33 for the retry policy, the pacer, the per-provider per-operation deadline bounds, library-owned failure text and the byte request cap, re-checked against the released behavior, with the SDK minimum stated where the per-read bound depends on it.
+- Version 0.6.0 in every place 0.5.1 named its version; a dated 0.6.0 changelog section; `RELEASE.md` for 0.6.0; the `boto3` floor raised to a version whose botocore supports per-request read timeouts, with the lockfile in the same change.
+- The release procedure in `RELEASE.md`: packages built twice and compared, clean installations on macOS and Linux, the disclosure scan, `CHECK RELEASE VERIFIED` on the exact delivered candidate, the tag, tag CI, the GitHub release and public download verification, then the dogfood step after publication.
+
+Run shape: the same coordinated run as Phase 33; this core session is the sole writer. Tag authority: the operator's 2026-11-17 instruction to release everything owned that the work touches, relayed by the authenticated factotum, scoped to v0.6.0 and its GitHub release.
+
+## 2026-11-17 16:24 — END
+Phase 34 — Release 0.6.0 with typed provider throttling
+
+Execution trace: 9ba7cc96ccee455caf7c0537ff4df68a
+
+Palace 0.6.0 is prepared and its packages are qualified on macOS ARM64. The version, lockfile, changelog, README, release checklist, CI and smoke test say 0.6.0; the declared AWS SDK minimum is boto3 1.43.90, the earliest release verified to honor the per-request read timeout Phase 33's deadline relies on; a capability brief records the throttling design and its limits. Nothing is published at this record.
+
+Files changed:
+- pyproject.toml, uv.lock — version 0.6.0; boto3>=1.43.90 (relocked with the CI-pinned uv 0.9.26; resolution unchanged at boto3/botocore 1.43.104).
+- CHANGELOG.md — dated 0.6.0 section.
+- README.md, RELEASE.md, .github/package-smoke.py, .github/workflows/ci.yml, tests/test_smoke.py — version strings.
+- docs/bedrock.md — the SDK minimum and why.
+- briefs/provider-throttling-and-request-pacing.md (new), CLAUDE.md — the capability brief and its catalog line.
+- plan/phase-34.md, plan/INDEX.md.
+
+Build status:
+- SDK minimum proof: in a scratch environment with boto3 1.43.90, botocore 1.43.90 and s3transfer 0.19.3, the Bedrock, OpenRouter and pacing proof families pass (10 passed), including the per-request read-timeout assertions against the real botocore request context. Releases below 1.43.90 were not tested.
+- Packages: OK. Two builds with uv 0.9.26 are byte-identical: wheel palace-0.6.0-py3-none-any.whl SHA-256 a6bfa627d844c986ac691461dc9b4e4c79f50b098638dbedac5ba811ddeb7454; source archive palace-0.6.0.tar.gz SHA-256 8b1677a04dc38100c17c9152a0a5d3e8c274beea2d1e482ad1816da05f63b8b2. Every archive member is the allowlisted set; palace/index/pacing.py is present.
+- macOS ARM64 clean install: OK. Hash-locked requirements from the lockfile, Conric v0.1.0 verified to resolve to the locked commit ed9286297e92, the exact wheel with no dependency resolution; version 0.6.0 from the new environment, the package smoke passes, the CLI and provider list load and the new public names import.
+- Linux ARM64: not run. This host has no container or virtual-machine runtime; hosted CI's Linux job (ubuntu-latest, x86_64) runs the same clean-wheel smoke after push. The release notes will not claim Linux ARM64.
+- Disclosure scan: OK. Zero matches for owned consumer names, private home paths, the operator's addresses and tailnet names, twelve-digit account numbers and AWS key or bearer-token shapes across every line added since v0.5.1 and all 251 files of the unpacked wheel and source archive. A named-pattern screen narrower than earlier releases' 37-name list, which is not on this host; not proof of absence.
+- ./bin/check all: OK on candidate f98ebbe8b8fab39691efdba39846aaac7140582241966c745773e140aa8a250c (299 passed, 10 native deselected).
+- Handoff gate: runs after this tracked END block; completion is contingent on the final bare ./bin/check all.
+
+Review lane: full. Release review is the coordinator's final candidate reconciliation; no product code changed in this phase beyond the dependency minimum, version strings and documentation.
+
+Role model/venue — orchestrated by Claude Code (core lane, claude-opus-5-5, observed); evidence apparatus not initialized, as in Phase 33. Execution timing: unavailable.
+
+Deviation, recorded: while relocking, an unwanted uvicorn marker rewrite from a newer local uv was discarded with `git checkout -- uv.lock`. Checkout-based restoration is reserved to the operator; it discarded only that seconds-old generated change, and the lockfile was regenerated with the pinned uv. No other path was touched.
+
+Acceptance:
+- Objective: consistent 0.6.0 version; reproducible packages; clean macOS ARM64 install and smoke; the SDK minimum proved at its floor; disclosure screen; the full gate.
+- Pending before release: guarded delivery and branch CI; `./bin/check native` and CHECK RELEASE VERIFIED on the clean delivered commit on this host; a rebuild from the committed source matching the qualified hashes; then the annotated v0.6.0 tag (unsigned, as v0.5.1; no signing key is configured), tag CI, the GitHub release with these artifacts and SHA256SUMS, anonymous download re-hash and remote tag verification.
+- Parked for the user: Linux ARM64 qualification; the dogfood restart of this host's supervised daemons, which waits for the coordinator's go-ahead because other live work on this host must not be disturbed.
+
+Delivery: default — commit and fast-forward push after the handoff gate; then the authorized v0.6.0 tag and GitHub release on the existing destination.
+
+Ripple: none — no downstream sketches.
+
+Lessons:
+- filed: none.
+- occurrences added: none.
+- graduation DECIDE: unchanged.
+- recalibration: not run.

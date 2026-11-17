@@ -35,5 +35,6 @@ User Demo: N/A — release qualification and publication evidence; no new produc
 
 ## Brief refs
 
+- [provider throttling and request pacing](../briefs/provider-throttling-and-request-pacing.md)
 - [bedrock embedding provider](../briefs/bedrock-embedding-provider.md)
 - [deployed consumer readiness](../briefs/deployed-consumer-readiness.md)
