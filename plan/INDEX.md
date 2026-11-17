@@ -17,6 +17,8 @@
 | [Phase 30](phase-30.md) | Deterministic reindex pipeline proofs and a mandatory native watcher lane | ✅ |
 | [Phase 31](phase-31.md) | Returned-hit evidence with prepared single- and multi-store search | ✅ |
 | [Phase 32](phase-32.md) | Unloadable front matter and a bounded indexed-root lookup | ✅ |
+| [Phase 33](phase-33.md) | Typed provider failures, one retry loop and request pacing | ✅ |
+| [Phase 34](phase-34.md) | Release 0.6.0 with typed provider throttling | ⬅️ |
 
 Private phase history is excluded. Retained policies and current API contracts govern future work.
 

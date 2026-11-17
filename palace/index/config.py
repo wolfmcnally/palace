@@ -32,6 +32,8 @@ __all__ = [
     "BEDROCK_EMBED_MAX_CONCURRENCY",
     "BEDROCK_MAX_BATCH",
     "BEDROCK_MODELS",
+    "BEDROCK_CONNECT_TIMEOUT_SECONDS",
+    "BEDROCK_READ_TIMEOUT_SECONDS",
     "BEDROCK_REQUEST_BUDGET",
     "BINARY_EXTENSIONS",
     "CODE_EXTENSIONS",
@@ -129,6 +131,9 @@ REMOTE_EMBED_MAX_BATCH: int = 1024
 # before/after NFC plus eight units per input,
 # not the English-only chars/4 heuristic. Qwen's byte-level BPE, NFC normalizer,
 # no prefix space and one end token make this conservative; see the index README.
+# Despite its name, the unit is conservative UTF-8 bytes per request (see
+# ``request_units``), not tokens, and it is a per-request size cap, not a
+# per-minute token or request quota.
 REMOTE_EMBED_MAX_TOKEN_BUDGET: int = 30_000
 
 # Highest concurrency level backed by a sustained measurement. N=8 held
@@ -155,8 +160,17 @@ BEDROCK_MAX_BATCH: int = 96
 # raw-or-NFC UTF-8 units as ``REMOTE_EMBED_MAX_TOKEN_BUDGET``: below Embed v4's
 # documented 128K-token context under either reading of "128K", so no tokenizer
 # whose tokens are at least one byte can exceed it. Owner decision pending live
-# qualification.
+# qualification. A per-request size cap in bytes, not a per-minute token or
+# request quota; no rate quota is known or assumed for any model, Region or account.
 BEDROCK_REQUEST_BUDGET: int = 120_000
+
+# Explicit Bedrock SDK socket timeouts, stated at botocore's own defaults so making
+# them explicit changes nothing. Each bounds one socket operation (connect, or one
+# read), not an attempt's total duration. Inside a ``call_scope`` deadline, each
+# request's read timeout is lowered to the remaining time without touching the
+# shared client.
+BEDROCK_CONNECT_TIMEOUT_SECONDS: float = 60.0
+BEDROCK_READ_TIMEOUT_SECONDS: float = 60.0
 
 # Unmeasured, conservative Bedrock concurrency ceiling (2026-11-07). Lowerable
 # with ``--embed-concurrency``; raised only after live qualification.

@@ -12,58 +12,121 @@ retains (``briefs/bedrock-embedding-provider.md``).
 
 SDK retries are disabled and configured endpoint-URL overrides are ignored, so every
 request goes to the selector Region's standard endpoint and every attempt is palace's:
-audited, counted and visible. No corpus text, query text or credential is written to
-the audit.
+audited, counted and visible. Each logical request runs through
+:func:`palace.index.pacing.perform`: an optional shared
+:class:`~palace.index.pacing.RequestPacer` admits every embedding attempt, a
+:class:`~palace.index.pacing.RetryPolicy` spaces retries with jitter under any
+``Retry-After`` floor, and a failure ends in a typed
+:class:`palace.index.ProviderCallError` whose ``delivery`` keeps every earlier
+indeterminate attempt. Inside a :func:`~palace.index.pacing.call_scope`, the wait for the
+initialization lock, pacer and backoff stop at the deadline, no attempt starts after it,
+and each request's socket read timeout is lowered to the remaining time (botocore's
+per-request ``read_timeout``; the shared client is never changed). An attempt already in
+flight is not otherwise interrupted, and SDK credential resolution is not bounded. No
+corpus text, query text or credential is written to the audit.
 """
 
 from __future__ import annotations
 
 import json
 import math
-import os
 import re
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from contextlib import ExitStack
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from palace.daemons.capture.ids import compute_record_id
-from palace.index._errors import IndexError
+from palace.index._errors import (
+    AttemptRecord,
+    Delivery,
+    FailureKind,
+    IndexError,
+    ProviderCallError,
+)
 from palace.index.config import (
+    BEDROCK_CONNECT_TIMEOUT_SECONDS,
     BEDROCK_EMBED_MAX_CONCURRENCY,
     BEDROCK_MAX_BATCH,
+    BEDROCK_READ_TIMEOUT_SECONDS,
     BEDROCK_REQUEST_BUDGET,
-    REMOTE_EMBED_BACKOFF_BASE_SECONDS,
-    REMOTE_EMBED_BACKOFF_MAX_SECONDS,
-    REMOTE_EMBED_MAX_ATTEMPTS,
 )
 from palace.index.egress import append_record, build_record, current_usage, egress_batch_slice
 from palace.index.embedder import request_units
 from palace.index.embedder_config import EmbedPurpose
+from palace.index.pacing import (
+    AttemptFailure,
+    AttemptInfo,
+    PacedRequest,
+    RequestPacer,
+    RetryPolicy,
+    WaitInterrupted,
+    parse_retry_after,
+    perform,
+    remaining_seconds,
+    scoped_lock,
+)
 
 __all__ = ["BEDROCK_RETRYABLE_CODES", "BedrockEmbedder", "open_bedrock_client"]
 
 # The pinned runtime service model's throttling, unavailability, internal, model-timeout
-# and model-not-ready errors plus botocore's connection failures. Everything else
-# (ValidationException, AccessDeniedException, ...) refuses on its first attempt.
-BEDROCK_RETRYABLE_CODES = frozenset(
+# and model-not-ready errors plus botocore's connection failures, each with its failure kind
+# and what its answer says about delivery: a throttle or an explicit refusal to serve was not
+# performed; an internal error, a model timeout or a read that broke off may have been; a
+# connect-phase failure never sent the request. Everything else (ValidationException,
+# AccessDeniedException, ...) refuses on its first attempt.
+_RETRYABLE: dict[str, tuple[FailureKind, Delivery]] = {
+    "ThrottlingException": ("throttled", "rejected"),
+    "ServiceUnavailableException": ("unavailable", "rejected"),
+    "ModelNotReadyException": ("unavailable", "rejected"),
+    "InternalServerException": ("unavailable", "unknown"),
+    "ModelTimeoutException": ("timeout", "unknown"),
+    "EndpointConnectionError": ("connection", "not-sent"),
+    "ConnectTimeoutError": ("timeout", "not-sent"),
+    "ReadTimeoutError": ("timeout", "unknown"),
+    "ConnectionClosedError": ("connection", "unknown"),
+}
+BEDROCK_RETRYABLE_CODES = frozenset(_RETRYABLE)
+# Service codes the pinned InvokeModel and GetAccountDataRetention models document as
+# refusing the request itself: missing permission, a missing resource, invalid input, or
+# an exceeded account quota. Any other non-retryable service code may have been processed:
+# ModelErrorException is documented as failing "due to an error while processing the
+# model", and a code the pinned models do not name is not known to be a refusal.
+_DEFINITE_REFUSALS = frozenset(
     {
-        "ThrottlingException",
-        "ServiceUnavailableException",
-        "InternalServerException",
-        "ModelTimeoutException",
-        "ModelNotReadyException",
-        "EndpointConnectionError",
-        "ConnectTimeoutError",
-        "ReadTimeoutError",
-        "ConnectionClosedError",
+        "AccessDeniedException",
+        "ResourceNotFoundException",
+        "ValidationException",
+        "ServiceQuotaExceededException",
     }
 )
+# Every service code the pinned InvokeModel and GetAccountDataRetention models declare.
+_KNOWN_CODES = BEDROCK_RETRYABLE_CODES | _DEFINITE_REFUSALS | {"ModelErrorException"}
+# A floor so a scope with almost no time left still gets a finite, positive read bound.
+_MIN_READ_TIMEOUT_SECONDS = 0.001
 _REQUIRED_RETENTION_MODE = "none"
+# Diagnostics are library-owned: a failure names the provider, operation, Region and a
+# validated code, never the service's message, a transport error's text or a response
+# value outside a short known shape. A service code the pinned models do not declare is
+# replaced, so a code cannot carry provider-chosen text into a message or the audit.
+_UNRECOGNIZED_CODE = "UnrecognizedServiceError"
+_SAFE_MODE = re.compile(r"[a-z][a-z_]{0,31}")
 # RFC 6750 section 2.1 ``b64token`` (token68): the only bearer credential syntax Palace admits.
 _TOKEN68 = re.compile(r"[A-Za-z0-9\-._~+/]+=*")
 _sleep = time.sleep  # the retry backoff; a test replaces this seam, not the time module
+
+
+def _utcnow() -> datetime:
+    """The clock an HTTP-date ``Retry-After`` falls back to without a readable ``Date``;
+    a test replaces this module seam."""
+    return datetime.now(UTC)
+
+
+def _backoff_sleep(seconds: float) -> None:
+    """Sleep through the module seam, looked up at call time so a test's replacement holds."""
+    _sleep(seconds)
 
 
 def open_bedrock_client(service: str, *, profile: str | None, region: str) -> Any:
@@ -88,8 +151,11 @@ def open_bedrock_client(service: str, *, profile: str | None, region: str) -> An
             config=Config(
                 retries={"mode": "standard", "total_max_attempts": 1},
                 ignore_configured_endpoint_urls=True,
+                connect_timeout=BEDROCK_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=BEDROCK_READ_TIMEOUT_SECONDS,
             ),
         )
+        client.meta.events.register("before-call", _bound_read_timeout)
         try:
             token = _bearer_token_state(client)
             if token == "blank":
@@ -114,7 +180,54 @@ def open_bedrock_client(service: str, *, profile: str | None, region: str) -> An
             raise
         return client
     except BotoCoreError as exc:
-        raise IndexError(f"bedrock {service} client could not be opened: {_message(exc)}") from None
+        raise IndexError(
+            f"bedrock {service} client could not be opened: {type(exc).__name__}"
+        ) from None
+
+
+def _bound_read_timeout(context: dict[str, Any], **_: Any) -> None:
+    """Lower this one request's socket read timeout to the active scope's remaining time.
+
+    Runs on the calling thread, so it reads that call's own scope; it writes only the
+    request's context, never the client shared by concurrent calls.
+    """
+    remaining = remaining_seconds()
+    if remaining is not None:
+        context["read_timeout"] = max(
+            _MIN_READ_TIMEOUT_SECONDS, min(BEDROCK_READ_TIMEOUT_SECONDS, remaining)
+        )
+
+
+def _retry_hint(exc: BaseException) -> float | None:
+    """The provider's ``Retry-After`` on a failed response, in seconds, if it gave one."""
+    response = getattr(exc, "response", None)
+    if not isinstance(response, dict):
+        return None
+    headers = response.get("ResponseMetadata", {}).get("HTTPHeaders")
+    if not isinstance(headers, dict):
+        return None
+    return parse_retry_after(headers.get("retry-after"), date=headers.get("date"), now=_utcnow)
+
+
+def _classify(code: str, exc: BaseException) -> tuple[FailureKind, Delivery, bool]:
+    """``(kind, delivery, retryable)`` for one failed attempt.
+
+    Only the documented refusals in ``_DEFINITE_REFUSALS`` are definitely rejected. Every
+    other non-retryable service code (ModelErrorException, or one the pinned models do not
+    name) and every other botocore failure (a stream that broke off, an SSL failure) is
+    treated as possibly processed, so uncertainty is over-reported rather than lost. None of
+    them is retried.
+    """
+    from botocore.exceptions import ClientError
+
+    if code in _RETRYABLE:
+        kind, delivery = _RETRYABLE[code]
+        return kind, delivery, True
+    if code in _DEFINITE_REFUSALS:
+        return "rejected", "rejected", False
+    if isinstance(exc, ClientError):
+        return "unavailable", "unknown", False
+    return "connection", "unknown", False
 
 
 def _bearer_variable(client: Any) -> str:
@@ -146,22 +259,16 @@ def _bearer_token_state(client: Any) -> str:
     return "present" if _TOKEN68.fullmatch(token) else "malformed"
 
 
-def _redact_bearer_tokens(text: str) -> str:
-    """Replace any SDK bearer-token environment value that appears in ``text``."""
-    for name, value in os.environ.items():
-        if name.startswith("AWS_BEARER_TOKEN_"):
-            for candidate in {value, value.strip()}:
-                if candidate and candidate in text:
-                    text = text.replace(candidate, "<redacted>")
-    return text
-
-
 def _error_code(exc: BaseException) -> str | None:
     """The AWS error code of a botocore failure; ``None`` for anything else."""
     from botocore.exceptions import BotoCoreError, ClientError
 
     if isinstance(exc, ClientError):
-        return str(exc.response.get("Error", {}).get("Code") or "ClientError")
+        code = exc.response.get("Error", {}).get("Code")
+        if not code:
+            return "ClientError"
+        text = str(code)
+        return text if text in _KNOWN_CODES else _UNRECOGNIZED_CODE
     if isinstance(exc, BotoCoreError):
         return type(exc).__name__
     return None
@@ -176,16 +283,6 @@ def _http_status(source: object) -> int | None:
     return status if isinstance(status, int) else None
 
 
-def _message(exc: BaseException) -> str:
-    """The failure's message with any bearer-token value redacted."""
-    response = getattr(exc, "response", None)
-    if isinstance(response, dict):
-        error = response.get("Error")
-        if isinstance(error, dict) and error.get("Message"):
-            return _redact_bearer_tokens(str(error["Message"]))
-    return _redact_bearer_tokens(str(exc))
-
-
 class BedrockEmbedder:
     """Cohere Embed v4 through ``InvokeModel`` for one store, Region and purpose."""
 
@@ -198,15 +295,25 @@ class BedrockEmbedder:
         dim: int,
         profile: str | None,
         purpose: EmbedPurpose,
+        retry: RetryPolicy | None = None,
+        pacer: RequestPacer | None = None,
+        _rng: Callable[[], float] | None = None,
     ) -> None:
+        """``retry`` defaults to :class:`RetryPolicy`'s defaults. ``pacer`` admits every
+        ``InvokeModel`` attempt, retries included; the once-per-instance retention read is a
+        control-plane request outside any embedding quota and is not paced."""
         self.max_concurrency = BEDROCK_EMBED_MAX_CONCURRENCY
         self._store = store
         self._model = model
         self._region = region
         self._dim = dim
         self._profile = profile
+        self._purpose: EmbedPurpose = purpose
         self._input_type = "search_document" if purpose == "document" else "search_query"
         self._provider = f"bedrock:{region}"
+        self._retry = retry if retry is not None else RetryPolicy()
+        self._pacer = pacer
+        self._rng = _rng
         self._lock = threading.Lock()
         self._runtime: Any = None
 
@@ -219,8 +326,12 @@ class BedrockEmbedder:
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
         """Embed ``texts`` in order, in batches of at most 96 inside the request budget.
 
-        Every input is validated before any egress: one input above the budget cannot be
-        split without changing its vector, so it is refused rather than truncated.
+        The budget is a per-request size cap in conservative UTF-8 bytes
+        (:func:`~palace.index.embedder.request_units`), not tokens and not a rate. Every input
+        is validated before any egress: one input above the budget cannot be split without
+        changing its vector, so it is refused rather than truncated. A request that fails
+        raises :class:`palace.index.ProviderCallError` whose ``completed_inputs`` counts the
+        leading inputs already answered; their vectors are not returned.
         """
         if not texts:
             return []
@@ -248,7 +359,7 @@ class BedrockEmbedder:
                 end += 1
             batch = inputs[start:end]
             with egress_batch_slice(start=start, count=len(batch), total=total):
-                vectors.extend(self._embed_batch(runtime, batch))
+                vectors.extend(self._embed_batch(runtime, batch, completed_inputs=start))
             start = end
         return vectors
 
@@ -261,8 +372,27 @@ class BedrockEmbedder:
     # ---------------------------------------------------------------- internals
 
     def _ready(self) -> Any:
-        """Open the runtime client once, after a passing same-Region retention check."""
-        with self._lock:
+        """Open the runtime client once, after a passing same-Region retention check.
+
+        A caller queued behind another's initialization waits no longer than its own scope;
+        stopping there is a typed ``deadline``/``cancelled`` failure with nothing sent.
+        """
+        with ExitStack() as held:
+            try:
+                held.enter_context(scoped_lock(self._lock))
+            except WaitInterrupted as signal:
+                raise ProviderCallError(
+                    f"{self._provider} initialization stopped by {signal.reason} while "
+                    "waiting for another caller after 0 attempt(s)",
+                    provider=self._provider,
+                    operation="initialize",
+                    kind=signal.reason,
+                    delivery="not-sent",
+                    code=signal.reason,
+                    attempts=0,
+                    stop="interrupted",
+                    history=(AttemptRecord(signal.reason, "not-sent", signal.reason, None),),
+                ) from signal.__cause__
             if self._runtime is None:
                 control = open_bedrock_client("bedrock", profile=self._profile, region=self._region)
                 try:
@@ -275,8 +405,13 @@ class BedrockEmbedder:
                     control.close()
                 mode = response.get("mode")
                 if mode != _REQUIRED_RETENTION_MODE:
+                    shown = (
+                        repr(mode)
+                        if isinstance(mode, str) and _SAFE_MODE.fullmatch(mode)
+                        else "an unrecognized value"
+                    )
                     raise IndexError(
-                        f"bedrock retention mode in {self._region} is {str(mode)!r}; palace "
+                        f"bedrock retention mode in {self._region} is {shown}; palace "
                         f"requires {_REQUIRED_RETENTION_MODE!r}"
                     )
                 self._runtime = open_bedrock_client(
@@ -284,7 +419,9 @@ class BedrockEmbedder:
                 )
             return self._runtime
 
-    def _embed_batch(self, runtime: Any, batch: list[str]) -> list[list[float]]:
+    def _embed_batch(
+        self, runtime: Any, batch: list[str], *, completed_inputs: int
+    ) -> list[list[float]]:
         body = json.dumps(
             {
                 "texts": batch,
@@ -303,49 +440,115 @@ class BedrockEmbedder:
                 body=body,
             ),
             texts=batch,
+            completed_inputs=completed_inputs,
+            validate=lambda answer: self._vectors(answer, count=len(batch)),
         )
-        return self._vectors(response, count=len(batch))
+        vectors: list[list[float]] = response["vectors"]
+        return vectors
 
-    def _call(self, operation: str, method: Any, *, texts: list[str]) -> dict[str, Any]:
-        """Make one logical call; each attempt is its own audited request."""
-        for attempt in range(1, REMOTE_EMBED_MAX_ATTEMPTS + 1):
+    def _call(
+        self,
+        operation: str,
+        method: Any,
+        *,
+        texts: list[str],
+        completed_inputs: int = 0,
+        validate: Callable[[dict[str, Any]], Any] | None = None,
+    ) -> dict[str, Any]:
+        """Make one logical call; each attempt is its own audited, classified request.
+
+        ``validate`` checks the complete answer inside the attempt, so an unusable answer
+        ends the request typed as ``response-invalid`` with delivery ``processed``.
+        """
+        embedding = operation == "InvokeModel"
+
+        def send(info: AttemptInfo) -> dict[str, Any]:
             started = time.monotonic()
             try:
                 response = method()
-                raw = response["body"].read() if operation == "InvokeModel" else None
+                raw = response["body"].read() if embedding else None
             except Exception as exc:  # noqa: BLE001 — only botocore failures are translated
                 code = _error_code(exc)
                 if code is None:
                     raise
-                self._audit(operation, texts, code, attempt, started, _http_status(exc))
-                if code in BEDROCK_RETRYABLE_CODES and attempt < REMOTE_EMBED_MAX_ATTEMPTS:
-                    _sleep(
-                        min(
-                            REMOTE_EMBED_BACKOFF_MAX_SECONDS,
-                            REMOTE_EMBED_BACKOFF_BASE_SECONDS * 2 ** (attempt - 1),
-                        )
-                    )
-                    continue
-                raise IndexError(
-                    f"bedrock {operation} failed in {self._region}: {code}: {_message(exc)}"
+                kind, delivery, retryable = _classify(code, exc)
+                self._audit(
+                    operation,
+                    texts,
+                    code,
+                    info,
+                    started,
+                    _http_status(exc),
+                    throttled=kind == "throttled",
+                    indeterminate=delivery == "unknown",
+                )
+                raise AttemptFailure(
+                    f"bedrock {operation} failed in {self._region}: {code}",
+                    kind=kind,
+                    delivery=delivery,
+                    code=code,
+                    retryable=retryable,
+                    retry_after=_retry_hint(exc),
                 ) from None
-            self._audit(operation, texts, "ok", attempt, started, _http_status(response))
+            self._audit(operation, texts, "ok", info, started, _http_status(response))
             result = dict(response)
             if raw is not None:
                 result["body"] = raw
+            if validate is not None:
+                try:
+                    result["vectors"] = validate(result)
+                except IndexError as exc:
+                    raise AttemptFailure(
+                        str(exc),
+                        kind="response-invalid",
+                        delivery="processed",
+                        code="response-invalid",
+                        retryable=False,
+                    ) from None
             return result
-        raise AssertionError("unreachable: the final attempt returns or raises")
+
+        request = PacedRequest(
+            provider=self._provider,
+            model=self._model,
+            operation=operation,
+            purpose=self._purpose,
+            inputs=len(texts),
+            request_bytes=sum(request_units(text) for text in texts),
+        )
+        return perform(
+            send,
+            request=request,
+            policy=self._retry,
+            pacer=self._pacer if embedding else None,
+            completed_inputs=completed_inputs,
+            rng=self._rng,
+            sleep=_backoff_sleep,
+        )
 
     def _audit(
         self,
         operation: str,
         texts: list[str],
         status: str,
-        attempt: int,
+        info: AttemptInfo,
         started: float,
         http_status: int | None,
+        *,
+        throttled: bool = False,
+        indeterminate: bool = False,
     ) -> None:
         embedding = operation == "InvokeModel"
+        extra: dict[str, Any] = {
+            "operation": operation,
+            "attempt": info.number,
+            "status": status,
+            "pacer_wait_ms": max(0, round(info.pacer_wait_seconds * 1000)),
+            "backoff_ms": max(0, round(info.backoff_seconds * 1000)),
+        }
+        if embedding:
+            extra["input_type"] = self._input_type
+        else:
+            extra["region"] = self._region
         record = build_record(
             provider=self._provider,
             upstream_configured=self._region,
@@ -358,19 +561,18 @@ class BedrockEmbedder:
             http_status=http_status,
             latency_ms=max(0, round((time.monotonic() - started) * 1000)),
             kind="cloud_embed_call" if embedding else "bedrock_retention_check",
-        )
-        record.update(operation=operation, attempt=attempt, status=status)
-        if embedding:
-            record["input_type"] = self._input_type
-        else:
-            record["region"] = self._region
-        record["id"] = compute_record_id(
-            {key: value for key, value in record.items() if key != "id"}
+            extra=extra,
         )
         usage = current_usage()
         if embedding and usage is not None:
             # Before the append: the request has been made whether or not its record is written.
-            usage.record(ok=status == "ok", prompt_tokens=None, cost_usd=None)
+            usage.record(
+                ok=status == "ok",
+                prompt_tokens=None,
+                cost_usd=None,
+                throttled=throttled,
+                indeterminate=indeterminate,
+            )
         try:
             append_record(store=self._store, record=record)
         except OSError:

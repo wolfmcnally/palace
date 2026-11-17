@@ -3183,3 +3183,66 @@ My first flow check reported a hash mismatch. It compared right after the first 
 Lessons:
 - occurrence added: blond-wapiti (local, 2 occurrences) — sample asynchronous outcomes after a settle window, not at the first arrival.
 - graduation DECIDE: unchanged; nothing graduated.
+
+## 2026-11-17 15:02 — START
+Phase 33 — Typed provider failures, one retry loop and request pacing
+
+Execution trace: b7c3ae1105ea43e4a29a4db9aa7b5393
+
+Planned work:
+- `ProviderCallError` and `ProviderThrottledError` (both `IndexError`), carrying the latest failure kind, the delivery state merged across every attempt (an indeterminate attempt is never erased by a later refusal), attempts, stop reason, per-attempt history, the provider's uncapped hint and its monotonic instant, and the inputs already answered in the same call.
+- `palace.index.pacing`: `RetryPolicy` (capped, jittered exponential; a hint is a floor and a hint beyond the cap stops at once), `parse_retry_after`, `PacedRequest` and the `RequestPacer` protocol with reservations settled exactly once, `perform` as the single retry loop, `call_scope` with earliest-deadline nesting and interruptible waits and lock acquisition, and a small `IntervalPacer` reference (requests and bytes per sliding interval, queries first with bounded document progress, cancellation removal, oversized refusal, hint hold, no default numbers).
+- Both remote embedders use `perform`, accept a pacer and a retry policy, bound transport reads by the remaining scope time without mutating a shared client, and add pacer wait and backoff to their audit records; `resolve_embedder` passes a pacer and a policy through.
+- Usage accounting counts throttled and indeterminate attempts.
+- Focused proofs for each, admitted to the proof estate.
+
+Run shape: coordinated two-writer run with disjoint files (core lane: errors, pacing, exports, pacing tests and these records; adapter lane: Bedrock and OpenRouter adapters, resolver, accounting, configuration and their tests). The plan was reviewed before code by a cross-provider reviewer (Astra, medium) whose eight corrections are in the phase file; code critique is by the same coordinator-run reviewer, not a kickoff-dispatched role, and the kickoff evidence apparatus is not initialized for this run.
+
+## 2026-11-17 16:11 — END
+Phase 33 — Typed provider failures, one retry loop and request pacing
+
+Execution trace: b7c3ae1105ea43e4a29a4db9aa7b5393
+
+Remote embedding failures are now typed and truthful, both remote embedders share one jittered retry loop that never retries before a provider's hint and stops at the caller's deadline or budget, and a caller-supplied pacer sees every physical attempt. Nothing is released yet: the version, changelog, SDK minimum and tag are Phase 34.
+
+Files changed:
+- palace/index/_errors.py — ProviderCallError and ProviderThrottledError (both IndexError): latest kind, delivery merged across attempts, attempts, stop reason, per-attempt history, uncapped hint and its monotonic instant, completed inputs.
+- palace/index/pacing.py (new) — RetryPolicy, parse_retry_after (response Date, else an injectable UTC clock), PacedRequest, RequestPacer with exactly-once reservations, perform (the single retry loop), call_scope with interruptible waits and lock acquisition, IntervalPacer reference.
+- palace/index/__init__.py — exports.
+- palace/bedrock.py, palace/index/embedder.py — both remote embedders run through perform with a pacer and retry policy, classify delivery per code or status, bound transport timeouts per request without changing a shared client, and fail with library-owned text only.
+- palace/index/embedder_config.py — resolve_embedder passes pacer and retry.
+- palace/index/egress.py — usage counts throttled and indeterminate attempts; audit records carry attempt, measured pacer wait and requested backoff.
+- palace/index/config.py — explicit Bedrock connect and read timeouts; byte-unit comments.
+- palace/index/README.md, docs/bedrock.md — retry, typed failure, pacer, per-provider per-operation deadline bounds, library-owned diagnostics.
+- tests/index/test_pacing.py (new), tests/index/test_openrouter_provider.py (new), tests/test_bedrock_provider.py, tests/index/test_writer_lock.py (helper only), tests/test_test_governance.py (estate count constants).
+- tests/proof-estate.yaml, reports/test-governance/palace-reset.jsonl — eight families, eight leaves admitted under the recorded budget line.
+- plan/phase-33.md, plan/phase-34.md, plan/INDEX.md, lessons/pink-bloodhound.md.
+
+Build status:
+- Focused: tests/index/test_pacing.py 6 passed (core mutants 8/8 killed; red checks of the review fixes ran in a scratch copy); adapter families killed 15/15 (Bedrock) and 11/11 (OpenRouter) mutants by the adapter lane's in-process plugin.
+- ./bin/check all: FAIL on the first candidate only in the governance count constants; PASS on reviewed candidate 2cc71b3c160fb71e23bff77a37431f82bce44006f2c74e5b1dca06cc1129e17f (299 passed); PASS on re-review candidate 52682cc848af4b5b94be365776d1fd8aac9e48e807a448a8fe076a49ea9876a9 (299 passed, 10 native deselected).
+- Handoff gate: runs after this tracked END block; completion is contingent on the final bare ./bin/check all.
+
+Review lane: full. Plan review and code critique by a cross-provider reviewer (Astra, medium) run by the coordinator, not dispatched through kickoff. Plan review: eight corrections, all incorporated before code. Code review of 2cc71b3c: four findings — F001 retry budget overrun after an overslept backoff or late grant (fixed), F002 ModelErrorException and unmodeled Bedrock codes reported definitely rejected (fixed), F003 provider and transport text in failure messages (fixed), F004 future HTTP-date hint dropped without Date (fixed). Re-review of 52682cc8 closed all four and accepted ServiceQuotaExceededException as a definite, non-retryable refusal; one low finding F005 (the README overstated which socket operations each provider bounds) is fixed in this close candidate as documentation only.
+
+Evidence lane: the kickoff evidence apparatus was not initialized for this coordinated two-writer run; gate receipts are under .kickoff/check-all, and the frozen reviewed candidate and dispositions are retained outside the repository by the coordinator's run.
+
+Role model/venue — orchestrated by Claude Code (core lane, Opus high) with an adapter lane on a separate Claude Code session (Opus high) and the reviewer on Codex (Astra, medium), all assigned by the coordinator. Observed models: core claude-opus-5-5 (this session); others as reported by their sessions, not observed here.
+
+Execution timing: not measured by the evidence apparatus; unavailable.
+
+Acceptance:
+- Objective: typed failures with merged delivery, no early retry on a long or undated hint, deadline and budget stops, one acquire and one settle per attempt, the reference pacer's window, priority, document progress, cancellation and oversized refusal, library-owned diagnostics, all proved offline and gate-proved; reviewer findings closed.
+- Parked for the user: whether the contract meets the deployed consumer's need; no live provider throttle was exercised.
+
+Delivery: default — commit and fast-forward push after the handoff gate.
+
+Ripple:
+- AUTO: plan/phase-34.md — its documentation deliverable now records that Phase 33 already updated the README and docs/bedrock.md, leaving a re-check against the release and the SDK minimum; applied.
+- DECIDE: none.
+
+Lessons:
+- filed: pink-bloodhound — run mutation checks on a copy, never in place in a checkout another writer shares (local, candidate).
+- occurrences added: none.
+- graduation DECIDE: unchanged (caped-bonobo, esoteric-hawk, ethereal-weasel, lovely-cricket, precious-kangaroo and venomous-degu await the operator).
+- recalibration: not run; no timeout or configuration change.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import threading
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -57,6 +57,10 @@ class EmbeddingUsageSummary:
     ``cost_usd`` is the sum of successful requests' reported costs, or ``None`` when any
     successful request reported none (``unknown_cost_requests``); a failed request's cost
     is never read. ``prompt_tokens`` counts successful requests' reported tokens.
+    ``throttled_requests`` counts failed attempts the provider refused as a throttle, and
+    ``indeterminate_requests`` failed attempts whose delivery is unknown (the provider may
+    have processed them); both are subsets of ``failed_requests``. Every count is of
+    physical requests, retries included, never of logical ``embed`` calls.
     """
 
     requests: int = 0
@@ -64,6 +68,8 @@ class EmbeddingUsageSummary:
     prompt_tokens: int = 0
     cost_usd: Decimal | None = Decimal(0)
     unknown_cost_requests: int = 0
+    throttled_requests: int = 0
+    indeterminate_requests: int = 0
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -72,18 +78,30 @@ class EmbeddingUsageSummary:
             "prompt_tokens": self.prompt_tokens,
             "cost_usd": None if self.cost_usd is None else format(self.cost_usd, "f"),
             "unknown_cost_requests": self.unknown_cost_requests,
+            "throttled_requests": self.throttled_requests,
+            "indeterminate_requests": self.indeterminate_requests,
         }
 
     def log_fields(self) -> str:
         cost = "unknown" if self.cost_usd is None else format(self.cost_usd, "f")
         return (
             f" embed_requests={self.requests} embed_failed={self.failed_requests}"
+            f" embed_throttled={self.throttled_requests}"
+            f" embed_indeterminate={self.indeterminate_requests}"
             f" prompt_tokens={self.prompt_tokens} cost_usd={cost}"
         )
 
 
 class EmbeddingUsage:
-    """A thread-safe running total of one invocation's embedding requests."""
+    """A thread-safe running total of one invocation's embedding requests.
+
+    One object may be shared by many threads: :meth:`record` takes its lock, so a worker
+    that runs in a ``contextvars.copy_context()`` of the submitting context counts into the
+    same total, because the copy carries a reference to this object, not a copy of it. A
+    :func:`usage_scope` opened inside a worker does not reach back to the submitter. With a
+    ``parent``, every request is also counted in each enclosing total; read one level, never
+    sum levels.
+    """
 
     def __init__(self, parent: EmbeddingUsage | None = None) -> None:
         self._parent = (
@@ -95,15 +113,38 @@ class EmbeddingUsage:
         self._tokens = 0
         self._cost = Decimal(0)
         self._unknown = 0
+        self._throttled = 0
+        self._indeterminate = 0
 
-    def record(self, *, ok: bool, prompt_tokens: int | None, cost_usd: float | None) -> None:
-        """Count one request attempt; only a successful one's tokens and cost are read."""
+    def record(
+        self,
+        *,
+        ok: bool,
+        prompt_tokens: int | None,
+        cost_usd: float | None,
+        throttled: bool = False,
+        indeterminate: bool = False,
+    ) -> None:
+        """Count one physical request attempt; only a successful one's tokens and cost are read.
+
+        ``throttled`` marks a failed attempt the provider refused as a throttle;
+        ``indeterminate`` a failed attempt whose delivery is unknown. Both are ignored for a
+        successful attempt.
+        """
         if self._parent is not None:
-            self._parent.record(ok=ok, prompt_tokens=prompt_tokens, cost_usd=cost_usd)
+            self._parent.record(
+                ok=ok,
+                prompt_tokens=prompt_tokens,
+                cost_usd=cost_usd,
+                throttled=throttled,
+                indeterminate=indeterminate,
+            )
         with self._lock:
             self._requests += 1
             if not ok:
                 self._failed += 1
+                self._throttled += int(throttled)
+                self._indeterminate += int(indeterminate)
                 return
             if prompt_tokens is not None:
                 self._tokens += prompt_tokens
@@ -120,6 +161,8 @@ class EmbeddingUsage:
                 prompt_tokens=self._tokens,
                 cost_usd=None if self._unknown else self._cost,
                 unknown_cost_requests=self._unknown,
+                throttled_requests=self._throttled,
+                indeterminate_requests=self._indeterminate,
             )
 
 
@@ -128,10 +171,12 @@ _USAGE: ContextVar[EmbeddingUsage | None] = ContextVar("palace_index_embedding_u
 
 @contextmanager
 def usage_scope(usage: EmbeddingUsage | None) -> Iterator[None]:
-    """Make ``usage`` the running total for embedding requests made on this thread.
+    """Make ``usage`` the running total for embedding requests made in this context.
 
-    Like :func:`egress_context`, this does not cross worker-thread boundaries: a worker
-    re-enters the scope with the value its invocation captured.
+    Like :func:`egress_context`, this reaches a worker thread only when the worker re-enters
+    the scope with the value its invocation captured, or runs in a copy of this context
+    (one ``contextvars.copy_context()`` per submitted task). Either way the worker counts
+    into this same lock-protected object; nothing is copied back.
     """
     token = _USAGE.set(usage)
     try:
@@ -220,8 +265,13 @@ def build_record(
     kind: str = "cloud_embed_call",
     context: EgressContext | None = None,
     now: datetime | None = None,
+    extra: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build one canonical cloud-call record and stamp its content id last."""
+    """Build one canonical cloud-call record and stamp its content id last.
+
+    ``extra`` adds provider-specific fields (attempt number, waits); it never overrides a
+    common field and must never carry input or query text.
+    """
     stamp = now if now is not None else datetime.now(BOISE_TZ)
     stamp_text = stamp.isoformat(timespec="seconds")
     resolved_context = context if context is not None else current_egress_context()
@@ -243,6 +293,11 @@ def build_record(
         "http_status": http_status,
         "latency_ms": latency_ms,
     }
+    if extra:
+        clashes = sorted(set(extra) & (set(record) | {"id"}))
+        if clashes:
+            raise ValueError(f"audit extra fields override common fields: {clashes}")
+        record.update(extra)
     record["id"] = compute_record_id(record)
     return record
 

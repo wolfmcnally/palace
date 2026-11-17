@@ -27,7 +27,11 @@ out of scope (Phases 2.5 and 2.6 respectively).
 
 from __future__ import annotations
 
-from palace.index._errors import IndexError
+from palace.index._errors import (
+    IndexError,
+    ProviderCallError,
+    ProviderThrottledError,
+)
 from palace.index.build import BuildResult, build, build_root
 from palace.index.code import CodeChunk, parse_code
 from palace.index.config import (
@@ -86,6 +90,13 @@ from palace.index.lifecycle import (
     uninstall,
 )
 from palace.index.markdown import ParsedMarkdown, Section, chunk_sections, parse_markdown
+from palace.index.pacing import (
+    IntervalPacer,
+    PacedRequest,
+    RequestPacer,
+    RetryPolicy,
+    call_scope,
+)
 from palace.index.pipeline import classify_kind, process_change_event
 from palace.index.representation import EmbeddingRepresentation
 from palace.index.scheduler import BuildLimits, BuildProgress
@@ -134,6 +145,7 @@ __all__ = [
     "FileRecord",
     "IndexError",
     "IndexOutcome",
+    "IntervalPacer",
     "JSONL_EXTENSIONS",
     "JsonlChunk",
     "MARKDOWN_EXTENSIONS",
@@ -148,8 +160,13 @@ __all__ = [
     "PLIST_LABEL",
     "PLIST_TEMPLATE_PATH",
     "POLL_INTERVAL_SECONDS",
+    "PacedRequest",
+    "ProviderCallError",
+    "ProviderThrottledError",
     "ParsedMarkdown",
     "RecordedIdentity",
+    "RequestPacer",
+    "RetryPolicy",
     "SCHEMA_TAG",
     "Section",
     "TEXT_EXTENSIONS",
@@ -163,6 +180,7 @@ __all__ = [
     "assert_identity_readable",
     "build",
     "build_root",
+    "call_scope",
     "chunk_sections",
     "chunk_text_body",
     "chunks_db_path",

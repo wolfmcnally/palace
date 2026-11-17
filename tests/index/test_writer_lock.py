@@ -631,6 +631,7 @@ def _check_usage_is_reported_per_invocation(
     from palace.cli import main
     from palace.index.egress import EmbeddingUsage, usage_scope
     from palace.index.embedder import OpenRouterEmbedder
+    from palace.index.pacing import RetryPolicy
 
     store = tmp_path / "usage-store"
     root = tmp_path / "usage-root"
@@ -664,7 +665,7 @@ def _check_usage_is_reported_per_invocation(
         data = [{"index": i, "embedding": [0.01] * EMBED_DIM} for i in range(len(inputs))]
         return httpx.Response(200, json={"data": data, "provider": "Elsewhere", "usage": usage})
 
-    def embedder(**extra: Any) -> OpenRouterEmbedder:
+    def embedder(max_attempts: int = 4) -> OpenRouterEmbedder:
         return OpenRouterEmbedder(
             store=store,
             model="Other/Model",
@@ -672,9 +673,8 @@ def _check_usage_is_reported_per_invocation(
             api_key="synthetic",
             max_batch=2,
             transport=httpx.MockTransport(handler),
-            backoff_base_seconds=0,
+            retry=RetryPolicy(max_attempts=max_attempts, base_seconds=0.0),
             _sleep=lambda _seconds: None,
-            **extra,
         )
 
     def reset() -> None:

@@ -23,6 +23,7 @@ from palace.index.config import (
     EmbeddingIdentity,
 )
 from palace.index.embedder import Embedder, OllamaEmbedder, OpenRouterEmbedder
+from palace.index.pacing import RequestPacer, RetryPolicy
 from palace.index.representation import EmbeddingRepresentation
 from palace.vault import resolve_vault_root
 
@@ -388,9 +389,23 @@ def assert_remote_corpus_boundary(
             )
 
 
-def resolve_embedder(store: Path, *, purpose: EmbedPurpose) -> tuple[Embedder, EmbeddingIdentity]:
+def resolve_embedder(
+    store: Path,
+    *,
+    purpose: EmbedPurpose,
+    pacer: RequestPacer | None = None,
+    retry: RetryPolicy | None = None,
+) -> tuple[Embedder, EmbeddingIdentity]:
     """Construct the store-selected embedder for ``purpose``; never infer selection from
-    credentials. Construction makes no request; symmetric providers ignore ``purpose``."""
+    credentials. Construction makes no request; symmetric providers send the same body for
+    either purpose, which still labels their requests for a pacer.
+
+    ``pacer`` and ``retry`` govern the Bedrock and OpenRouter embedders: hand the same pacer
+    object to every embedder that draws on one provider quota (documents and queries,
+    across stores) so their physical requests share it within this process. The local
+    Ollama embedder makes no remote request and the private endpoint embedder keeps its own
+    bounded retry; neither takes them.
+    """
     config = load_embedder_config(store)
     identity = identity_for(config)
     if config.provider == PROVIDER_OLLAMA:
@@ -414,6 +429,8 @@ def resolve_embedder(store: Path, *, purpose: EmbedPurpose) -> tuple[Embedder, E
             dim=config.dim,
             profile=config.profile,
             purpose=purpose,
+            retry=retry,
+            pacer=pacer,
         ), identity
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if api_key is None or not api_key.strip():
@@ -427,6 +444,9 @@ def resolve_embedder(store: Path, *, purpose: EmbedPurpose) -> tuple[Embedder, E
             api_key=api_key.strip(),
             dim=config.dim,
             max_concurrency=REMOTE_EMBED_MAX_CONCURRENCY,
+            purpose=purpose,
+            retry=retry,
+            pacer=pacer,
         ),
         identity,
     )

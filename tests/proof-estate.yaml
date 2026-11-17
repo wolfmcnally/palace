@@ -12,9 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 18
-  leaves: 35
-budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once."
+  families: 26
+  leaves: 43
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once."
 critical_risks:
   custody:
     state: applicable
@@ -6392,6 +6392,143 @@ families:
   nearest_overlap: "No retained proof reads per-hit evidence; the multi-store prepared proofs in tests/test_search.py cover the seam without evidence."
   historical_evidence: []
   mutation_evidence: []
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: pacing-typed-provider-failures
+  kind: pytest
+  selectors:
+  - tests/index/test_pacing.py::test_provider_failures_are_typed_and_keep_accumulated_uncertainty
+  source_paths:
+  - tests/index/test_pacing.py
+  covers:
+  - palace/index/_errors.py
+  - palace/index/pacing.py
+  - palace/index/__init__.py
+  contract: "A request's terminal failure is a ProviderCallError (a ProviderThrottledError when the latest kind is throttled), still an IndexError exported from palace.index, carrying the adapter's message, kind, code, attempts, stop reason and per-attempt history; delivery merges toward evidence of work, so a read timeout followed by throttles stays unknown and a timeout followed by a pacer refusal stays unknown with no further send; a non-retryable refusal stops at one attempt, an unexpected adapter exception passes through with the pacer settled failed, and an unusable hint is refused."
+  risk_class: remote-egress
+  oracle: "Scripted send callables recording attempt numbers, a recording pacer, and exact field and message comparisons on the raised errors and their with_completed_inputs copies."
+  admission: "Phase 33 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The Bedrock and OpenRouter provider proofs exercise each adapter's transport; neither proves delivery merging across attempts or the typed error contract."
+  historical_evidence: []
+  mutation_evidence:
+  - Report the last attempt's delivery instead of merging across attempts.
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: pacing-retry-waits-honor-hints
+  kind: pytest
+  selectors:
+  - tests/index/test_pacing.py::test_retry_waits_are_jittered_and_never_retry_before_a_provider_hint
+  source_paths:
+  - tests/index/test_pacing.py
+  covers:
+  - palace/index/pacing.py
+  contract: "Retry waits are the capped exponential jittered downward within bounds and differ by seed; a provider hint is a floor never lowered, and a hint beyond the cap, a wait that would cross the caller's deadline, or one that would cross the retry budget ends the request at once with the provider's kind and uncapped hint and no sleep, and a backoff that oversleeps or a pacer grant that arrives past the budget starts no further attempt (the late reservation settled not-sent); with no pacer and no scope a throttle then success is two sends and one jittered sleep; Retry-After parses delta-seconds and HTTP-dates against the response Date, or against an injectable UTC clock when Date is missing or unreadable so a future date is never dropped; invalid policies refuse."
+  risk_class: remote-egress
+  oracle: "Seeded random sources, a fake monotonic clock whose recorded sleeps are compared exactly, and scripted send outcomes."
+  admission: "Phase 33 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The Bedrock provider proof asserts one backoff per retried throttle; it does not prove jitter bounds, the hint floor, the cap stop or the deadline stop."
+  historical_evidence: []
+  mutation_evidence:
+  - Cap a long provider hint to the maximum wait and retry early.
+  - Drop a future HTTP-date hint when the response has no readable Date.
+  - Sleep into the deadline instead of stopping before the wait.
+  - Check the retry budget only before the wait, so an overslept backoff starts another attempt.
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: pacing-perform-and-call-scopes
+  kind: pytest
+  selectors:
+  - tests/index/test_pacing.py::test_perform_paces_and_settles_every_physical_attempt_exactly_once
+  - tests/index/test_pacing.py::test_call_scopes_bound_every_wait_and_attempt_start
+  source_paths:
+  - tests/index/test_pacing.py
+  covers:
+  - palace/index/pacing.py
+  contract: "The retry loop acquires and settles the pacer exactly once per physical attempt with the request's purpose, input count and byte size, sends nothing when the pacer refuses, never lets a raising settle discard an answer or replace a failure, and tells send its remaining time, pacer wait and previous backoff; four threads sharing one pacer lose no settlement. Call scopes nest to the earliest deadline with every predicate kept, distinguish a raising predicate, stop a cancelled backoff, an expired scope, a backoff that oversleeps the deadline and a pacer grant after it before any further attempt while keeping earlier uncertainty, refuse waits and lock acquisitions they cannot finish, cross into worker threads only through a copied context, and end a pacer wait at the deadline."
+  risk_class: concurrency
+  oracle: "A recording pacer's acquire and settle logs, a fake clock's sleeps, wall-clock bounds on real waits, joined threads, and the reference pacer's queue length after an interrupted wait."
+  admission: "Phase 33 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No retained proof covers request pacing, deadlines or cancellation of remote requests."
+  historical_evidence: []
+  mutation_evidence:
+  - Let an inner scope replace an outer deadline.
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: pacing-interval-pacer-reference
+  kind: pytest
+  selectors:
+  - tests/index/test_pacing.py::test_interval_pacer_bounds_rate_reservations_and_capacity
+  - tests/index/test_pacing.py::test_interval_pacer_puts_queries_first_without_starving_documents
+  source_paths:
+  - tests/index/test_pacing.py
+  covers:
+  - palace/index/pacing.py
+  contract: "The reference pacer never exceeds its request or byte window across many threads, issues distinct reservations for identical requests and refuses a second or foreign settlement, refuses work larger than the byte window, returns a not-sent reservation's capacity while a failed one still counts, holds every caller for a throttle hint, refuses invalid limits, lets a waiting query overtake waiting documents in order, admits a waiting document after the configured burst of queries, and removes a cancelled queue head so the next waiter proceeds."
+  risk_class: fairness
+  oracle: "Granted-at instants checked over every window, a fake clock advanced by the test with queue depths observed before each advance, and the exact admission order."
+  admission: "Phase 33 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No retained proof covers a request pacer."
+  historical_evidence: []
+  mutation_evidence:
+  - Drop query priority.
+  - Drop the document burst guard.
+  - Never refund a not-sent reservation.
+  - Ignore a throttle hint's hold.
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: bedrock-provider-failure-contract
+  kind: pytest
+  selectors:
+  - tests/test_bedrock_provider.py::test_bedrock_failures_are_typed_paced_and_bounded
+  source_paths:
+  - tests/test_bedrock_provider.py
+  covers:
+  - tests/test_bedrock_provider.py
+  - palace/bedrock.py
+  - palace/index/**
+  contract: Every Bedrock embedding failure ends in a ProviderCallError (still an IndexError, message unchanged) whose kind is the latest failure and whose delivery is merged over every attempt, so a read timeout followed by throttles stays unknown and a pacer refusal after a timeout stays unknown; definite refusals stop after one attempt; a Retry-After beyond the cap or the caller's deadline ends the request at once with the uncapped hint and no sleep, and a short hint is a jittered floor (delta-seconds or HTTP-date against Date); a passed deadline sends nothing, an initialization queued behind another caller stops typed at its own deadline or cancellation, and cancellation during a backoff starts no further attempt; each request's read timeout is the scope's remaining time without changing the shared client, per concurrent call; a shared pacer sees one acquire per physical attempt with purpose, input count and UTF-8 request bytes and exactly one settle each, and the retention read is not paced; partial success reports completed_inputs; unusable answers are processed and never retried; usage counts throttled and indeterminate attempts; four threads sharing one embedder, pacer and usage lose no audit record. Failure text is library-owned (operation, Region, declared code) and no provider, transport or credential text reaches the error, its fields or the audit; an HTTP-date hint without a readable Date is measured against the injected UTC clock.
+  risk_class: remote-egress
+  oracle: Real boto3 clients answered by before-send stubs (status and header injection, raised botocore transport errors, a rendezvous barrier), each prepared request's context, a recording thread-safe pacer with exactly-once reservations, the module sleep seam and seeded jitter, parsed audit records and usage summaries.
+  admission: "Phase 33 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: bedrock-provider-requests proves request shape, retention, credentials and one throttle-then-success retry; none classifies delivery, honors Retry-After, bounds by deadline or exercises a pacer.
+  historical_evidence: []
+  mutation_evidence:
+  - 'Provider message or transport text echoed, an undeclared service code or unvalidated retention mode passed through, ModelErrorException or the old any-ClientError default classified rejected, the HTTP-date fallback clock ignored: each fails the family.'
+  - 'Timeout classified rejected, no per-request read bound, pacer dropped, completed_inputs dropped, throttled count dropped, unbounded init lock, hints ignored, 503 classified unknown: each fails the family.'
+  - ModelErrorException or an unmodeled code classified rejected, the old any-ClientError-is-rejected default, or quota dropped from the definite refusals fails the family.
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: openrouter-provider-failure-contract
+  kind: pytest
+  selectors:
+  - tests/index/test_openrouter_provider.py::test_openrouter_failures_are_typed_paced_and_bounded
+  source_paths:
+  - tests/index/test_openrouter_provider.py
+  covers:
+  - tests/index/test_openrouter_provider.py
+  - palace/index/embedder.py
+  - palace/index/**
+  contract: Every OpenRouter failure ends in a typed ProviderCallError with merged delivery (429 throttled and rejected, 503 rejected, other 5xx and read-phase transport failures unknown, connect-phase failures not sent, other 4xx refused at once); a timeout followed by throttles stays unknown; Retry-After beyond the cap or the deadline ends at once with the uncapped hint, a short or HTTP-date hint is a jittered floor and an unreadable one is ignored; each request's HTTP timeout is bounded by the scope's remaining time and a passed deadline sends nothing; a shared pacer sees one acquire per attempt with purpose and UTF-8 request bytes and one settle each; partial success reports completed_inputs; refusal diagnostics carry only the provider's bounded single-line error message, never a raw body; upstream divergence is processed and not retried; the probe stays single-attempt; usage counts throttled and indeterminate attempts. Failure text is status or transport type only; a diverging upstream is never named, and is audited only in a short known shape, otherwise withheld; an HTTP-date hint without a readable Date is measured against the injected UTC clock.
+  risk_class: remote-egress
+  oracle: httpx.MockTransport scripted statuses, headers, bodies and raised transport errors; each request's timeout extension; a recording thread-safe pacer; seeded jitter and a sleep recorder; parsed audit records and usage summaries.
+  admission: "Phase 33 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: The writer-lock usage and request-budget families prove OpenRouter batching, provenance and usage totals; none classifies delivery, honors Retry-After, bounds by deadline or exercises a pacer.
+  historical_evidence: []
+  mutation_evidence:
+  - 'Transport text or a response body echoed, an unvalidated upstream identity audited, the HTTP-date fallback clock ignored: each fails the family.'
+  - 'Pacer dropped, completed_inputs dropped, throttled count dropped, hints ignored, ReadTimeout classified not sent, no per-request timeout, raw body in the message, 500 classified rejected: each fails the family.'
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0
