@@ -3304,3 +3304,15 @@ Lessons:
 - occurrences added: none.
 - graduation DECIDE: unchanged.
 - recalibration: not run.
+
+## 2026-11-17 16:37 — START (resumed)
+Phase 34 — Release 0.6.0 with typed provider throttling
+
+Execution trace: 5a3dd83417224cfebe12f23e441eeb36
+
+The END block above recorded the delivery of the release source (commit 5a2f785d80111c9e429dcdc35241cadbbd06119b) and marked the phase complete. That close was premature: the phase's acceptance includes the native and release checks, the tag, tag CI and verified public downloads, which were still pending. The release reviewer (Astra, medium) flagged it as F007. The ledger row returns to in progress; the delivered commit is an intermediate source delivery, and the phase closes only after publication acceptance.
+
+Planned work:
+- Correct RELEASE.md's platform statement to the coverage actually run for 0.6.0 (reviewer F006), rebuild and re-qualify the archives whose bytes change.
+- Record the native and release checks on the delivered source: CHECK NATIVE PASS (6 passed, 4 skipped by the 2026-11-12 ruling) and CHECK RELEASE VERIFIED for candidate 689bfc3125e75d39a93b19b1568fe7d0c1803705ebd462ca3c65f3b46445ad9e.
+- After the operator's decision on the commit identity of the two delivered commits and a final reconciliation: the v0.6.0 tag, tag CI, the GitHub release and remote verification.

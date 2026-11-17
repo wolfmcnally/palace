@@ -78,7 +78,7 @@ Expect version `0.6.0` and a module path inside this new environment. Inspect th
 
 Smoke-test synchronous indexing and retrieval on synthetic data with an explicitly injected deterministic embedder and reranker, or use the checkout's documented disposable HTTPS walkthrough. Do not use a production corpus or paid inference to prove packaging. Verify a matching result, recorded embedding identity, origin-preserving multi-store retrieval, and loud refusal of an incompatible identity. Do not install or restart daemons during a package smoke.
 
-Repeat the exact-wheel installation and synthetic smoke on each claimed platform. Current qualification covers macOS ARM64 and Linux ARM64; it does not establish x86, Linux daemons, production latency or provider quality. Maintainers also run the full repository check sequence and final handoff gate against the actual delivery candidate.
+Repeat the exact-wheel installation and synthetic smoke on each claimed platform, and claim only the platforms actually run for this release. For 0.6.0 the local clean installation and smoke ran on macOS ARM64 only; Linux ARM64 was not run, and hosted CI's Linux job (x86_64) runs the same clean-wheel smoke after push. Releases 0.5.1 and earlier also qualified Linux ARM64. None of this establishes x86 support in general, Linux daemons, production latency or provider quality. Maintainers also run the full repository check sequence and final handoff gate against the actual delivery candidate.
 
 ## Native watcher qualification
 
