@@ -2,6 +2,10 @@
 
 This checklist governs the 0.7.0 packages; building them alone does not publish a release. Preserve the historical v0.1.0 tag and assets. The MIT license covers this package's code, not separate model weights, dependencies or operator content. Publication, tagging, stable-compatibility policy and disclosure decisions remain with the owner. No command below uploads artifacts or changes a remote.
 
+## Version sites
+
+A version change touches every one of these in the same commit, including the escaped form in the CLI test: `pyproject.toml`, `uv.lock` (relock with the CI-pinned uv), `README.md`, this checklist (the opening line, the wheel file name, the expected version and the platform statement), `.github/package-smoke.py` (the assertion and the PASS line), `.github/workflows/ci.yml` (the wheel file name), `tests/test_smoke.py` (the `palace 0\.N\.N` pattern) and a dated `CHANGELOG.md` section. Search for both the plain and the regex-escaped spelling of the previous version before building.
+
 ## Build and inspect
 
 Use the full development checkout with its pinned managed runtime and lockfile:
