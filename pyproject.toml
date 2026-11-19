@@ -1,6 +1,6 @@
 [project]
 name = "palace"
-version = "0.6.0"
+version = "0.7.0"
 description = "Local-first memory and identity-bound multi-store retrieval."
 readme = "README.md"
 license = "MIT"
@@ -66,6 +66,7 @@ include = [
     "/docs/private-providers.md",
     "/docs/portability.md",
     "/docs/runtimes.md",
+    "/docs/vector-cache.md",
 ]
 
 [tool.ruff]

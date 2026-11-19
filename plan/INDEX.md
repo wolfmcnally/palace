@@ -20,6 +20,7 @@
 | [Phase 33](phase-33.md) | Typed provider failures, one retry loop and request pacing | ✅ |
 | [Phase 34](phase-34.md) | Release 0.6.0 with typed provider throttling | ✅ |
 | [Phase 35](phase-35.md) | Opt-in exact in-memory vector cache | ✅ |
+| [Phase 36](phase-36.md) | Release 0.7.0 with the opt-in vector cache | 🚧 |
 
 Private phase history is excluded. Retained policies and current API contracts govern future work.
 

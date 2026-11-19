@@ -3,6 +3,7 @@ import math
 import sqlite3
 import sys
 import tempfile
+from contextlib import closing
 from pathlib import Path
 
 import palace
@@ -14,7 +15,7 @@ from palace.multistore import search_stores
 from palace.search import search
 from palace.watch.config import WatchRootsConfig, default_config_path
 
-assert palace.__version__ == "0.6.0"
+assert palace.__version__ == "0.7.0"
 
 assert Path(palace.__file__).is_relative_to(Path(sys.prefix)), palace.__file__
 
@@ -61,6 +62,25 @@ with tempfile.TemporaryDirectory(prefix="palace-wheel-smoke-") as tmp:
     )
     assert len(merged.hits) >= 2
     assert {h.store for h in merged.hits} == {s.resolve() for s in stores}
+    # The opt-in vector cache, from the installed wheel: an enabled store's cached vector
+    # leg returns the released answer.
+    import sqlite_vec
+
+    from palace.index.vector_feed import enable_vector_feed
+    from palace.search import execute_prepared_search, prepare_search
+    from palace.vector_cache import VectorCache
+
+    with closing(sqlite3.connect(chunks_db_path(stores[1]), isolation_level=None)) as conn:
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        enable_vector_feed(conn)
+    prepared = prepare_search(
+        query="Calibration", store=stores[1], mode="vector", rerank_enabled=False, embedder=e
+    )
+    cache = VectorCache(budget_bytes=2**28, on_unavailable="refuse")
+    cached = execute_prepared_search(prepared, vector_cache=cache)
+    assert cached.hits == execute_prepared_search(prepared).hits
+    assert cached.vector_cache is not None and cached.vector_cache[0].cached_legs == 1
     with sqlite3.connect(chunks_db_path(stores[0])) as conn:
         conn.execute("UPDATE index_meta SET value='wrong' WHERE key='embed_model'")
         conn.commit()
@@ -71,6 +91,6 @@ with tempfile.TemporaryDirectory(prefix="palace-wheel-smoke-") as tmp:
     else:
         raise AssertionError("incompatible identity accepted")
     print(
-        "PASS wheel0.6.0 isolated import, synthetic indexing/retrieval, "
-        "multistore origin, incompatible identity refusal"
+        "PASS wheel0.7.0 isolated import, synthetic indexing/retrieval, "
+        "multistore origin, opt-in vector cache parity, incompatible identity refusal"
     )

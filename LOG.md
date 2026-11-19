@@ -3403,3 +3403,16 @@ Lessons:
 - filed: educational-mouflon (prove a resource bound against an independent measurement, not the implementation's own ledger).
 - occurrences added: none. Two first-form regression proofs (fallback integrity, on-disk remanence) passed with their fix removed and were strengthened until their witnesses failed, which the red-witness practice already requires.
 - graduation DECIDE: unchanged.
+
+## 2026-11-19 21:00 — START
+Phase 36 — Release 0.7.0 with the opt-in vector cache
+
+Execution trace: c0277e904fa84475a7b12a8734dd5887
+Baseline: cd3ac34258389b5087acf202289052c8297de5af — Phase 35 delivered; full and handoff gates passed
+
+Planned work:
+- Version 0.7.0 in the package metadata, lockfile (uv 0.9.26), README, release checklist, CI and package smoke; a dated 0.7.0 changelog section; the package smoke imports the cache module from the installed wheel.
+- Qualification on the delivered commit: two byte-identical builds, a clean hash-locked install with the package smoke on macOS ARM64, the disclosure screen, ./bin/check all, ./bin/check native and ./bin/check release.
+- Publication under the scoped authority in the phase file: annotated unsigned v0.7.0 tag, tag CI, the GitHub release with wheel, source archive and SHA256SUMS, anonymous re-download re-hash and the remote tag peel.
+
+Run shape: sole primary in this checkout (Claude Code, claude-opus-5-5); no further reviewer by the coordinator's direction, the Phase 35 code advisory and its dispositions standing as review.
