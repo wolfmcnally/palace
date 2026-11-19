@@ -25,6 +25,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
+from types import ModuleType
 from typing import Protocol
 
 import sqlite_vec
@@ -948,16 +949,21 @@ def commit_plan(
             current = _current_signature(conn, plan)
             if current != plan.prior_signature:
                 raise StalePlanError(f"{plan.rel} changed in the store since it was planned")
+        feed = _feed_writes(conn)
         if plan.full_delete:
             removed_by_delete = _delete_rows(
-                conn=conn, watch_root=plan.watch_root, path_str=plan.stored
+                conn=conn, watch_root=plan.watch_root, path_str=plan.stored, feed=feed
             )
         if plan.noop is None and plan.kind != "deleted":
             _delete_fts_chunks(conn, plan.stale_chunk_ids)
             delete_input_evidence(conn, plan.stale_chunk_ids)
             for stale in plan.stale_chunk_ids:
-                conn.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (stale,))
-                conn.execute("DELETE FROM chunks WHERE chunk_id = ?", (stale,))
+                dropped = conn.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (stale,))
+                if feed and dropped.rowcount:
+                    _vector_feed().record_vector_delete(conn, stale)
+                chunk = conn.execute("DELETE FROM chunks WHERE chunk_id = ?", (stale,))
+                if feed:
+                    _vector_feed().record_feed_chunk_rows(conn, deleted=chunk.rowcount)
             file_row = plan.file_row
             if file_row is None:
                 raise IndexError(f"file plan for {plan.rel} has no files row")
@@ -994,6 +1000,9 @@ def commit_plan(
                     "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
                     (row.chunk_id, vector),
                 )
+                if feed:
+                    _vector_feed().record_feed_chunk_rows(conn, inserted=1)
+                    _vector_feed().record_vector_insert(conn, row.chunk_id, vector)
                 if representation is not None:
                     conn.execute(
                         "INSERT INTO chunk_embedding_inputs (chunk_id, input_sha256) VALUES (?, ?)",
@@ -1042,6 +1051,8 @@ def commit_plan(
                 limits=snapshot_limits,
             ):
                 raise IndexError("staged snapshot has no file record")
+        if feed:
+            _vector_feed().prune_vector_feed(conn)
         conn.execute("COMMIT")
     except Exception as error:
         if conn.in_transaction:
@@ -1183,8 +1194,38 @@ def _delete_fts_chunks(conn: sqlite3.Connection, chunk_ids: Sequence[str]) -> No
         conn.execute(f"DELETE FROM chunks_fts_rows WHERE chunk_id IN ({placeholders})", batch)
 
 
-def _delete_rows(*, conn: sqlite3.Connection, watch_root: str, path_str: str) -> int:
-    """Delete one file's rows inside the caller's transaction."""
+def _vector_feed() -> ModuleType:
+    """The opt-in vector feed's writer helpers, imported only by a process that writes.
+
+    A search process never loads the feed module.
+    """
+    from palace.index import vector_feed
+
+    return vector_feed
+
+
+def _feed_writes(conn: sqlite3.Connection) -> bool:
+    """Whether this store holds the opt-in vector feed, read once per writer transaction.
+
+    For an enabled store it also turns on ``secure_delete`` for this connection, so the
+    pages a delete or a cleared feed payload frees are overwritten with zeros. A store
+    without the feed is left exactly as before.
+    """
+    if not _vector_feed().vector_feed_enabled(conn):
+        return False
+    conn.execute("PRAGMA secure_delete = ON")
+    return True
+
+
+def _delete_rows(
+    *, conn: sqlite3.Connection, watch_root: str, path_str: str, feed: bool = False
+) -> int:
+    """Delete one file's rows inside the caller's transaction.
+
+    ``feed`` says the store holds the opt-in vector feed (the caller read it once in
+    this transaction); every actual vector delete and the deleted chunk rows are then
+    recorded in the same transaction.
+    """
     chunk_ids = [
         row[0]
         for row in conn.execute(
@@ -1195,8 +1236,14 @@ def _delete_rows(*, conn: sqlite3.Connection, watch_root: str, path_str: str) ->
     _delete_fts_chunks(conn, chunk_ids)
     delete_input_evidence(conn, chunk_ids)
     for chunk_id in chunk_ids:
-        conn.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (chunk_id,))
-    conn.execute("DELETE FROM chunks WHERE watch_root = ? AND path = ?", (watch_root, path_str))
+        vector = conn.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (chunk_id,))
+        if feed and vector.rowcount:
+            _vector_feed().record_vector_delete(conn, chunk_id)
+    chunks = conn.execute(
+        "DELETE FROM chunks WHERE watch_root = ? AND path = ?", (watch_root, path_str)
+    )
+    if feed:
+        _vector_feed().record_feed_chunk_rows(conn, deleted=chunks.rowcount)
     conn.execute("DELETE FROM files WHERE watch_root = ? AND path = ?", (watch_root, path_str))
     conn.execute(
         "DELETE FROM jsonl_cursors WHERE watch_root = ? AND path = ?", (watch_root, path_str)
@@ -1209,7 +1256,10 @@ def delete_path(*, conn: sqlite3.Connection, watch_root: str, path_str: str) -> 
     ensure_fts_rowid_map(conn)
     conn.execute("BEGIN IMMEDIATE")
     try:
-        removed = _delete_rows(conn=conn, watch_root=watch_root, path_str=path_str)
+        feed = _feed_writes(conn)
+        removed = _delete_rows(conn=conn, watch_root=watch_root, path_str=path_str, feed=feed)
+        if feed:
+            _vector_feed().prune_vector_feed(conn)
         conn.execute("COMMIT")
     except Exception as error:
         if conn.in_transaction:

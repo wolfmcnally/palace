@@ -50,6 +50,7 @@ Palace is a personal-memory substrate for agents and applications. Preserve prov
 - [store parametric external consumers](briefs/store-parametric-external-consumers.md)
 - [structured external indexing](briefs/structured-external-indexing.md)
 - [tooling](briefs/tooling.md)
+- [vector index cache](briefs/vector-index-cache.md)
 
 ## Product policies
 

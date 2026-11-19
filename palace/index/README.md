@@ -28,6 +28,7 @@ palace index publishing show|set [--store <path>] [--published-corpus --publishe
 palace index publish-vectors [--store <path>] --bucket <bucket> --index <index>
                              --profile <profile> --region <region> [--text-metadata] [--json]
 palace index vector-backend show|set [--store <path>] [--backend sqlite-vec|s3vectors] [--profile <profile>]
+palace index vector-feed enable|disable|show [--store <path>] [--json] [--lock-timeout <seconds>]
 ```
 
 `palace index serve` runs in the foreground until SIGINT or SIGTERM.
@@ -722,6 +723,10 @@ Paths are relative to the watch root, or absolute under it. Each command prints 
 ### The keyword-row lookup
 
 FTS5 cannot index its `UNINDEXED` `chunk_id` column, so finding one chunk's keyword row by id reads the whole keyword table. Every store therefore keeps `chunks_fts_rows(chunk_id, fts_rowid)`, a derived table written with each keyword insert; every per-file update, delete, copy and removal finds a file's keyword rows through it. The same conversion adds an index on `chunks(watch_root, path)`, without which deleting one file's chunks could read every chunk under its root. A store written before the lookup existed is converted once, in one pass and one transaction, by the first writer that opens it (inside the copy's or removal's own transaction when that writer is a copy or removal, so a refused operation leaves the store unconverted); `index_meta` records `fts_rowid_map = complete` afterwards, and a conversion interrupted part-way leaves the store unmarked for the next writer to redo.
+
+## The opt-in vector change feed (palace index vector-feed)
+
+`palace index vector-feed enable` adds `chunks_vec_feed`, `chunks_vec_feed_state` and two triggers on `chunks` to one store, under its writer lock, and starts a new lineage; `disable` drops them; `show` reads the state row read-only, in constant work, without bootstrapping the store. In an enabled store every writer in this package (per-file commit and delete, full and incremental build, copy and removal) records each actual vector insert, with its bytes, and each actual vector delete in the writer's own transaction, clears a deleted chunk's earlier payloads (with `secure_delete` on its connection, so freed pages are zeroed), keeps the monotonic chunk totals the divergence check compares, and prunes the feed to `VECTOR_FEED_TAIL_ROWS` by sequence range; a certified full rebuild starts a new lineage. A store that never enabled the feed gains no object and no row, and its writers' statements are unchanged apart from one schema-catalog read per transaction; the feed module is imported only by a process that writes. The feed exists for the opt-in in-memory vector cache; see [vector cache](../../docs/vector-cache.md) for the fields, the divergence contract and its limits. The library forms are in `palace.index.vector_feed`.
 
 ## Published vector indexes (palace index publish-vectors)
 

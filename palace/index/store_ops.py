@@ -29,7 +29,7 @@ import sqlite_vec
 
 from palace.index._errors import IndexError
 from palace.index.config import WRITER_BUSY_TIMEOUT_SECONDS, chunks_db_path
-from palace.index.core import _delete_rows, _insert_fts_chunk
+from palace.index.core import _delete_rows, _feed_writes, _insert_fts_chunk, _vector_feed
 from palace.index.representation import (
     INPUTS_DDL,
     has_input_evidence,
@@ -171,6 +171,7 @@ def remove_paths(
                 # Conversion, checks and writes share one transaction: a failure leaves nothing.
                 ensure_fts_rowid_map(conn, in_transaction=True)
                 _metadata_valid(conn, "main")
+                feed = _feed_writes(conn)
                 removals = [
                     doc.document_id for doc in _documents_at(conn, "main", str(root), targets)
                 ]
@@ -178,9 +179,11 @@ def remove_paths(
                     had_file = conn.execute(
                         "SELECT 1 FROM files WHERE watch_root = ? AND path = ?", (str(root), rel)
                     ).fetchone()
-                    _delete_rows(conn=conn, watch_root=str(root), path_str=rel)
+                    _delete_rows(conn=conn, watch_root=str(root), path_str=rel, feed=feed)
                     removed += had_file is not None
                 changed = _apply_documents(conn, [], removals)
+                if feed:
+                    _vector_feed().prune_vector_feed(conn)
                 conn.execute("COMMIT")
             except BaseException:
                 conn.execute("ROLLBACK")
@@ -312,13 +315,14 @@ def _copy_in_transaction(
         if not has_input_evidence(conn, source=True):
             raise IndexError("source store has no committed embedding input evidence")
         conn.execute(INPUTS_DDL)
+    feed = _feed_writes(conn)
     copied = removed = 0
     for rel in targets:
         key = (root, rel)
         held_here = conn.execute(
             "SELECT 1 FROM main.files WHERE watch_root = ? AND path = ?", key
         ).fetchone()
-        _delete_rows(conn=conn, watch_root=root, path_str=rel)
+        _delete_rows(conn=conn, watch_root=root, path_str=rel, feed=feed)
         if rel not in present:
             removed += held_here is not None
             continue
@@ -326,20 +330,25 @@ def _copy_in_transaction(
             "INSERT INTO main.files SELECT * FROM source.files WHERE watch_root = ? AND path = ?",
             key,
         )
-        conn.execute(
+        chunks = conn.execute(
             "INSERT INTO main.chunks SELECT * FROM source.chunks WHERE watch_root = ? AND path = ?",
             key,
         )
+        if feed:
+            _vector_feed().record_feed_chunk_rows(conn, inserted=chunks.rowcount)
         for chunk_id, body in conn.execute(
             "SELECT chunk_id, body FROM source.chunks WHERE watch_root = ? AND path = ? "
             "ORDER BY rowid",
             key,
         ).fetchall():
-            conn.execute(
-                "INSERT INTO main.chunks_vec (chunk_id, embedding) "
-                "SELECT chunk_id, embedding FROM source.chunks_vec WHERE chunk_id = ?",
-                (chunk_id,),
-            )
+            if feed:
+                _copy_recorded_vector(conn, chunk_id)
+            else:
+                conn.execute(
+                    "INSERT INTO main.chunks_vec (chunk_id, embedding) "
+                    "SELECT chunk_id, embedding FROM source.chunks_vec WHERE chunk_id = ?",
+                    (chunk_id,),
+                )
             if supplied:
                 evidence = conn.execute(
                     "SELECT input_sha256 FROM source.chunk_embedding_inputs WHERE chunk_id=?",
@@ -355,4 +364,20 @@ def _copy_in_transaction(
         )
         copied += 1
     changed = _apply_documents(conn, incoming, removals)
+    if feed:
+        _vector_feed().prune_vector_feed(conn)
     return StoreOpResult(copied=copied, removed=removed, metadata_changed=changed)
+
+
+def _copy_recorded_vector(conn: sqlite3.Connection, chunk_id: str) -> None:
+    """Copy one chunk's vector into a feed-enabled destination and record those bytes."""
+    row = conn.execute(
+        "SELECT embedding FROM source.chunks_vec WHERE chunk_id = ?", (chunk_id,)
+    ).fetchone()
+    if row is None:
+        return
+    embedding = bytes(row[0])
+    conn.execute(
+        "INSERT INTO main.chunks_vec (chunk_id, embedding) VALUES (?, ?)", (chunk_id, embedding)
+    )
+    _vector_feed().record_vector_insert(conn, chunk_id, embedding)

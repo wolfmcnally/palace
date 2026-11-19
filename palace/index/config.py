@@ -63,6 +63,9 @@ __all__ = [
     "REMOTE_EMBED_RETRY_STATUS_MIN",
     "SCHEMA_TAG",
     "TEXT_EXTENSIONS",
+    "VECTOR_CACHE_BLOCK_ROWS",
+    "VECTOR_CACHE_COMPACT_DEAD_FRACTION",
+    "VECTOR_FEED_TAIL_ROWS",
     "WRITER_READY_TIMEOUT_SECONDS",
     "WRITER_BUSY_TIMEOUT_SECONDS",
     "WRITER_LOCK_TIMEOUT_SECONDS",
@@ -202,6 +205,23 @@ WRITER_BUSY_TIMEOUT_SECONDS: float = 30.0
 # mean another writer keeps changing it; the update then fails loudly rather
 # than spinning.
 MAX_STALE_REPLANS: int = 3
+
+
+# Opt-in vector change feed and in-memory cache (Phase 35). The feed keeps at
+# most this many entries past which a writer prunes the oldest by sequence: a
+# cache whose applied position falls behind the pruned floor reloads instead
+# of replaying. 8,192 entries hold a busy day's incremental updates for a
+# long-lived reader while bounding the feed's on-disk payload to a few
+# percent of a 100k-chunk store's vectors.
+VECTOR_FEED_TAIL_ROWS: int = 8192
+# Rows per resident block. A block is the unit of allocation, reuse and
+# compaction: 2,048 rows hold 32 MiB of float32 vector data at 4,096 dimensions
+# (2,048 x 4,096 x 4 bytes), so compaction's one outstanding replacement and a
+# small store's partly filled block each cost at most that much.
+VECTOR_CACHE_BLOCK_ROWS: int = 2048
+# A block whose dead rows reach this fraction is rewritten when the cache
+# next refreshes, so removed vectors do not linger and scans stay dense.
+VECTOR_CACHE_COMPACT_DEAD_FRACTION: float = 0.25
 
 
 # Markdown chunking parameters. See the phase text for the rationale —

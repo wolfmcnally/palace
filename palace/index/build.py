@@ -53,6 +53,7 @@ from palace.index.config import (
     chunks_db_path,
     prepare_chunks_db_path,
 )
+from palace.index.core import _feed_writes, _vector_feed
 from palace.index.egress import (
     EmbeddingUsage,
     EmbeddingUsageSummary,
@@ -494,6 +495,9 @@ def _build(
                         )
                     else:
                         stamp_identity(conn, identity)
+                        if _feed_writes(conn):
+                            # A certified full rebuild starts a new feed lineage.
+                            _vector_feed().reset_vector_feed_lineage(conn)
                         conn.execute("COMMIT")
                         scheduled.clear_completed()
                         out_log(

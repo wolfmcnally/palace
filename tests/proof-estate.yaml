@@ -12,9 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 26
-  leaves: 43
-budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once."
+  families: 43
+  leaves: 62
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once."
 critical_risks:
   custody:
     state: applicable
@@ -6529,6 +6529,399 @@ families:
   mutation_evidence:
   - 'Transport text or a response body echoed, an unvalidated upstream identity audited, the HTTP-date fallback clock ignored: each fails the family.'
   - 'Pacer dropped, completed_inputs dropped, throttled count dropped, hints ignored, ReadTimeout classified not sent, no per-request timeout, raw body in the message, 500 classified rejected: each fails the family.'
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-feed-absent-store-unaffected
+  kind: pytest
+  selectors:
+  - tests/index/test_vector_feed.py::test_never_enabled_store_is_unaffected_by_every_writer
+  source_paths:
+  - tests/index/test_vector_feed.py
+  covers:
+  - palace/index/vector_feed.py
+  - palace/index/core.py
+  - palace/index/store_ops.py
+  - palace/index/build.py
+  - palace/index/cli.py
+  contract: "Across a full build, an incremental add, replace and delete, a removal and two copies, a store that never enabled the vector feed gains no feed object, a statement trace of every connection shows no feed statement beyond the schema-catalog probe and no secure_delete pragma, no feed helper runs, and every table equals the same writes with the feed probe forced off."
+  risk_class: schema
+  oracle: "A traced sqlite3.connect, feed helpers patched to raise, and exact table comparisons at identical paths with ingestion timestamps dropped."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The store-operation and core writer proofs compare tables between writers; none proves that an absent feed leaves every writer statement and table unchanged."
+  historical_evidence: []
+  mutation_evidence:
+  - "Probe the feed as always enabled, so a writer records into a store without the feed."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-feed-records-actual-changes
+  kind: pytest
+  selectors:
+  - tests/index/test_vector_feed.py::test_enabled_feed_records_exactly_the_committed_vector_changes
+  source_paths:
+  - tests/index/test_vector_feed.py
+  covers:
+  - palace/index/vector_feed.py
+  - palace/index/core.py
+  - palace/index/store_ops.py
+  - palace/index/build.py
+  - palace/index/cli.py
+  contract: "With the feed enabled in the source, the destination or both, each write's appended entries replay the prior vector set into exactly the new one with the stored bytes, a full build certifies a fresh lineage with an empty feed, the trigger and writer totals stay equal, vector_rows equals an independent count, and a copied chunk whose source has no vector is counted as a chunk without a vector with no feed entry."
+  risk_class: corruption
+  oracle: "Independent replay of feed rows against SELECT of chunks_vec before and after each step, and direct counts."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof reads the feed."
+  historical_evidence: []
+  mutation_evidence:
+  - "Copy a vector into a feed-enabled destination without recording its bytes."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-feed-remanence-rollback-prune-lineage
+  kind: pytest
+  selectors:
+  - tests/index/test_vector_feed.py::test_feed_clears_removed_payloads_rolls_back_prunes_by_range_and_keeps_lineage
+  source_paths:
+  - tests/index/test_vector_feed.py
+  covers:
+  - palace/index/vector_feed.py
+  - palace/index/core.py
+  - palace/index/store_ops.py
+  - palace/index/build.py
+  - palace/index/cli.py
+  - palace/index/config.py
+  contract: "A delete clears every earlier payload of the chunk, and with secure_delete on the feed writer's connection no window of the removed vector's bytes remains in the database file after a checkpoint; a writer failure after a feed record leaves tables and state unchanged; pruning keeps exactly the tail as one contiguous sequence range above the floor; a failed full-rebuild certification keeps the epoch and an undiverged feed while a certified one starts a new epoch with an empty feed and a recounted vector total."
+  risk_class: atomicity
+  oracle: "Direct reads of feed rows and state, an injected failing recorder, a patched tail size and a patched certification stamp."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The build proofs cover certification refusals; none covers the feed's lineage or payload clearing."
+  historical_evidence: []
+  mutation_evidence:
+  - "Leave the payloads of earlier inserts in place when the chunk is deleted."
+  - "Leave secure_delete off on a feed-enabled writer's connection."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-feed-divergence-tripwire
+  kind: pytest
+  selectors:
+  - tests/index/test_vector_feed.py::test_a_write_that_bypasses_the_feed_is_detected_and_reenable_clears_it
+  source_paths:
+  - tests/index/test_vector_feed.py
+  covers:
+  - palace/index/vector_feed.py
+  contract: "A same-count delete-and-reinsert of one chunk, a raw insert and a raw delete made without the feed each make the state diverged and its check raise VectorFeedDiverged; re-enabling clears the divergence with a new epoch each time."
+  risk_class: corruption
+  oracle: "Raw SQL bypassing every writer, then read_vector_feed_state and check."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof detects a writer that bypassed a derived record."
+  historical_evidence: []
+  mutation_evidence:
+  - "Compare net chunk totals instead of separate monotonic insert and delete totals, so a same-count replace cancels out."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-feed-constant-cost
+  kind: pytest
+  selectors:
+  - tests/index/test_vector_feed.py::test_feed_figures_and_fixed_updates_cost_the_same_at_any_store_size
+  source_paths:
+  - tests/index/test_vector_feed.py
+  covers:
+  - palace/index/vector_feed.py
+  - palace/index/cli.py
+  contract: "Reading the feed state, the CLI show path and a fixed update (record a delete and an insert, add chunk totals, prune past the tail) execute the same number of SQLite virtual-machine steps on stores and feeds tenfold apart, and show reports the stored counts exactly."
+  risk_class: performance
+  oracle: "SQLite progress-handler step counts and the CLI's JSON output; a bare whole-table count(*) is one virtual-machine instruction and is not visible to this oracle."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof bounds a figure's cost independently of store size."
+  historical_evidence: []
+  mutation_evidence:
+  - "Count the feed's rows with a row-visiting scan when reading the state."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-equals-released
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_cached_vector_hybrid_and_reranked_results_equal_the_released_path
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "With the cache, vector and hybrid searches (keyword and vector legs contributing different hits), filters at two selectivities, a reranker that reverses order (run once per execution), and two stores through the multi-store seam, unreranked and reranked, return hits, status, detail and evidence equal to the released path, with every vector leg served from memory."
+  risk_class: retrieval
+  oracle: "The same prepared value executed without and with the cache, compared field by field."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The prepared-search proofs compare prepared execution with the interleaved reference; none runs a second vector engine."
+  historical_evidence: []
+  mutation_evidence:
+  - "Return float64 distances computed from the approximation instead of sqlite-vec's."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-certified-cut
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_every_cut_is_the_released_answer_or_the_counted_oracle
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "Exact ties across block boundaries go to the counted oracle; a forced margin of one widens the certificate (counted) without changing answers; reused slots, deletes, compaction and a reload keep the released answers; a filter admitting a chunk without a vector returns the released empty answer through the oracle and the cache serves once it no longer does; a stored subnormal component or a query component past 2**40 sends the leg to the oracle with the released answer; a pool above sqlite-vec's KNN limit raises the released error through the oracle."
+  risk_class: retrieval
+  oracle: "Shaped embeddings giving exact and near duplicates, the released path's results and error text."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof constructs ties or bounds an approximate cut."
+  historical_evidence: []
+  mutation_evidence:
+  - "Skip the filtered missing-vector check, so the cache returns rows where the released search returns none."
+  - "Drop the numeric-range check on visible stored vectors."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-pinned-snapshots
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_each_execution_answers_from_its_pinned_snapshot
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "A commit made between admission and retrieval, for one store and for the second of two, is absent from that execution's answer and present in the next; a commit during a rerank leaves the reranked candidates unchanged; the cached single-store path keeps its admitted snapshot open until after the rerank on a hit and on a fallback while the uncached path keeps the released order; an older lease keeps answering its own snapshot through an eviction, a newer cold load, pruning past its position and compaction, while fresh leases equal the released answer on their own snapshots."
+  risk_class: concurrency
+  oracle: "Commits injected inside patched admission and reranker callbacks; released SQL on the same connection."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The prepared-search proofs show admission refusals; none injects a commit after admission."
+  historical_evidence: []
+  mutation_evidence:
+  - "Read the feed position from a fresh connection instead of the execution's snapshot."
+  - "Close the cached single-store snapshot before the rerank."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-concurrent-coherence
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_concurrent_readers_never_see_a_stale_or_torn_answer
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "Three reader threads, each probing twice per lease, always get exactly the released SQL answer of their own snapshot while a writer thread adds, deletes and rewrites notes, and the cache serves legs from memory meanwhile."
+  risk_class: concurrency
+  oracle: "Released SQL on the identical connection and snapshot for every probe."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof runs concurrent readers against a refreshing derived index."
+  historical_evidence: []
+  mutation_evidence:
+  - "Leave the applied position unchanged after a refresh, so later refreshes replay entries twice."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-memory-ledger
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_memory_is_ledgered_appended_reused_zeroed_and_released_after_the_last_lease
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "Every reservation keeps owned bytes within the budget; an update appends without replacing any block; an eviction unpublishes at once and keeps retired bytes until the last lease, then pools zero-filled blocks that the next load reuses before allocating; while one lease has pinned an evicted store and another lease with a view ends, no block of the store reaches the pool and the pinned lease answers by fallback; under a budget for one store a pinned store makes the other unavailable (fallback reported, refuse raising budget), and an unpinned one is evicted under pressure. On a 2,500-vector store, memory traced by tracemalloc during a load, a query and a refresh with compaction stays within the ledger's reservations; filling exactly the free slots of every block allocates nothing and one more row takes one block; while an older view holds a replaced block no further compaction runs; under refused growth with an older view held the leg is unavailable and the view's answer unchanged, and once alone the refresh reuses dead slots in place with the released answer."
+  risk_class: limits
+  oracle: "Ledger checks wrapped around every reservation, block constructor counts and direct inspection of pooled arrays."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof bounds process memory."
+  historical_evidence: []
+  mutation_evidence:
+  - "Pool freed blocks without zeroing them."
+  - "Return an evicted store's blocks to the pool while a lease still holds it."
+  - "Copy a compacted block's survivors in one unreserved gather."
+  - "Count room for new rows only in the last block."
+  - "Compact again while an earlier replacement is still held by an older view."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-load-admission
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_loads_are_single_flight_bounded_and_fenced
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "Five concurrent first executions start one load; with three waiting slots the fifth is answered by fallback with queue-full; an eviction while a load is outstanding, with a second execution waiting on it, discards the load and fences both executions (snapshot reported) without a second load, leaving no load or live bytes; a later execution loads afresh."
+  risk_class: concurrency
+  oracle: "A load held open by an event, outcome counts and the ledger."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof bounds concurrent loads."
+  historical_evidence: []
+  mutation_evidence:
+  - "Load once per execution instead of once per store."
+  - "Let a waiter on a fenced load acquire again and publish its own load."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-integrity-never-bypassed
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_integrity_failures_fail_the_query_under_both_settings_and_evict
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  - palace/index/vector_feed.py
+  contract: "A write bypassing the feed, malformed feed state, a feed vector of the wrong width and a vector count that does not reconcile (on a cold load and on a hit at an applied position) each fail the execution with their own error under both fallback and refuse, leave nothing resident and record no fallback or refusal; a divergence or malformation that lands after a budget refusal and before admission fails the fallback instead of being answered, while a healthy store's budget fallback is answered and reported."
+  risk_class: corruption
+  oracle: "Damage applied with raw SQL to fresh stores, then the expected exception and the ledger."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof covers a derived index's integrity refusals."
+  historical_evidence: []
+  mutation_evidence:
+  - "Skip the divergence check when preparing a view."
+  - "Answer an acquisition-time fallback without checking the admitted snapshot's feed state."
+  - "Skip the count reconciliation on a hit at the already-applied position."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-authorization
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_authorization_runs_for_every_store_before_admission
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "The hook runs for the store before its admission on every execution, resident or not; a denied second store stops a multi-store execution before any store is admitted; a denial or a raising hook evicts the store; warm honours the hook; a symbolic link, a relative path and the real path of one store name one resident copy for authorization, residency, outcomes and eviction, and the hook always receives the resolved directory."
+  risk_class: authority
+  oracle: "An ordered event log from the hook and patched admission functions."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof covers a caller authorization hook."
+  historical_evidence: []
+  mutation_evidence:
+  - "Skip the hook for a store that is already resident."
+  - "Key residency by the caller's path spelling instead of the resolved directory."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-checked-fast-loader
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_fast_and_supported_loaders_agree_and_the_fast_one_is_checked
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "With deleted and reused slots, an empty store, block boundaries and an incomplete final block, the fast and supported loaders hold exactly the stored vectors; a corrupted location map is rejected by the sample check and the supported route loads correctly; an unqualified sqlite-vec version uses the supported route and counts it."
+  risk_class: corruption
+  oracle: "Resident rows compared with SELECT chunk_id, embedding FROM chunks_vec and the loader counters."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof reads sqlite-vec's storage tables."
+  historical_evidence: []
+  mutation_evidence:
+  - "Skip the sampled comparison with the SQL interface."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-restart
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_a_fresh_process_loads_the_last_committed_state_after_a_killed_writer
+  source_paths:
+  - tests/test_vector_cache.py
+  - tests/vector_cache_restart_child.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  - palace/index/vector_feed.py
+  contract: "After a child process is killed inside an indexing commit that had already written a feed record, a fresh cache serves the last committed state equal to the released path, and then applies a later commit."
+  risk_class: recovery
+  oracle: "A real subprocess killed with SIGKILL, then released and cached comparisons."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "The writer-lock proofs cover a killed lock holder; none covers a derived index's recovery."
+  historical_evidence: []
+  mutation_evidence:
+  - "Start a loaded view one feed position late, so the first later commit is skipped."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-isolation-and-bypass
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_a_search_without_a_cache_never_loads_it_and_unserved_legs_are_bypassed
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "A process that imports the search, multi-store and command-line modules and runs a released search loads neither the cache nor the feed module; a keyword-only search and an S3 Vectors store are reported bypassed, load nothing and keep released answers."
+  risk_class: public-contract
+  oracle: "A clean subprocess's module table and outcome fields."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof checks the opt-in import boundary."
+  historical_evidence: []
+  mutation_evidence:
+  - "Import the cache module from the search module."
+  - "Import the feed module from the index core at module load."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: vector-cache-observability
+  kind: pytest
+  selectors:
+  - tests/test_vector_cache.py::test_stats_reconcile_move_as_predicted_and_cost_the_same_at_any_size
+  source_paths:
+  - tests/test_vector_cache.py
+  covers:
+  - palace/vector_cache.py
+  - palace/search.py
+  - palace/multistore.py
+  contract: "Empty stats are zero; after loads, per-store rows, live bytes and counters equal the predicted values; a lease is counted while held with the applied position past the base; owned bytes always equal their components and headroom the budget minus owned, also while another thread refreshes and compacts, and every observed pair of applied position and live rows equals a committed state of the store; stats make the same number of calls for stores tenfold apart."
+  risk_class: public-contract
+  oracle: "Exact arithmetic on the reported fields and a call profile of stats()."
+  admission: "Phase 35 budget-funded admission under the named owner approval; no retirement."
+  nearest_overlap: "No other proof covers memory observability."
+  historical_evidence: []
+  mutation_evidence:
+  - "Count live rows by scanning every block in stats()."
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0

@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from contextlib import ExitStack
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from palace.index._errors import IndexError
 from palace.index.config import EmbeddingIdentity, chunks_db_path
@@ -22,6 +23,7 @@ from palace.index.embedder_config import (
     resolve_embedder,
 )
 from palace.index.s3vectors import (
+    BACKEND_SQLITE_VEC,
     S3VectorsBackend,
     VectorMatch,
     VectorUsageSummary,
@@ -54,6 +56,9 @@ from palace.rerank_config import (
     preflight_reranker,
 )
 from palace.retrieval_config import RERANK_IN, RERANK_OUT
+
+if TYPE_CHECKING:
+    from palace.vector_cache import VectorCache, VectorCacheLease, VectorCacheOutcome
 from palace.search import (
     DEFAULT_POOL,
     RRF_K,
@@ -90,6 +95,7 @@ class MultiStoreSearch:
     reranker_identity: RerankIdentity | None = None
     vector_usage: VectorUsageSummary | None = None
     evidence: tuple[HitEvidence, ...] | None = None
+    vector_cache: tuple[VectorCacheOutcome, ...] | None = None
 
 
 class _QueryVectors:
@@ -464,7 +470,10 @@ def prepare_store_search(
 
 
 def execute_prepared(
-    prepared: PreparedStoreSearch, *, reranker: Reranker | None = None
+    prepared: PreparedStoreSearch,
+    *,
+    reranker: Reranker | None = None,
+    vector_cache: VectorCache | None = None,
 ) -> MultiStoreSearch:
     """Freshly admit each prepared store and search its current rows with prepared vectors.
 
@@ -476,6 +485,10 @@ def execute_prepared(
     :func:`search_stores`. Reranking runs while every store's snapshot is open, and a
     value prepared with ``evidence`` attaches each returned hit's evidence, in result
     order, read from its store's snapshot on every return path.
+
+    An opt-in ``vector_cache`` runs its authorization hook for every store, then takes
+    one lease over all of them before any store is admitted, holds it through retrieval,
+    rerank and evidence, and reports each store's outcome in the result.
     """
     if not isinstance(prepared, PreparedStoreSearch) or not hmac.compare_digest(
         prepared.seal, _seal(_unsealed(prepared))
@@ -485,11 +498,31 @@ def execute_prepared(
         raise IndexError(
             "prepared search reranker injection differs from execution; prepare the query again"
         )
-    query, limit, rrf_k = prepared.query, prepared.limit, prepared.rrf_k
     roots = list(prepared.stores)
     for root in roots:
         if root.resolve() != root:
             raise IndexError(f"prepared store no longer resolves to the same directory: {root}")
+    if vector_cache is None:
+        return _execute_prepared(prepared, reranker, None)
+    bypass = [
+        binding.store
+        for binding in prepared.bindings
+        if prepared.mode == "bm25"
+        or (
+            binding.vector_backend is not None
+            and binding.vector_backend.backend != BACKEND_SQLITE_VEC
+        )
+    ]
+    with vector_cache.lease(roots, bypass=bypass) as lease:
+        result = _execute_prepared(prepared, reranker, lease)
+        return replace(result, vector_cache=lease.outcomes())
+
+
+def _execute_prepared(
+    prepared: PreparedStoreSearch, reranker: Reranker | None, lease: VectorCacheLease | None
+) -> MultiStoreSearch:
+    query, limit, rrf_k = prepared.query, prepared.limit, prepared.rrf_k
+    roots = list(prepared.stores)
     try:
         with ExitStack() as stack:
             usage = stack.enter_context(_tracked_vector_usage())
@@ -535,6 +568,7 @@ def execute_prepared(
                     multi_query=prepared.multi_query,
                     vector_backend=admission.backends.get(root),
                     remote=remote,
+                    vector_cache=lease.handle(root) if lease is not None else None,
                 )
                 hydrated = _hydrate_candidates(conn, [hit.chunk_id for hit in hits], remote)
                 if len(hydrated) != len(hits):

@@ -71,7 +71,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import sqlite_vec
 
@@ -87,6 +87,7 @@ from palace.index.embedder_config import (
     resolve_embedder,
 )
 from palace.index.s3vectors import (
+    BACKEND_SQLITE_VEC,
     S3VectorsBackend,
     VectorMatch,
     VectorUsage,
@@ -135,6 +136,9 @@ from palace.retrieval_config import (
     RERANK_IN,
     RERANK_OUT,
 )
+
+if TYPE_CHECKING:
+    from palace.vector_cache import VectorCache, VectorCacheOutcome, _StoreHandle
 
 _PALACE_STORE_ENV_VAR: str = "PALACE_STORE"
 
@@ -228,6 +232,8 @@ class RerankedSearch:
 
     ``evidence`` holds one :class:`~palace.prepared.HitEvidence` per hit, in result
     order, when the search was prepared with ``evidence=True``; otherwise ``None``.
+    ``vector_cache`` reports how an opt-in :class:`~palace.vector_cache.VectorCache`
+    served the store's vector legs, when one was passed; otherwise ``None``.
     """
 
     hits: list[SearchHit]
@@ -236,6 +242,7 @@ class RerankedSearch:
     reranker_identity: RerankIdentity | None = None
     vector_usage: VectorUsageSummary | None = None
     evidence: tuple[HitEvidence, ...] | None = None
+    vector_cache: tuple[VectorCacheOutcome, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -655,12 +662,15 @@ def _effective_strict(strict: bool | None, configuration: RerankConfig | None) -
 
 def _execute_retrieval(
     prepared: PreparedSearch,
+    vector_cache: _StoreHandle | None = None,
+    hold: ExitStack | None = None,
 ) -> tuple[list[SearchHit], list[RerankCandidate], dict[str, HitEvidence] | None]:
     """Freshly admit the prepared store and retrieve its current rows, never embedding.
 
     Returns the route's hits, the hydrated candidates on the reranked route, and the
     evidence map when requested. Evidence is read before the snapshot closes: for the
-    returned hits, or for every fused id on the reranked route.
+    returned hits, or for every fused id on the reranked route. With ``hold`` the
+    admitted snapshot stays open on that stack, past the return, instead of closing here.
     """
     store = prepared.store
     present = chunks_db_path(store).is_file()
@@ -678,15 +688,15 @@ def _execute_retrieval(
     reranker_config = load_rerank_config(store) if owned_config is not None else None
     reranked = prepared.route == "reranked"
     remote: dict[str, VectorMatch] = {}
-    with (
-        _tracked_vector_usage(),
-        _admit_store(
-            store=store,
-            mode=prepared.mode,
-            reranker_config=reranker_config,
-            filters=prepared.filters,
-        ) as (conn, binding, backend),
-    ):
+    with _tracked_vector_usage(), ExitStack() as local:
+        conn, binding, backend = (hold if hold is not None else local).enter_context(
+            _admit_store(
+                store=store,
+                mode=prepared.mode,
+                reranker_config=reranker_config,
+                filters=prepared.filters,
+            )
+        )
         axis = _changed_axis(prepared.binding, binding)
         if axis is not None:
             raise IndexError(
@@ -707,6 +717,7 @@ def _execute_retrieval(
                 embedder=served,
                 filters=prepared.filters,
                 vector_backend=backend,
+                vector_cache=vector_cache,
             )
         else:
             hits = _fuse_variants(
@@ -723,6 +734,7 @@ def _execute_retrieval(
                 multi_query=prepared.multi_query,
                 vector_backend=backend,
                 remote=remote if reranked else None,
+                vector_cache=vector_cache,
             )
         candidates = (
             _hydrate_candidates(conn, [hit.chunk_id for hit in hits], remote) if reranked else []
@@ -741,7 +753,10 @@ def _execute_retrieval(
 
 
 def execute_prepared_search(
-    prepared: PreparedSearch, *, reranker: Reranker | None = None
+    prepared: PreparedSearch,
+    *,
+    reranker: Reranker | None = None,
+    vector_cache: VectorCache | None = None,
 ) -> RerankedSearch:
     """Freshly admit the prepared store and search its current rows with prepared vectors.
 
@@ -752,6 +767,11 @@ def execute_prepared_search(
     never embeds or expands. An S3 Vectors store still receives its query request. The
     rerank, its ``strict`` posture and its statuses run after the snapshot closes, as in
     :func:`search_reranked`; a value prepared without reranking returns ``"disabled"``.
+
+    An opt-in ``vector_cache`` (:class:`~palace.vector_cache.VectorCache`) runs its
+    authorization hook and pins the store's resident view before admission, holds it
+    through retrieval and the rerank, serves the sqlite-vec vector legs from memory with
+    the released answer, and reports how in the result's ``vector_cache``.
     """
     if not isinstance(prepared, PreparedSearch) or not hmac.compare_digest(
         prepared.seal, _seal(_unsealed_search(prepared))
@@ -761,11 +781,35 @@ def execute_prepared_search(
         raise IndexError(
             "prepared search reranker injection differs from execution; prepare the query again"
         )
+    if vector_cache is None:
+        return _execute_prepared(prepared, reranker, None)
+    backend = prepared.binding.vector_backend
+    bypass = (
+        prepared.absent
+        or prepared.mode == "bm25"
+        or (backend is not None and backend.backend != BACKEND_SQLITE_VEC)
+    )
+    # The admitted snapshot is held through the rerank on this path, so the whole
+    # execution reads one committed state per store, as the multi-store seam does.
+    with (
+        vector_cache.lease([prepared.store], bypass=[prepared.store] if bypass else ()) as lease,
+        ExitStack() as hold,
+    ):
+        result = _execute_prepared(prepared, reranker, lease.handle(prepared.store), hold)
+        return replace(result, vector_cache=lease.outcomes())
+
+
+def _execute_prepared(
+    prepared: PreparedSearch,
+    reranker: Reranker | None,
+    cache: _StoreHandle | None,
+    hold: ExitStack | None = None,
+) -> RerankedSearch:
     configuration = prepared.binding.reranker
     selected_identity = configuration.identity if configuration is not None else None
     owned_reranker = reranker is None
     with _tracked_vector_usage() as usage:
-        fused, candidates, collected = _execute_retrieval(prepared)
+        fused, candidates, collected = _execute_retrieval(prepared, cache, hold)
 
         def attested(hits: Sequence[SearchHit]) -> tuple[HitEvidence, ...] | None:
             if collected is None:
@@ -1217,6 +1261,7 @@ def _search_conn(
     filters: Sequence[MetadataFilter] = (),
     vector_backend: S3VectorsBackend | None = None,
     remote: dict[str, VectorMatch] | None = None,
+    vector_cache: _StoreHandle | None = None,
 ) -> list[SearchHit]:
     """Run one retrieval pass through an already-open chunks connection.
 
@@ -1235,6 +1280,7 @@ def _search_conn(
             embed_text=vector_query,
             filters=filters,
             vector_backend=vector_backend,
+            vector_cache=vector_cache,
         )
         if mode in ("hybrid", "vector")
         else []
@@ -1328,12 +1374,14 @@ def _vector_search(
     embed_text: str | None = None,
     filters: Sequence[MetadataFilter] = (),
     vector_backend: S3VectorsBackend | None = None,
+    vector_cache: _StoreHandle | None = None,
 ) -> list[VectorMatch]:
     """Return the top ``pool`` vector matches, nearest first.
 
     Without a backend this is the exhaustive sqlite-vec search of ``chunks_vec``. With
     the store's S3 Vectors backend the query is embedded the same way and sent to the
-    published index; ``chunks_vec`` is not read.
+    published index; ``chunks_vec`` is not read. A leased cache handle answers the
+    sqlite-vec leg from memory with the same result, or declines and this SQL answers.
     """
     assert_identity_readable(conn)
     if vector_backend is not None and filters:
@@ -1355,6 +1403,10 @@ def _vector_search(
         return []
     if vector_backend is not None:
         return vector_backend.query(embeddings[0], pool)
+    if vector_cache is not None:
+        served = vector_cache.search(conn, embeddings[0], pool, filters)
+        if served is not None:
+            return served
     blob = sqlite_vec.serialize_float32(embeddings[0])
     constraint, parameters = _metadata_constraint(filters, "v.chunk_id")
     rows = conn.execute(
@@ -1384,6 +1436,7 @@ def _fuse_variants(
     filters: Sequence[MetadataFilter] = (),
     vector_backend: S3VectorsBackend | None = None,
     remote: dict[str, VectorMatch] | None = None,
+    vector_cache: _StoreHandle | None = None,
 ) -> list[SearchHit]:
     """Run literal plus rewrite variants and union on each chunk's best RRF."""
     variants = [query]
@@ -1412,6 +1465,7 @@ def _fuse_variants(
             filters=filters,
             vector_backend=vector_backend,
             remote=remote,
+            vector_cache=vector_cache,
         )
         for hit in hits:
             first_hit.setdefault(hit.chunk_id, hit)

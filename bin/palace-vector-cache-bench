@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# Paired released-versus-cached timing of the vector leg through the public prepared
+# search API, on a synthetic store built in an empty directory. Qualification evidence,
+# not a gate: no network, no provider, no real corpus. The empty --store directory
+# receives the synthetic store and its watch root side by side. Every cached answer is checked
+# against the released one; a mismatch exits 1.
+#
+#   ./bin/palace-vector-cache-bench --store "$(mktemp -d)" [--chunks 20000] [--queries 20]
+#       [--rounds 5] [--pool 50] [--seed 7]
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "$REPO_ROOT/bin/python" - "$@" <<'PY'
+from __future__ import annotations
+
+import argparse
+import json
+import statistics
+import sys
+import time
+from contextlib import closing
+from pathlib import Path
+
+import numpy as np
+import sqlite_vec
+
+from palace.index.config import EMBED_DIM, chunks_db_path
+from palace.index.schema import init_db
+from palace.index.store_ops import _open
+from palace.index.vector_feed import enable_vector_feed
+from palace.search import execute_prepared_search, prepare_search
+from palace.vector_cache import VectorCache, process_peak_rss_bytes
+from palace.watch.config import WatchRootsConfig, default_config_path
+
+
+class _Vectors:
+    max_concurrency = 1
+
+    def __init__(self, table: dict[str, list[float]]) -> None:
+        self.table = table
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [self.table[text] for text in texts]
+
+    def probe(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+def _build(store: Path, chunks: int, rng: np.random.Generator) -> None:
+    root = store.parent / "watch"
+    root.mkdir()
+    store.mkdir()
+    WatchRootsConfig().with_added(root, store_root=store).save(default_config_path(store))
+    chunks_db_path(store).parent.mkdir(parents=True)
+    conn = sqlite3_connect(store)
+    with closing(conn):
+        init_db(conn, store=store)
+        conn.execute("BEGIN")
+        for start in range(0, chunks, 1000):
+            batch = rng.standard_normal((min(1000, chunks - start), EMBED_DIM)).astype(np.float32)
+            for offset, vector in enumerate(batch):
+                index = start + offset
+                chunk_id = f"bench-{index:08d}"
+                conn.execute(
+                    "INSERT INTO chunks (chunk_id, path, watch_root, kind, section_index, "
+                    "window_index, heading_depth, body, body_hash, wikilinks_json, tags_json, "
+                    "dataview_fields_json, embeds_json, ingest_time) VALUES "
+                    "(?, ?, ?, 'markdown', 0, 0, 0, 'synthetic', 'h', '[]', '[]', '{}', '[]', 't')",
+                    (chunk_id, f"n{index}.md", str(root)),
+                )
+                conn.execute(
+                    "INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)",
+                    (chunk_id, vector.tobytes()),
+                )
+        conn.execute("COMMIT")
+    with closing(_open(store)) as writer:
+        enable_vector_feed(writer)
+
+
+def sqlite3_connect(store: Path):
+    import sqlite3
+
+    conn = sqlite3.connect(chunks_db_path(store), isolation_level=None)
+    conn.enable_load_extension(True)
+    sqlite_vec.load(conn)
+    conn.enable_load_extension(False)
+    return conn
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="palace-vector-cache-bench")
+    parser.add_argument("--store", type=Path, required=True)
+    parser.add_argument("--chunks", type=int, default=20000)
+    parser.add_argument("--queries", type=int, default=20)
+    parser.add_argument("--rounds", type=int, default=5)
+    parser.add_argument("--pool", type=int, default=50)
+    parser.add_argument("--seed", type=int, default=7)
+    args = parser.parse_args()
+    work = args.store.expanduser().resolve()
+    if not work.is_dir() or any(work.iterdir()):
+        print("error: --store must be an existing empty directory", file=sys.stderr)
+        return 1
+    store = work / "store"
+    rng = np.random.default_rng(args.seed)
+    started = time.monotonic()
+    _build(store, args.chunks, rng)
+    build_seconds = time.monotonic() - started
+    table = {
+        f"query {index}": [float(value) for value in rng.standard_normal(EMBED_DIM).astype(np.float32)]
+        for index in range(args.queries)
+    }
+    vectors = _Vectors(table)
+    prepared = [
+        prepare_search(
+            query=text,
+            store=store,
+            mode="vector",
+            rerank_enabled=False,
+            embedder=vectors,
+            pool=args.pool,
+            limit=10,
+        )
+        for text in table
+    ]
+    cache = VectorCache(budget_bytes=8 * 2**30, on_unavailable="fallback")
+    warm_started = time.monotonic()
+    cache.warm(store)
+    warm_seconds = time.monotonic() - warm_started
+    released: list[float] = []
+    cached: list[float] = []
+    legs = {"cached": 0, "oracle": 0, "fallback": 0}
+    for round_index in range(args.rounds):
+        for position, value in enumerate(prepared):
+            order = ("released", "cached") if (round_index + position) % 2 else ("cached", "released")
+            results = {}
+            for route in order:
+                began = time.perf_counter()
+                result = execute_prepared_search(
+                    value, vector_cache=cache if route == "cached" else None
+                )
+                (cached if route == "cached" else released).append(time.perf_counter() - began)
+                results[route] = result
+            if results["cached"].hits != results["released"].hits:
+                print("error: a cached answer differs from the released answer", file=sys.stderr)
+                return 1
+            for outcome in results["cached"].vector_cache or ():
+                legs["cached"] += outcome.cached_legs
+                legs["oracle"] += outcome.oracle_legs
+                legs["fallback"] += outcome.fallback_legs
+    stats = cache.stats()
+
+    def summary(values: list[float]) -> dict[str, float]:
+        ordered = sorted(values)
+        return {
+            "median_ms": statistics.median(ordered) * 1000,
+            "p95_ms": ordered[max(0, int(len(ordered) * 0.95) - 1)] * 1000,
+        }
+
+    report = {
+        "chunks": args.chunks,
+        "dimensions": EMBED_DIM,
+        "queries": args.queries,
+        "rounds": args.rounds,
+        "pool": args.pool,
+        "build_seconds": round(build_seconds, 2),
+        "warm_seconds": round(warm_seconds, 3),
+        "loader_route": [item.loader_route for item in stats.stores],
+        "released": summary(released),
+        "cached": summary(cached),
+        "median_speedup": statistics.median(released) / statistics.median(cached),
+        "legs": legs,
+        "owned_bytes": stats.owned_bytes,
+        "process_peak_rss_bytes": process_peak_rss_bytes(),
+        "equal_answers": True,
+    }
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0
+
+
+sys.exit(main())
+PY

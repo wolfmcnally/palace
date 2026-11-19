@@ -34,6 +34,9 @@ Subcommands:
   Vectors index incrementally by chunk key and record the publication receipt.
 - ``palace index vector-backend show|set`` — inspect or select the store's vector
   search leg (sqlite-vec, the default, or its published S3 Vectors index).
+- ``palace index vector-feed enable|disable|show [--store] [--json]`` — opt the
+  store in to (or out of) the vector change feed an in-process vector cache
+  reads, or show its O(1) counts without opening the store for writing.
 - ``palace index install`` — install the daemon as a per-user
   LaunchAgent (Phase 2.5).
 - ``palace index uninstall`` — uninstall the daemon LaunchAgent
@@ -60,9 +63,10 @@ import sqlite3
 import subprocess
 import sys
 import time
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from palace.daemons.capture.config import BOISE_TZ, DEFAULT_STORE
 from palace.index._errors import IndexError
@@ -105,12 +109,17 @@ from palace.index.s3vectors import (
 )
 from palace.index.schema import identity_divergences, read_identity
 from palace.index.server import serve
+from palace.index.store_ops import _locked as _locked_stores
+from palace.index.store_ops import _open as _open_store
 from palace.index.store_ops import copy_paths, remove_paths
 from palace.index.update import update
 from palace.reindex.config import events_path
 from palace.watch._errors import WatchError
 from palace.watch.config import WatchRootsConfig, default_config_path
 from palace.writer_lock import WriterLockTimeout
+
+if TYPE_CHECKING:
+    from palace.index.vector_feed import VectorFeedState
 
 __all__ = ["build_subparser", "dispatch_index"]
 
@@ -483,6 +492,22 @@ def build_subparser(subparsers: Any) -> None:
         ),
     )
 
+    feed_p = sub.add_parser(
+        "vector-feed",
+        help="Enable, disable or show the store's opt-in vector change feed.",
+    )
+    feed_sub = feed_p.add_subparsers(dest="vector_feed_command")
+    for name, text in (
+        ("enable", "Create the feed, or reset its lineage, under the writer lock."),
+        ("disable", "Drop every feed object under the writer lock."),
+        ("show", "Show the feed's stored counts (O(1); read-only)."),
+    ):
+        feed_cmd = feed_sub.add_parser(name, help=text)
+        feed_cmd.add_argument("--store", type=Path, default=None)
+        feed_cmd.add_argument("--json", action="store_true", help="Print one JSON object.")
+        if name != "show":
+            feed_cmd.add_argument("--lock-timeout", type=float, default=WRITER_LOCK_TIMEOUT_SECONDS)
+
     sub.add_parser(
         "install",
         help="Install the index daemon as a per-user LaunchAgent.",
@@ -535,6 +560,12 @@ def dispatch_index(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
         if backend_command == "set":
             return cli_vector_backend_set(args)
         parser.parse_args(["index", "vector-backend", "--help"])
+        return 2
+    if command == "vector-feed":
+        feed_command = getattr(args, "vector_feed_command", None)
+        if feed_command in ("enable", "disable", "show"):
+            return cli_vector_feed(args, feed_command)
+        parser.parse_args(["index", "vector-feed", "--help"])
         return 2
     if command == "install":
         return cli_install()
@@ -739,6 +770,62 @@ def cli_vector_backend_set(args: Any) -> int:
         print(f"error: {exc}", file=sys.stderr, flush=True)
         return 1
     print(f"vector backend: {args.backend}")
+    return 0
+
+
+def _vector_feed_fields(state: VectorFeedState | None) -> dict[str, object]:
+    if state is None:
+        return {"enabled": False}
+    return {
+        "enabled": True,
+        "epoch": state.epoch,
+        "last_seq": state.last_seq,
+        "floor_seq": state.floor_seq,
+        "live_chunks": state.live_chunks,
+        "vector_rows": state.vector_rows,
+        "chunks_without_vector": state.chunks_without_vector,
+        "feed_entries": state.feed_entries,
+        "diverged": state.diverged,
+    }
+
+
+def cli_vector_feed(args: Any, command: str) -> int:
+    """``palace index vector-feed enable|disable|show``; exit 0, or 1 with one ``error:`` line."""
+    from palace.index.vector_feed import (
+        disable_vector_feed,
+        enable_vector_feed,
+        read_vector_feed_state,
+    )
+
+    store = _resolve_store(args)
+    try:
+        if command == "show":
+            db_path = chunks_db_path(store)
+            if not db_path.is_file():
+                raise IndexError(f"no index at {db_path}")
+            with closing(
+                sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+            ) as conn:
+                fields = _vector_feed_fields(read_vector_feed_state(conn))
+        else:
+            with (
+                _locked_stores([store], "vector-feed", args.lock_timeout),
+                closing(_open_store(store)) as conn,
+            ):
+                if command == "enable":
+                    fields = _vector_feed_fields(enable_vector_feed(conn))
+                else:
+                    disable_vector_feed(conn)
+                    fields = _vector_feed_fields(None)
+    except (IndexError, WriterLockTimeout, sqlite3.Error) as exc:
+        print(f"error: {exc}", file=sys.stderr, flush=True)
+        return 1
+    if args.json:
+        print(json.dumps(fields, sort_keys=True), flush=True)
+    else:
+        for key, value in fields.items():
+            text = str(value).lower() if isinstance(value, bool) else value
+            print(f"{key}: {text}", flush=True)
     return 0
 
 

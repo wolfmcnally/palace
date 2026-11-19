@@ -21,6 +21,14 @@ Synchronous indexing uses `palace index build`; its [bounded build and recovery 
 
 `./bin/palace-multistore-demo setup` builds two marked fixture stores using local stubs. `search` routes explicit stores through the production CLI with matching stubs; it requires paths inside the marked directory and refuses network access. `cleanup` removes only the unchanged, marked fixture inventory; an existing directory at setup or unexpected content at cleanup refuses. No model download or paid inference is used. See [the walkthrough](../docs/multi-store.md) for exact commands, origin checks and limits.
 
+### `palace-vector-cache-bench` — paired released-versus-cached vector timing
+
+Builds a synthetic store with its change feed in an empty directory, then times interleaved released and cached executions of the same prepared vector searches through the public API, checks every pair of answers is equal (exit 1 otherwise), and prints medians, the 95th percentile, the speedup, leg routes, owned bytes and peak resident memory as JSON. Hermetic and outside `./bin/check all`; qualification evidence for an operator's decision, not a gate. See [vector cache](../docs/vector-cache.md).
+
+```bash
+./bin/palace-vector-cache-bench --store "$(mktemp -d)"
+```
+
 ### `palace-index-cost-probe` — hermetic index-stage decomposition
 
 Generates a deterministic synthetic corpus and measures producer, stub-embed, writer, SQL, and

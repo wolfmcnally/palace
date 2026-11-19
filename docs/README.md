@@ -13,4 +13,6 @@ Guides for users and library integrators. Start with the repository README and s
 
 - [Bedrock embedding and composed settings](bedrock.md) — the `palace` section of a composed configuration, the equivalent TOML selector, the `bedrock` provider's retention check, bounds, audit and per-store vector width.
 
+- [Vector cache](vector-cache.md) — the opt-in per-store change feed and the exact in-memory vector cache for long-lived processes: enabling, authorization, outcomes, unavailability versus integrity failure, memory accounting and limits.
+
 - [Document metadata](metadata.md) — exact indexed string sets, document discovery without passages, atomic refreshes and constrained retrieval.
