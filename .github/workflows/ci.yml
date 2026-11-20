@@ -25,6 +25,13 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install jq
       - run: ./bin/setup
+      - name: Provision the pinned manual tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          rust="$(./bin/python -c 'import tomllib; print(tomllib.load(open("documentation.toml", "rb"))["tools"]["rust"])')"
+          rustup toolchain install "$rust" --profile minimal
+          ./bin/docs setup
       - run: ./bin/check all
       - run: uv build --managed-python --out-dir dist
       - name: Clean wheel installation and synthetic smoke

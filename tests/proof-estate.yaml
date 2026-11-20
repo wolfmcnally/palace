@@ -12,9 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 102
-  leaves: 140
-budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once."
+  families: 103
+  leaves: 141
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once.; and the hosted-CI repair of the public handoff path guard under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (21:09:57Z) to repair the failed hosted checks with a focused cross-platform proof, of which exactly one family and one leaf are used once."
 critical_risks:
   custody:
     state: applicable
@@ -8163,6 +8163,27 @@ families:
   historical_evidence: []
   mutation_evidence:
   - "Put a private absolute path into a published manual chapter."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ff-refuses-any-absolute-posix-path-and-keeps-relative-labels-9f7c3fbb15
+  kind: pytest
+  selectors:
+  - "tests/test_execution_dashboard.py::test_handoff_refuses_any_absolute_posix_path_and_keeps_relative_labels"
+  source_paths:
+  - "tests/test_execution_dashboard.py"
+  covers:
+  - "lib/agentic_starter/execution_dashboard.py"
+  - "bin/execution-telemetry"
+  contract: "A public dashboard handoff refuses any absolute POSIX path, including /tmp scratch and a hosted Linux runner's checkout, while relative labels and ordinary prose keep their slashes."
+  risk_class: security
+  oracle: "ValidationError naming out-of-scope text for each absolute path; unchanged project values for each relative label."
+  admission: "Hosted-CI repair admission funded by the named 2026-11-20 repair budget; no retirement."
+  nearest_overlap: "The handoff schema cases cover macOS home and Windows drive paths only; none covers other absolute POSIX paths."
+  historical_evidence: []
+  mutation_evidence:
+  - "The public handoff guard recognises only macOS home and Windows drive paths, so a Linux absolute path is accepted."
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0

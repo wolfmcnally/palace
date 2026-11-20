@@ -24,8 +24,8 @@ def test_parameterized_leaves_collapse_to_one_family() -> None:
 
 def test_inventory_counts_executable_families_and_expanded_leaves() -> None:
     observed = governance.inventory(REPO_ROOT)
-    assert observed["counts"] == {"families": 373, "leaves": 428}
-    assert observed["by_kind"]["pytest"] == {"families": 348, "leaves": 403}
+    assert observed["counts"] == {"families": 374, "leaves": 429}
+    assert observed["by_kind"]["pytest"] == {"families": 349, "leaves": 404}
 
 
 def test_live_reset_validates() -> None:
@@ -333,7 +333,7 @@ def test_changed_selection_widens_on_an_unmapped_path(
 def test_report_reproduces_reset_ratios() -> None:
     payload = governance.report(REPO_ROOT)
     assert payload["baseline"] == {"families": 1355, "leaves": 1574}
-    assert payload["current"] == {"families": 373, "leaves": 428}
+    assert payload["current"] == {"families": 374, "leaves": 429}
     # Above the reset's 0.2 limit only by the approved family and leaf budgets.
     manifest = governance.load_yaml(REPO_ROOT / "tests/proof-estate.yaml")
     for dimension in ("families", "leaves"):

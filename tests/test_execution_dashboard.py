@@ -217,6 +217,31 @@ def test_handoff_schema_rejects_private_or_malformed_content(mutation: Any, matc
         dashboard.validate_handoff(value, phase_id="31.2")
 
 
+def test_handoff_refuses_any_absolute_posix_path_and_keeps_relative_labels() -> None:
+    """A hosted Linux runner's checkout path passed the macOS/Windows-only path guard."""
+    for project in (
+        "/home/runner/work/palace/palace",
+        "/srv/build",
+        "Built in /private/var/folders/xy/case",
+        "uv build --out-dir /tmp/release-a",
+        "Checkout (/var/lib/ci)",
+    ):
+        value = copy.deepcopy(sample_handoff())
+        value["project"] = project
+        with pytest.raises(telemetry.ValidationError, match="out-of-scope"):
+            dashboard.validate_handoff(value, phase_id="31.2")
+    for label in (
+        "Sample Project",
+        "reports/execution",
+        "Read and/or write",
+        "Pages 1/2",
+        "uv build --out-dir .kickoff/release-a",
+    ):
+        value = copy.deepcopy(sample_handoff())
+        value["project"] = label
+        assert dashboard.validate_handoff(value, phase_id="31.2")["project"] == label
+
+
 def test_content_scan_blanks_operation_labels_and_nothing_else() -> None:
     data = json.dumps(
         {
