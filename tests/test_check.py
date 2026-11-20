@@ -44,8 +44,7 @@ def check_repo(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     (root / "pyproject.toml").write_text("[project]\nname='fixture'\n")
     (root / "uv.lock").write_text("version = 1\n")
     (root / ".python-version").write_text("3.11\n")
-    (root / "AGENTS.md").symlink_to("CLAUDE.md")
-    (root / "CLAUDE.md").write_text("# Fixture\n")
+    (root / "AGENTS.md").write_text("# Fixture\n")
 
     log_path = tmp_path / "calls.log"
     tool_dir = tmp_path / "tools"
@@ -144,14 +143,11 @@ esac
         ("check-hooks-installed", "hooksinstalled"),
         ("check-shell-syntax", "shellsyntax"),
         ("new-name", "newname"),
-        ("check-log", "log"),
+        ("multioperator", "log"),
         ("check-candidate-partition", "partition"),
-        ("check-log-prefix", "logprefix"),
-        ("check-log-monotonic", "logmonotonic"),
         ("kickoff-command-zero", "commandzero"),
-        ("log-append", "logappend"),
-        ("log-relocate", "logrelocate"),
         ("normalize-final-newline", "finalnewline"),
+        ("docs", "docs"),
     ):
         _write_executable(
             root / "bin" / executable,
@@ -190,6 +186,9 @@ def test_all_is_default_locked_ordered_and_cwd_independent(
     calls = Path(environment["CHECK_TEST_LOG"]).read_text().splitlines()
     assert calls == [
         (f"uv cwd={root} args=run --project {root} --locked --managed-python python -c {PROBE}"),
+        f"log cwd={root}",
+        f"dashboards cwd={root}",
+        f"catalogs cwd={root}",
         (
             f"uv cwd={root} args=run --locked --managed-python ruff check palace tests lib "
             "bin/kickoff-config bin/kickoff-evidence bin/kickoff-tree-id bin/check-receipt "
@@ -197,9 +196,8 @@ def test_all_is_default_locked_ordered_and_cwd_independent(
             "bin/check-toolchain-callers bin/lessons bin/check-catalogs bin/check-hooks-installed "
             "bin/check-shell-syntax bin/new-name bin/deliver bin/treatise "
             "lib/agentic_starter/test_governance.py bin/check-plan-concreteness "
-            "bin/check-plan-delivery bin/review-verdicts bin/check-log-prefix "
-            "bin/check-log-monotonic bin/kickoff-command-zero bin/log-append "
-            "bin/log-relocate bin/normalize-final-newline bin/check-candidate-partition"
+            "bin/check-plan-delivery bin/review-verdicts bin/kickoff-command-zero "
+            "bin/normalize-final-newline bin/check-candidate-partition"
         ),
         (
             f"uv cwd={root} args=run --locked --managed-python "
@@ -209,9 +207,8 @@ def test_all_is_default_locked_ordered_and_cwd_independent(
             "bin/check-toolchain-callers bin/lessons bin/check-catalogs bin/check-hooks-installed "
             "bin/check-shell-syntax bin/new-name bin/deliver bin/treatise "
             "lib/agentic_starter/test_governance.py bin/check-plan-concreteness "
-            "bin/check-plan-delivery bin/review-verdicts bin/check-log-prefix "
-            "bin/check-log-monotonic bin/kickoff-command-zero bin/log-append "
-            "bin/log-relocate bin/normalize-final-newline bin/check-candidate-partition"
+            "bin/check-plan-delivery bin/review-verdicts bin/kickoff-command-zero "
+            "bin/normalize-final-newline bin/check-candidate-partition"
         ),
         (f"uv cwd={root} args=run --locked --managed-python mypy"),
         (f"uv cwd={root} args=run --project {root} --locked --managed-python python -c {PROBE}"),
@@ -231,6 +228,7 @@ def test_all_is_default_locked_ordered_and_cwd_independent(
         f"shellsyntax cwd={root}",
         f"log cwd={root}",
         f"partition cwd={root}",
+        f"docs cwd={root}",
         f"governance cwd={root} args=validate",
     ]
     assert "CHECK ALL PASS" in result.stdout
@@ -368,7 +366,8 @@ def test_native_mode_refuses_off_macos_before_any_receipt(
 
     assert result.returncode == 1
     assert "CHECK ERROR native lane requires macOS (uname=Linux)" in result.stderr
-    assert not (root / ".kickoff").exists()
+    # The resolver marks .kickoff/ excluded from syncing on every run; no native state follows.
+    assert not (root / ".kickoff" / "check-native").exists()
     calls = Path(environment["CHECK_TEST_LOG"]).read_text().splitlines()
     assert not any("-m pytest" in call for call in calls)
 
@@ -398,3 +397,90 @@ def test_authoritative_runtime_probe_failure_stops_before_gate_without_fallback(
             f"--python {runtime} --no-managed-python python -c {PROBE}"
         ),
     ]
+
+
+@pytest.mark.parametrize(
+    ("executable", "lane"),
+    [
+        ("check-catalogs", "policy-catalogs"),
+        ("check-execution-dashboards", "policy-execution-dashboards"),
+    ],
+)
+def test_stale_catalog_or_report_stops_the_gate_before_lint_and_tests(
+    check_repo: tuple[Path, dict[str, str]], executable: str, lane: str
+) -> None:
+    root, environment = check_repo
+    _write_executable(
+        root / "bin" / executable,
+        "#!/usr/bin/env bash\n"
+        "printf 'bookkeeping check\\n' >> \"$CHECK_TEST_LOG\"\n"
+        "echo 'stale entry' >&2\nexit 39\n",
+    )
+    early = _run(root, environment, "all")
+    calls = Path(environment["CHECK_TEST_LOG"]).read_text()
+    assert (
+        early.returncode == 39
+        and f"CHECK {lane} FAIL (exit 39)" in early.stdout
+        and "ruff check" not in calls
+        and "-m pytest" not in calls
+        and "CHECK ALL PASS" not in early.stdout
+    ), "STALE BOOKKEEPING REACHED EXPENSIVE GATES OR PASSED RECEIPT"
+
+    # A tree that drifts while the costly lanes run is still caught on the final tree.
+    Path(environment["CHECK_TEST_LOG"]).unlink()
+    _write_executable(
+        root / "bin" / executable,
+        "#!/usr/bin/env bash\n"
+        "printf 'bookkeeping check\\n' >> \"$CHECK_TEST_LOG\"\n"
+        'if [[ -f "$PWD/bookkeeping-checked" ]]; then exit 40; fi\n'
+        'touch "$PWD/bookkeeping-checked"\n',
+    )
+    late = _run(root, environment, "all")
+    calls = Path(environment["CHECK_TEST_LOG"]).read_text()
+    assert (
+        late.returncode == 40
+        and calls.count("bookkeeping check") == 2
+        and "-m pytest" in calls
+        and "CHECK ALL PASS" not in late.stdout
+    ), "FINAL BOOKKEEPING CHECK LOST OR PASSED RECEIPT"
+
+
+def test_report_runs_every_lane_names_each_failure_and_stores_no_receipt(
+    check_repo: tuple[Path, dict[str, str]],
+) -> None:
+    root, environment = check_repo
+    environment["CHECK_TEST_FAIL_MATCH"] = "ruff format --check"
+    environment["CHECK_POLICY_FAIL_CODE"] = "41"
+
+    result = _run(root, environment, "report")
+
+    calls = Path(environment["CHECK_TEST_LOG"]).read_text()
+    assert (
+        result.returncode == 1
+        and "CHECK REPORT FAILED: format policy-test-governance" in result.stderr
+        and "-m pytest" in calls
+        and "palace --version" in calls
+        and "governance cwd=" in calls
+        and not (root / ".kickoff" / "check-all").exists()
+        and "CHECK policy PASS" not in result.stdout
+        and "CHECK ALL PASS" not in result.stdout
+    ), f"REPORT STOPPED EARLY, HID A FAILED LANE OR STORED A RECEIPT: {result.stderr}"
+
+
+def test_interrupted_test_lane_is_reported_incomplete_not_failed(
+    check_repo: tuple[Path, dict[str, str]],
+) -> None:
+    root, environment = check_repo
+    environment["CHECK_TEST_FAIL_MATCH"] = "-m pytest"
+    environment["CHECK_TEST_FAIL_CODE"] = "124"
+
+    result = _run(root, environment, "all")
+
+    # `all` routes both streams through its durable log, so the verdict is on stdout.
+    output = result.stdout + result.stderr
+    assert (
+        result.returncode == 124
+        and "CHECK test INCOMPLETE (exit 124; correctness unknown)" in output
+        and "CHECK test FAIL" not in output
+        and "CHECK ALL PASS" not in output
+    ), f"INTERRUPTED LANE REPORTED AS A CORRECTNESS FAILURE OR PASSED: {output}"

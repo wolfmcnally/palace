@@ -72,7 +72,7 @@ Check if `context/USER.md` already exists. If it does, read it and leave it alon
 
 Before adding anything, read these files end to end (whichever exist) and search for any existing memory-related instructions:
 
-1. **`CLAUDE.md`** — look for memory sections, `MEMORY.md` references, auto-memory rules, `~/.claude/projects/*/memory/` paths, recall/retrieval instructions, memory budget rules, session startup memory loading
+1. **`AGENTS.md`** — look for memory sections, `MEMORY.md` references, auto-memory rules, `~/.claude/projects/*/memory/` paths, recall/retrieval instructions, memory budget rules, session startup memory loading
 2. **`AGENTS.md`** (if it exists) — look for memory-related skill entries, memory tool references, memory conventions
 3. **`~/.claude/CLAUDE.md`** (if it exists) — look for global memory rules, memory management sections, repo memory auto-init, domain knowledge lifecycle rules
 
@@ -90,19 +90,19 @@ Pay special attention to:
 
 The goal: after this step, there is exactly one set of memory instructions, not a mix of old and new.
 
-## Step 6: Update CLAUDE.md
+## Step 6: Update AGENTS.md
 
-Check if `CLAUDE.md` exists at the project root. If it doesn't, create it. If it does, read it first and only add sections that aren't already present (after removing any conflicting memory sections found in Step 5).
+Check if `AGENTS.md` exists at the project root. If it doesn't, create it. If it does, read it first and only add sections that aren't already present (after removing any conflicting memory sections found in Step 5).
 
 **Session startup — how to add depends on what exists:**
 
-If CLAUDE.md has a `### Returning Mode` section with numbered steps, find step 3 (reading today's memory file) and add step 3.5 after it:
+If AGENTS.md has a `### Returning Mode` section with numbered steps, find step 3 (reading today's memory file) and add step 3.5 after it:
 
 ```
 3.5. Read `context/MEMORY.md` (~2.5 KB max, curated working scratchpad). This is a frozen snapshot — mid-session writes persist to disk but take effect next session.
 ```
 
-If CLAUDE.md has no returning mode section, add a full startup block — skip if a `## Session Startup` section already exists:
+If AGENTS.md has no returning mode section, add a full startup block — skip if a `## Session Startup` section already exists:
 
 ```markdown
 ## Session Startup (silent — do not output anything)
@@ -434,7 +434,7 @@ If `cron/jobs/` doesn't exist, set up these as system cron jobs or scheduled tas
 | Create (if missing) | `context/transcripts/` (directory) |
 | Create (if missing) | `.claude/hooks/transcript-capture.js` |
 | Create (if missing) | `.claude/skills/memory-write/SKILL.md` |
-| Create or modify | `CLAUDE.md` (add memory sections, skip any that exist) |
+| Create or modify | `AGENTS.md` (add memory sections, skip any that exist) |
 | Create or modify | `.claude/settings.json` (register Stop hook if not already registered) |
 | Modify (if exists) | `AGENTS.md` (register memory-write if not already listed) |
 | Modify (if exists) | `context/learnings.md` (add ## memory-write if missing) |

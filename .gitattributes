@@ -1,3 +1,28 @@
+# Normalize line endings on commit; check out platform-native by default.
+* text=auto
+
+# Files that must stay LF regardless of platform.
+# bin/*.sh run under bash (Git Bash / WSL); a CRLF shebang breaks the interpreter.
+*.sh text eol=lf
+
+# Markdown, config, and source the methodology treats as canonical: keep LF
+# so cross-harness mirrors and diffs stay byte-identical across platforms.
+*.md text eol=lf
+*.toml text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Unified-diff fixtures require space-only context markers on blank lines.
+*.patch text eol=lf whitespace=-blank-at-eol,-blank-at-eof
+
 tests/fixtures/test_governance/**/*.patch whitespace=-trailing-space
 reports/test-governance/*.jsonl whitespace=-trailing-space
 reports/test-governance/*.json whitespace=-trailing-space
+
+# Exact-byte records and verbatim third-party text keep their bytes; the whitespace
+# check must not demand edits to immutable log entries or upstream pins.
+log/entries/*.md whitespace=-blank-at-eof
+docs/reference/** whitespace=-trailing-space,-blank-at-eof
+reports/execution/assets/LICENSE-* whitespace=-blank-at-eof

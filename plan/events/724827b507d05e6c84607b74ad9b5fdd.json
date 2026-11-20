@@ -1,0 +1,11 @@
+{
+  "from": null,
+  "id": "724827b507d05e6c84607b74ad9b5fdd",
+  "owner": null,
+  "phase": "bedrock-embedding-provider",
+  "previous": null,
+  "reason": "Imported source state, not a new acceptance or lease",
+  "source_phase": "22",
+  "state": "completed",
+  "writer": "wolf"
+}

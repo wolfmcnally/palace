@@ -10,7 +10,7 @@ description: >-
   projects. Invoke as /sweep in Claude Code or $sweep in Codex; an optional
   focus argument narrows the pass (e.g. "skills", "lessons", "policies").
 argument-hint: "[<focus>]"
-last-reviewed: 2026-09-30
+last-reviewed: 2026-10-26
 ---
 
 # Sweep — Prune and graduate the rule surfaces
@@ -44,7 +44,7 @@ Run the mechanical checks first — they are deterministic and their output anch
 
 Then the judgment audits, each producing candidate findings:
 
-5. **Policies.** Read `policies/` against `LOG.md`, `lessons/`, and the repo's current shape. Flag: rules that contradict each other or a newer policy; rules describing machinery that no longer exists; rules that have never prevented anything (no LOG/lesson/finding has referenced them since adoption — a candidate for merging or retirement, not automatic deletion); policy examples that have drifted from the files they cite. Apply the doctrine's growth rule ([`briefs/methodology.md`](../../../briefs/methodology.md) § Orchestration runtime doctrine) to every binding orchestration step: a step that cannot name the park it prevents or cite its motivating incident, or whose failure family a later structural fix made dead, is a deletion or demote-to-advisory candidate.
+5. **Policies.** Read `policies/` against `log/entries/`, `lessons/`, and the repo's current shape. Flag: rules that contradict each other or a newer policy; rules describing machinery that no longer exists; rules that have never prevented anything (no LOG/lesson/finding has referenced them since adoption — a candidate for merging or retirement, not automatic deletion); policy examples that have drifted from the files they cite. Apply the doctrine's growth rule ([`briefs/methodology.md`](../../../briefs/methodology.md) § Orchestration runtime doctrine) to every binding orchestration step: a step that cannot name the park it prevents or cite its motivating incident, or whose failure family a later structural fix made dead, is a deletion or demote-to-advisory candidate.
 6. **Briefs.** Check each brief's `status` against reality per [`policies/briefs.md`](../../../policies/briefs.md): an `implemented` brief whose design has been superseded belongs at `historical`; a `draft` that has quietly become load-bearing needs promotion or a decision. Briefs decay if not maintained — this is the check behind that warning.
 7. **Skills and agents.** Compare each `.claude/skills/*/SKILL.md` `last-reviewed:` date against the sweep date; re-read any skill past ~90 days or whose subject matter changed since its stamp. For agent definitions (no frontmatter date), use `git log -1 --format=%cs -- <file>` as the staleness heuristic. Flag steps that reference renamed files, retired tools, or contradicted policies.
 8. **Lessons ledger.** Beyond the mechanical candidates list: apply the remedy-based scope test in `policies/lessons.md` when proposing methodology exports; preserve local lessons and existing owner rulings; flag `candidate` lessons that have sat unratified across multiple sweeps (propose graduate or reject — an undecided ledger is a silent backlog), and near-duplicate lessons that should merge (only when their *remedies* coincide — [`policies/lessons.md`](../../../policies/lessons.md) § Named families). **Read each occurrence `ref` against its own body**: a row that narrates several distinct instances is under-counting the lesson and silently suppressing the three-occurrence graduation trigger (the counting rule in `policies/lessons.md`) — this audit is the only enforcement that has ever caught it, because the lexical detectors built for it were all cut as hopeless. Treat catalog completeness and internal-link integrity as separate claims even though one deterministic checker now enforces both.
@@ -141,7 +141,7 @@ Use this shape:
 ## Proposed LOG.md entry
 ```
 
-The `SWEEP (<focus>)` entry is an authorized `LOG.md` entry kind — see the entry-kind table in [`policies/log-discipline.md`](../../../policies/log-discipline.md) § What `LOG.md` is. Write it; do not re-decide whether a sweep earns one.
+The `SWEEP (<focus>)` entry is an authorized `log/entries/` entry kind — see the entry-kind table in [`policies/log-discipline.md`](../../../policies/log-discipline.md) § What `log/entries/` is. Write it; do not re-decide whether a sweep earns one.
 
 An empty plan ("nothing stale") is a valid, reportable outcome.
 
@@ -163,10 +163,11 @@ Stop and wait for the user. The user may approve the whole plan, approve with ex
 On approval:
 
 1. Apply the approved edits (AUTO batch plus each ratified DECIDE).
-2. For each graduated lesson: make the ratified edit to the target surface, then archive the lesson (`status: codified`, `closed:`, `graduated_to:`) into `lessons-archived/`. For each rejected lesson: archive with `status: rejected`. Run `./bin/lessons validate`.
-3. Update `last-reviewed:` to today's date on every skill the sweep actually re-read — including ones with no findings.
-4. Re-run the mechanical checks (`./bin/check-catalogs`, `./bin/lessons validate`) and finish with `./bin/check all`.
-5. After the unchanged approved sweep passes `./bin/check all`, invoke
+2. For every ratified change that adopts, corrects or retires a rule, retire what the old rule produced ([`policies/review-lanes.md`](../../../policies/review-lanes.md) § Methodology improvements): search by concept for statements, tools and artifacts written under the old rule, dispose of each, and record the search in the `SWEEP` entry.
+3. For each graduated lesson: make the ratified edit to the target surface, then archive the lesson (`status: codified`, `closed:`, `graduated_to:`) into `lessons-archived/`. For each rejected lesson: archive with `status: rejected`. Run `./bin/lessons validate`.
+4. Update `last-reviewed:` to today's date on every skill the sweep actually re-read — including ones with no findings.
+5. Re-run the mechanical checks (`./bin/check-catalogs`, `./bin/lessons validate`) and finish with `./bin/check all`.
+6. After the unchanged approved sweep passes `./bin/check all`, invoke
    `./bin/deliver --message <factual-message> -- <every explicit sweep path>`.
    Apply a current-session named `--no-push` or `--no-commit` restriction
    exactly. Park on any guard refusal. Then report findings by area, what was

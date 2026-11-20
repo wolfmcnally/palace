@@ -1,6 +1,6 @@
 ---
 title: "Harness Self-Improvement: The Two-Tier Flywheel"
-date: 2026-08-10
+date: 2026-08-29
 status: implemented
 scope: How palace captures process lessons at phase scale, prunes its rule surfaces on a cadence, and exports the generalizable subset upstream to the methodology it is built on.
 ---
@@ -10,6 +10,12 @@ scope: How palace captures process lessons at phase scale, prunes its rule surfa
 Palace is two things at once: a memory substrate under construction, and a harness — skills, agents, policies, briefs, and deterministic scripts wrapped around whichever coding-agent CLI hosts a session. A harness that only accumulates rules by hand improves at the speed of its operator's memory. Current best practice is to make improvement *structural*: every unit of work ends by asking what was learned, learnings accumulate as addressable entries rather than prose rewrites, recurring ones graduate into rules under human ratification, and the rule surfaces themselves are pruned on a cadence so the compounding asset never turns into a compounding liability.
 
 This brief records the design as palace runs it: what the loop is, where each stage lives, what was deliberately declined, and what is deferred. The machinery was absorbed from the agentic-coding starter template on 2026-08-10 (`/learn`); this brief is palace's adaptation of that design, not a copy of the template's own account of it.
+
+[Rule One: From Symptom to Durable Learning](rule-one-diagnostic-learning.md)
+sits before this flywheel. It diagnoses what happened and determines whether a
+reusable lesson exists; this brief governs how that lesson is captured,
+ratified, propagated, and eventually pruned. The ledger must not turn an
+unexamined symptom or first plausible causal story into a durable rule.
 
 ## 1. The two tiers
 
@@ -26,7 +32,7 @@ Palace's own dependency runs the other way too. Palace is downstream of the temp
 
 1. **Capture.** Roles emit Process Observations (friction or ambiguity in briefs, policies, plans, tooling, or the methodology itself) as structured output fields; on revision rounds the coder states *why* the previous attempt failed, and that analysis travels in the revision packet. `kickoff`'s harvest step files or recurs lessons in `lessons/` — one file per lesson, scope-classified `local` or `methodology`, with a new occurrence appended rather than a duplicate filed. "No lessons this phase" is a permitted, recorded answer; skipping the question is not.
 2. **Distill.** `bin/lessons` mechanically validates the ledger and tallies occurrences; `bin/lessons candidates` lists graduation-ready entries (three or more occurrences). Three is the stabilization threshold: a lesson codified on first sight tends to be wrong in ways its variations would have revealed.
-3. **Codify.** Graduation is human-ratified, one lesson at a time, onto a named surface: a policy, a brief, a skill, an agent definition, a `bin/` script, a test, or a `CLAUDE.md` invariant. Agents propose; the user edits or approves the edit; the lesson archives with `graduated_to:` pointing at the rule it became. Every rule stays traceable to the incidents that earned it.
+3. **Codify.** Graduation is human-ratified, one lesson at a time, onto a named surface: a policy, a brief, a skill, an agent definition, a `bin/` script, a test, or a `AGENTS.md` invariant. Agents propose; the user edits or approves the edit; the lesson archives with `graduated_to:` pointing at the rule it became. Every rule stays traceable to the incidents that earned it.
 4. **Prune.** `sweep` runs the maintenance half: stale or contradictory rules, skills past their review cadence, briefs due for `historical` status, aging ledger candidates, catalog drift, internal-link integrity (`bin/check-catalogs`), and the proof estate's executable reassessment and shrinkage obligation (`bin/test-governance reassess`). Palace is not a template, so `sweep`'s hub-only methodology-corpus audit self-disables — it keys on `.claude/skills/stamp/`, which palace does not have. Two further passes read the review loops rather than the rules: `sweep-planning` and `sweep-coding` harvest every genuine plan-review or code-review verdict and every coder failure analysis from the machine's harness traces (`bin/review-verdicts`), categorize why work was sent back over the window, attribute each category to a correctable planner or coder defect, a reviewer or critic habit, or a structural gap, and — because palace is a derived project — file the corrections as `scope: methodology` lessons for `learn` rather than editing the personas here. Both enter plan mode first and present analysis and plan together for ratification.
 5. **Propagate.** The generalizable subset leaves through `scope: methodology`. Applying a pattern is an empirical test of that pattern's contract, so a defect palace discovers while *using* the methodology is itself methodology evidence, and `learn`'s return path exists to keep it from evaporating.
 
@@ -40,7 +46,7 @@ with rationale in [`rule-one-diagnostic-learning.md`](rule-one-diagnostic-learni
 
 ## 3. Why itemized capture, not instruction-file rewrites
 
-The naive loop — "agent, update `CLAUDE.md` with what you learned" — degrades under iteration: each rewrite shortens and blands the document (brevity bias) until accumulated knowledge collapses into generic filler (context collapse). Palace's `CLAUDE.md` is a load-bearing always-loaded surface; it is exactly the document that must not be rewritten from session memory. The remedy is structural: lessons are discrete, addressable files with provenance and occurrence counters; the author of a lesson is never the authority that ratifies it; and rule documents are only ever edited by the human, deliberately, one graduation at a time. The ledger grows; the rules are curated.
+The naive loop — "agent, update `AGENTS.md` with what you learned" — degrades under iteration: each rewrite shortens and blands the document (brevity bias) until accumulated knowledge collapses into generic filler (context collapse). Palace's `AGENTS.md` is a load-bearing always-loaded surface; it is exactly the document that must not be rewritten from session memory. The remedy is structural: lessons are discrete, addressable files with provenance and occurrence counters; the author of a lesson is never the authority that ratifies it; and rule documents are only ever edited by the human, deliberately, one graduation at a time. The ledger grows; the rules are curated.
 
 This is the same separation palace already applies to its own subject matter — capture is the hot path, extraction is the cold path, and promotion is gated. The lessons ledger is that architecture turned on the harness itself: Process Observations are the raw events, the harvest is the consolidator, and graduation is promotion under a human gate.
 
@@ -70,7 +76,7 @@ Palace is building a system that ingests agent sessions and promotes durable fac
 - **Palace's fact store** holds operator-authorized domain facts extracted by consolidation, bitemporal, provenance-hashed, machine-scored.
 - **The lessons ledger** holds process learnings about *how work in this repo is done*, written deliberately at phase close, ratified by a human, and destined for a rule surface rather than a query.
 
-They are not merged, and the ledger is not a `palace search` corpus. Per [`CLAUDE.md`](../CLAUDE.md)'s "Rules, not memory" invariant, anything that must bind future sessions belongs in committed repo files — not in an index that a retrieval change could silently stop surfacing. If palace later wants the ledger searchable, that is an *additional* consumer of the same committed files, never a relocation of them.
+They are not merged, and the ledger is not a `palace search` corpus. Per [`CLAUDE.md`](../AGENTS.md)'s "Rules, not memory" invariant, anything that must bind future sessions belongs in committed repo files — not in an index that a retrieval change could silently stop surfacing. If palace later wants the ledger searchable, that is an *additional* consumer of the same committed files, never a relocation of them.
 
 ## 7. Acceptance criteria for this design
 
@@ -78,7 +84,7 @@ They are not merged, and the ledger is not a `palace search` corpus. Per [`CLAUD
 - `./bin/lessons validate` and `./bin/check-catalogs` pass as part of `./bin/check all`, covering ledger schema, catalog membership, tracked internal links, and phase-lifecycle state.
 - A revision round cannot capture Change Evidence without a nonempty `failure_analysis`, and the revision packet carries it to the critic.
 - A `scope: methodology` lesson filed in palace is visible to an upstream `learn` pass without bespoke exploration.
-- No agent-authored change to `policies/`, `briefs/`, `CLAUDE.md`, a skill, or an agent definition cites a lesson as its authority without a recorded human ratification.
+- No agent-authored change to `policies/`, `briefs/`, `AGENTS.md`, a skill, or an agent definition cites a lesson as its authority without a recorded human ratification.
 
 ## Sources
 

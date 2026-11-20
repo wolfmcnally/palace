@@ -1,0 +1,11 @@
+{
+  "from": null,
+  "id": "9b287ff415ae5fae8b29996502694726",
+  "owner": null,
+  "phase": "watcher-postreadiness-diagnostics",
+  "previous": null,
+  "reason": "Imported source state, not a new acceptance or lease",
+  "source_phase": "28",
+  "state": "completed",
+  "writer": "wolf"
+}

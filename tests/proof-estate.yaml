@@ -12,9 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 43
-  leaves: 62
-budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once."
+  families: 102
+  leaves: 140
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once."
 critical_risks:
   custody:
     state: applicable
@@ -4133,7 +4133,7 @@ families:
 - id: st-tests-test-pre-commit-py-test-pre-commit-preserves-governance-failure-aaec4d5694
   kind: hook
   selectors:
-  - hook:.githooks/pre-commit:./bin/check-log --staged
+  - "hook:.githooks/pre-commit:./bin/multioperator validate --root . --staged"
   source_paths:
   - .githooks/pre-commit
   covers:
@@ -4192,30 +4192,6 @@ families:
   - policies/**
   - briefs/**
   contract: Executable proof for test generated commands enforce the role authority matrix.
-  risk_class: methodology
-  oracle: Independent executable assertion or fail-closed command status.
-  admission: Retained by the Palace whole-estate Pareto reset.
-  nearest_overlap: Other proofs in the same source module; this family keeps a distinct executable claim.
-  historical_evidence: []
-  mutation_evidence: []
-  tier: changed
-  duration_seconds: 0.0
-  flake_rate: 0.0
-  replacement_lineage: []
-- id: ity-py-test-policy-is-allow-by-default-without-assuming-any-named-server-614fbfc715
-  kind: pytest
-  selectors:
-  - tests/test_research_authority.py::test_policy_is_allow_by_default_without_assuming_any_named_server
-  source_paths:
-  - tests/test_research_authority.py
-  covers:
-  - tests/test_research_authority.py
-  - bin/**
-  - lib/agentic_starter/**
-  - .claude/**
-  - policies/**
-  - briefs/**
-  contract: Executable proof for test policy is allow by default without assuming any named server.
   risk_class: methodology
   oracle: Independent executable assertion or fail-closed command status.
   admission: Retained by the Palace whole-estate Pareto reset.
@@ -6922,6 +6898,1271 @@ families:
   historical_evidence: []
   mutation_evidence:
   - "Count live rows by scanning every block in stats()."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: stale-catalog-or-report-stops-the-gate-before-lint-and-tests-ac3ad13e40
+  kind: pytest
+  selectors:
+  - "tests/test_check.py::test_stale_catalog_or_report_stops_the_gate_before_lint_and_tests"
+  source_paths:
+  - "tests/test_check.py"
+  covers:
+  - "bin/check"
+  contract: "Stale catalog or report stops the gate before lint and tests."
+  risk_class: methodology
+  oracle: "The assertion message 'STALE BOOKKEEPING REACHED EXPENSIVE GATES OR PASSED RECEIPT' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The early guards skip the catalog check, leaving it to the final policy lane"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ort-runs-every-lane-names-each-failure-and-stores-no-receipt-8e9cf18d92
+  kind: pytest
+  selectors:
+  - "tests/test_check.py::test_report_runs_every_lane_names_each_failure_and_stores_no_receipt"
+  source_paths:
+  - "tests/test_check.py"
+  covers:
+  - "bin/check"
+  contract: "Report runs every lane names each failure and stores no receipt."
+  risk_class: methodology
+  oracle: "The assertion message 'REPORT STOPPED EARLY, HID A FAILED LANE OR STORED A RECEIPT' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Drop the policy lane from report mode"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: test-interrupted-test-lane-is-reported-incomplete-not-failed-7456c80e9c
+  kind: pytest
+  selectors:
+  - "tests/test_check.py::test_interrupted_test_lane_is_reported_incomplete_not_failed"
+  source_paths:
+  - "tests/test_check.py"
+  covers:
+  - "bin/check"
+  contract: "Interrupted test lane is reported incomplete not failed."
+  risk_class: methodology
+  oracle: "The assertion message 'INTERRUPTED LANE REPORTED AS A CORRECTNESS FAILURE OR PASSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Report an interrupted lane as an ordinary correctness failure"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: test-registering-a-registered-document-again-changes-nothing-e1c21b1cf3
+  kind: pytest
+  selectors:
+  - "tests/test_check_catalogs.py::test_registering_a_registered_document_again_changes_nothing"
+  source_paths:
+  - "tests/test_check_catalogs.py"
+  covers:
+  - "bin/check-catalogs"
+  contract: "Admission: a rerun after an interrupted delivery refused work that was already done."
+  risk_class: methodology
+  oracle: "The assertion message 'REPEATED REGISTRATION WAS REFUSED OR REWROTE THE CATALOG' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "A repeated registration is refused as an error"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: structured-phase-order-and-events-are-checked-by-the-catalog-9877b3f012
+  kind: pytest
+  selectors:
+  - "tests/test_check_catalogs.py::test_structured_phase_order_and_events_are_checked_by_the_catalog"
+  source_paths:
+  - "tests/test_check_catalogs.py"
+  covers:
+  - "bin/check-catalogs"
+  contract: "Structured phase order and events are checked by the catalog."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The catalog checker prints its findings but exits successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: test-a-phase-names-other-phases-by-id-and-a-path-is-refused-3cb05db246
+  kind: pytest
+  selectors:
+  - "tests/test_check_catalogs.py::test_a_phase_names_other_phases_by_id_and_a_path_is_refused"
+  source_paths:
+  - "tests/test_check_catalogs.py"
+  covers:
+  - "bin/check-catalogs"
+  contract: "A phase names other phases by id and a path is refused."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The catalog checker prints its findings but exits successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: est-prospective-child-close-requires-real-parent-disposition-dd1419d8f1
+  kind: pytest
+  selectors:
+  - "tests/test_check_catalogs.py::test_prospective_child_close_requires_real_parent_disposition"
+  source_paths:
+  - "tests/test_check_catalogs.py"
+  covers:
+  - "bin/check-catalogs"
+  contract: "Prospective child close requires real parent disposition."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The catalog checker prints its findings but exits successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: imported-links-use-exact-git-history-without-legacy-aliases-bbf3085ea0
+  kind: pytest
+  selectors:
+  - "tests/test_check_catalogs.py::test_imported_links_use_exact_git_history_without_legacy_aliases"
+  source_paths:
+  - "tests/test_check_catalogs.py"
+  covers:
+  - "bin/check-catalogs"
+  contract: "Imported links use exact git history without legacy aliases."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The catalog checker prints its findings but exits successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: release-worktrees-py-test-one-clean-release-checkout-passes-316280f80d
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_one_clean_release_checkout_passes"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "One clean release checkout passes."
+  risk_class: custody
+  oracle: "The assertion message 'SOLE CLEAN RELEASE CHECKOUT REFUSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The check refuses a checkout that is registered exactly once"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: worktrees-py-test-any-change-in-the-release-checkout-refuses-a2c2574bec
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_any_change_in_the_release_checkout_refuses"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "Any change in the release checkout refuses."
+  risk_class: custody
+  oracle: "The assertion message 'DIRTY RELEASE CHECKOUT PASSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Changes in the release checkout are read and then ignored"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: py-test-an-extra-registered-worktree-refuses-clean-or-dirty-7dedee9a70
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_an_extra_registered_worktree_refuses_clean_or_dirty"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "An extra registered worktree refuses clean or dirty."
+  risk_class: custody
+  oracle: "The assertion message 'EXTRA WORKTREE PASSED OR ITS STATE WAS MISREPORTED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Other registered worktrees are not reported"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: t-a-worktree-path-with-a-space-and-a-newline-is-read-exactly-c2e86b1018
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_a_worktree_path_with_a_space_and_a_newline_is_read_exactly"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "A worktree path with a space and a newline is read exactly."
+  risk_class: custody
+  oracle: "The assertion message 'WORKTREE PATH WAS NOT PARSED EXACTLY' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "A worktree path is cut at its first newline"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ase-worktrees-py-test-an-unusable-extra-registration-refuses-6ded5ea5e3
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_an_unusable_extra_registration_refuses"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "An unusable extra registration refuses."
+  risk_class: custody
+  oracle: "The assertion message 'UNUSABLE REGISTRATION PASSED OR WAS MISREPORTED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Prunable and locked registrations are not recognized"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: orktrees-py-test-a-linked-worktree-is-not-a-release-checkout-b4db5aa543
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_a_linked_worktree_is_not_a_release_checkout"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "A linked worktree is not a release checkout."
+  risk_class: custody
+  oracle: "The assertion message 'RELEASE FROM A LINKED WORKTREE PASSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Other registered worktrees are not reported"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: es-py-test-a-failed-git-command-is-an-error-and-never-a-pass-17bdcca3f0
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_a_failed_git_command_is_an_error_and_never_a_pass"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "A failed git command is an error and never a pass."
+  risk_class: custody
+  oracle: "The assertion message 'FAILED GIT COMMAND READ AS A CLEAN RESULT' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "A failed git command is read as empty output"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: rees-py-test-a-record-without-its-identity-fields-is-refused-293abad2c1
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_a_record_without_its_identity_fields_is_refused"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "A record without its identity fields is refused."
+  risk_class: custody
+  oracle: "The assertion message 'RECORD WITHOUT IDENTITY FIELDS PASSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "A record's commit and branch-or-detached fields are not required"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: a-directory-below-the-checkout-top-is-not-a-release-checkout-38208bc714
+  kind: pytest
+  selectors:
+  - "tests/test_check_release_worktrees.py::test_a_directory_below_the_checkout_top_is_not_a_release_checkout"
+  source_paths:
+  - "tests/test_check_release_worktrees.py"
+  covers:
+  - "bin/check-release-worktrees"
+  contract: "A directory below the checkout top is not a release checkout."
+  risk_class: custody
+  oracle: "The assertion message 'DIRECTORY BELOW THE CHECKOUT TOP PASSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The root is not compared with the top of the checkout"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ion-py-test-curated-source-refuses-escape-and-private-inputs-7526950fa6
+  kind: pytest
+  selectors:
+  - "tests/test_documentation.py::test_curated_source_refuses_escape_and_private_inputs"
+  source_paths:
+  - "tests/test_documentation.py"
+  covers:
+  - "bin/docs"
+  - "lib/agentic_starter/documentation.py"
+  - "documentation.toml"
+  contract: "A tempting operational import cannot become publication input."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Stop refusing mdBook include directives in curated sources"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: nerated-output-checks-links-assets-anchors-and-private-paths-5c69683e5b
+  kind: pytest
+  selectors:
+  - "tests/test_documentation.py::test_generated_output_checks_links_assets_anchors_and_private_paths"
+  source_paths:
+  - "tests/test_documentation.py"
+  covers:
+  - "bin/docs"
+  - "lib/agentic_starter/documentation.py"
+  - "documentation.toml"
+  contract: "Generated search/print and nested assets remain inside the checked site."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Skip a generated link whose local target is missing instead of refusing it"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: deploy-binds-clean-latest-release-and-preserves-manual-mode-bbecea0384
+  kind: pytest
+  selectors:
+  - "tests/test_documentation.py::test_deploy_binds_clean_latest_release_and_preserves_manual_mode"
+  source_paths:
+  - "tests/test_documentation.py"
+  covers:
+  - "bin/docs"
+  - "lib/agentic_starter/documentation.py"
+  - "documentation.toml"
+  contract: "No dispatch or variable write occurs before release custody is proved."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Let deployment proceed from a checkout with uncommitted changes"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: setup-installs-exact-versions-locally-without-global-upgrade-818eb7c4da
+  kind: pytest
+  selectors:
+  - "tests/test_documentation.py::test_setup_installs_exact_versions_locally_without_global_upgrade"
+  source_paths:
+  - "tests/test_documentation.py"
+  covers:
+  - "bin/docs"
+  - "lib/agentic_starter/documentation.py"
+  - "documentation.toml"
+  contract: "Mismatched global binaries stay untouched; locked pins go to local storage."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Documentation tools install without the locked dependency set"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: n-py-test-release-ci-requires-committed-publication-identity-81a92206d6
+  kind: pytest
+  selectors:
+  - "tests/test_documentation.py::test_release_ci_requires_committed_publication_identity"
+  source_paths:
+  - "tests/test_documentation.py"
+  covers:
+  - "bin/docs"
+  - "lib/agentic_starter/documentation.py"
+  - "documentation.toml"
+  contract: "A workflow dispatched on the wrong branch cannot publish a build."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Accept a release build from any CI branch"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: y-test-content-scan-blanks-operation-labels-and-nothing-else-1ea2f25c40
+  kind: pytest
+  selectors:
+  - "tests/test_execution_dashboard.py::test_content_scan_blanks_operation_labels_and_nothing_else"
+  source_paths:
+  - "tests/test_execution_dashboard.py"
+  covers:
+  - "lib/agentic_starter/execution_dashboard.py"
+  - "bin/check-execution-dashboards"
+  contract: "Content scan blanks operation labels and nothing else."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Scan published dashboard data without blanking operation labels"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: nline-planning-and-coding-are-attributed-to-their-activities-fa2e6867da
+  kind: pytest
+  selectors:
+  - "tests/test_execution_dashboard.py::test_inline_planning_and_coding_are_attributed_to_their_activities"
+  source_paths:
+  - "tests/test_execution_dashboard.py"
+  covers:
+  - "lib/agentic_starter/execution_dashboard.py"
+  - "bin/check-execution-dashboards"
+  contract: "Inline planning and coding are attributed to their activities."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Attribute an inline stage to its role even when that role was delegated"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: board-py-test-named-phase-identity-waits-and-reader-refusals-73a176ec16
+  kind: pytest
+  selectors:
+  - "tests/test_execution_dashboard.py::test_named_phase_identity_waits_and_reader_refusals"
+  source_paths:
+  - "tests/test_execution_dashboard.py"
+  covers:
+  - "lib/agentic_starter/execution_dashboard.py"
+  - "bin/check-execution-dashboards"
+  contract: "Named phase identity waits and reader refusals."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Sort named phases ahead of numbered phases"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: tale-dashboard-refuses-until-regenerated-from-tracked-inputs-46c47675ec
+  kind: pytest
+  selectors:
+  - "tests/test_execution_dashboard.py::test_stale_dashboard_refuses_until_regenerated_from_tracked_inputs"
+  source_paths:
+  - "tests/test_execution_dashboard.py"
+  covers:
+  - "lib/agentic_starter/execution_dashboard.py"
+  - "bin/check-execution-dashboards"
+  contract: "Admission: a stale generated file failed the gate repeatedly with no named repair."
+  risk_class: methodology
+  oracle: "The assertion message 'STALE DASHBOARD PASSED OR REGENERATION DID NOT RESTORE TRACKED BYTES' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Make regeneration report success without rewriting"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: t-regeneration-repairs-a-changed-history-whole-or-not-at-all-9bff06387b
+  kind: pytest
+  selectors:
+  - "tests/test_execution_dashboard.py::test_regeneration_repairs_a_changed_history_whole_or_not_at_all"
+  source_paths:
+  - "tests/test_execution_dashboard.py"
+  covers:
+  - "lib/agentic_starter/execution_dashboard.py"
+  - "bin/check-execution-dashboards"
+  contract: "Admission: a later failed attempt changed an accepted phase's report and nothing said so."
+  risk_class: methodology
+  oracle: "The assertion message 'REGENERATION REWROTE AN INPUT, WROTE BEFORE VALIDATING OR LOST THE ACCEPTED TRACE' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Regeneration treats a handoff as a generated file and rewrites one that differs"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: est-watch-registered-review-durability-and-child-environment-47660da21c
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_config.py::test_watch_registered_review_durability_and_child_environment"
+  source_paths:
+  - "tests/test_kickoff_config.py"
+  covers:
+  - "bin/kickoff-config"
+  - "lib/agentic_starter/workflow.py"
+  contract: "Registered review IO stays durable and the child gets the delegated environment."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Configuration refusals exit successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: g-py-test-preflight-groups-only-identical-readiness-commands-2490c582a3
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_config.py::test_preflight_groups_only_identical_readiness_commands"
+  source_paths:
+  - "tests/test_kickoff_config.py"
+  covers:
+  - "bin/kickoff-config"
+  - "lib/agentic_starter/workflow.py"
+  contract: "One command's read challenge may qualify several roles, never different access/tools."
+  risk_class: methodology
+  oracle: "The assertion message 'READINESS PROBE GROUPING LOST' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Group roles that differ only in effort under one readiness probe"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: e-py-test-primary-continuation-carries-original-predecessors-c9cacfed8d
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_primary_continuation_carries_original_predecessors"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Primary continuation carries original predecessors."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Evidence refusals exit successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: e-py-test-primary-continuation-refuses-unproved-predecessors-0ef2be00be
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_primary_continuation_refuses_unproved_predecessors"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Primary continuation refuses unproved predecessors."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Evidence refusals exit successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ode-kickoff-records-advice-dispositions-and-stale-acceptance-a0ffa92b15
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_primary_mode_kickoff_records_advice_dispositions_and_stale_acceptance"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Primary mode kickoff records advice dispositions and stale acceptance."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Omit the primary's advice dispositions from the recorded projection"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: test-child-close-moves-a-stranded-next-marker-only-in-pairs-d83faa05fd
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_child_close_moves_a_stranded_next_marker_only_in_pairs"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Child close moves a stranded next marker only in pairs."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Refuse a child close that carries a truthful parent-continuation reason"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: t-nested-final-child-close-requires-an-accepted-parent-chain-1f609c9227
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_nested_final_child_close_requires_an_accepted_parent_chain"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Nested final child close requires an accepted parent chain."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Drop the independently accepted ancestors from a final child's close"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: e-py-test-owner-exception-uses-pinned-watcher-and-acceptance-25af9b05bb
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_owner_exception_uses_pinned_watcher_and_acceptance"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "One extra independent launch completes the real primary evidence lifecycle."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Evidence refusals exit successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: y-test-owner-exception-budget-is-scoped-atomic-and-auditable-5939f761b0
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_owner_exception_budget_is_scoped_atomic_and_auditable"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "The actual shared ledger boundary guards one launch, including recovery."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "A consumed owner exception can be granted again"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ce-py-test-historical-advice-attestation-preserves-originals-4dc239cbf3
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_historical_advice_attestation_preserves_originals"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Historical advice attestation preserves originals."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Evidence refusals exit successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: st-historical-advice-attestation-refuses-unfaithful-evidence-b9bcc88fc1
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_historical_advice_attestation_refuses_unfaithful_evidence"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Historical advice attestation refuses unfaithful evidence."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Evidence refusals exit successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: f-evidence-py-test-registrar-refuses-gap-before-any-dispatch-e15969493f
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_registrar_refuses_gap_before_any_dispatch"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Registrar refuses gap before any dispatch."
+  risk_class: methodology
+  oracle: "The assertion message 'a later attempt was registered over one that never launched' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The registrar accepts a later attempt over one that never launched"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ckoff-evidence-py-test-historical-distinct-role-predecessors-efde3a5e76
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_historical_distinct_role_predecessors"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Historical distinct role predecessors."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Evidence refusals exit successfully"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: used-launch-is-relaunched-or-recorded-never-left-unaccounted-4f6ee8f419
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_a_refused_launch_is_relaunched_or_recorded_never_left_unaccounted"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Admission: a launcher refusal orphaned a registration and two projects could not accept."
+  risk_class: methodology
+  oracle: "The assertion message 'REFUSED LAUNCH LEFT UNACCOUNTED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Validation ignores recorded never-launched attempts"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: review-is-attested-counted-and-never-passed-off-as-witnessed-c96ffd0c10
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_owner_directed_review_is_attested_counted_and_never_passed_off_as_witnessed"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "A review the owner had launched outside the watcher, with a reviewer the run did not freeze, is accepted as what it is: attested, counted against the ordinary pass, and refused until the launch facts are retained."
+  risk_class: methodology
+  oracle: "The assertion message 'UNATTESTED DIRECTED REVIEW ACCEPTED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "An owner-directed review is ingested without its launch attestation"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: run-refuses-to-start-on-a-tree-that-fails-the-catalog-check-aa3391094e
+  kind: pytest
+  selectors:
+  - "tests/test_kickoff_evidence.py::test_a_run_refuses_to_start_on_a_tree_that_fails_the_catalog_check"
+  source_paths:
+  - "tests/test_kickoff_evidence.py"
+  covers:
+  - "bin/kickoff-evidence"
+  - "lib/agentic_starter/advisory.py"
+  contract: "Admission: a run captured its authority on a stale catalog and failed only at its gate."
+  risk_class: methodology
+  oracle: "The assertion message 'RUN STARTED OR CAPTURED EVIDENCE ON A TREE THAT FAILS ITS CATALOG CHECK' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Run start skips the catalog check"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: aged-lists-open-lessons-with-no-new-occurrence-in-sixty-days-3f285e552b
+  kind: pytest
+  selectors:
+  - "tests/test_lessons.py::test_aged_lists_open_lessons_with_no_new_occurrence_in_sixty_days"
+  source_paths:
+  - "tests/test_lessons.py"
+  covers:
+  - "bin/lessons"
+  contract: "Aged lists open lessons with no new occurrence in sixty days."
+  risk_class: methodology
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Age lessons one day early"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: plane-py-test-shared-normalization-survives-record-migration-9538d9a288
+  kind: pytest
+  selectors:
+  - "tests/test_log_control_plane.py::test_shared_normalization_survives_record_migration"
+  source_paths:
+  - "tests/test_log_control_plane.py"
+  covers:
+  - "lib/agentic_starter/log_blocks.py"
+  - "bin/normalize-final-newline"
+  contract: "Shared normalization survives record migration."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Final-newline repair accepts paths outside the admitted bookkeeping set"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: rator-py-test-portable-rehearsal-preserves-source-and-guards-de27b1319a
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_portable_rehearsal_preserves_source_and_guards"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Portable rehearsal preserves source and guards."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Record validation never refuses"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: erator-py-test-transition-and-maintenance-refuse-false-state-aa93d8deaf
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_transition_and_maintenance_refuse_false_state"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Transition and maintenance refuse false state."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Record validation never refuses"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: perator-py-test-constitution-version-gate-and-loading-limits-54b20f6762
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_constitution_version_gate_and_loading_limits"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Probe only a disposable executable's version, never a model or installed settings."
+  risk_class: methodology
+  oracle: "The assertion message 'failed' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Record validation never refuses"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: tioperator-py-test-transfer-equivalence-for-existing-product-11a78e838d
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_transfer_equivalence_for_existing_product"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Admission: a missing receiver class and reversed source eligibility escaped old proofs."
+  risk_class: methodology
+  oracle: "The assertion message 'TRANSFER EQUIVALENCE OR REFUSAL CONTRACT LOST' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Require an adopted donor even for capability learning"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: rator-py-test-retrofit-rehearsal-preserves-narrative-history-bc70e7b39f
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_retrofit_rehearsal_preserves_narrative_history"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Admission: canonical conversion cannot consume existing narrative-only product history."
+  risk_class: methodology
+  oracle: "The assertion message 'RETROFIT HISTORY OR REFUSAL CONTRACT LOST' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Remove the retrofit dispatch so a narrative-only project is rehearsed as if it had canonical history"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: retained-evidence-is-reported-while-altered-evidence-refuses-e480f4e09d
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_absent_retained_evidence_is_reported_while_altered_evidence_refuses"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Admission: a clean clone could not pass the gate, yet tampering must still refuse."
+  risk_class: methodology
+  oracle: "The assertion message 'RETAINED EVIDENCE ABSENCE REFUSED OR ALTERATION PASSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Never excuse absent ignored evidence"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: py-test-methodology-close-cannot-bypass-the-lessons-contract-10490645af
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_methodology_close_cannot_bypass_the_lessons_contract"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Admission: closes written under a bare methodology heading carried no Lessons."
+  risk_class: methodology
+  oracle: "The assertion message 'METHODOLOGY CLOSE BYPASSED LESSONS OR VALID RECORD REFUSED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Disable the append-boundary refusal of a bare methodology close"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: eflight-lists-source-releases-the-recipient-has-not-recorded-afd877070e
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_preflight_lists_source_releases_the_recipient_has_not_recorded"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Admission: no recipient could say which source release it held."
+  risk_class: methodology
+  oracle: "The assertion message 'RELEASE GAP MISREPORTED OR MALFORMED PROVENANCE ACCEPTED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Report every declared release as unrecorded"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: r-py-test-adoption-is-the-only-manifest-change-after-cutover-e42b5edebe
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_adoption_is_the_only_manifest_change_after_cutover"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Admission: a cutover committed undeclared could never record its owner's adoption."
+  risk_class: methodology
+  oracle: "The assertion message 'ADOPTION DECLARATION REFUSED OR WIDENED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Admit any staged manifest whose adoption field is true, whatever else changed"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: sfer-ancestry-names-the-nearest-revision-and-recipient-lines-0297aa8cd9
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_transfer_ancestry_names_the_nearest_revision_and_recipient_lines"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Admission: merging against one assumed base silently dropped content a recipient never had."
+  risk_class: methodology
+  oracle: "The assertion message 'TRANSFER ANCESTRY MISREAD THE RECIPIENT' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Report the newest source revision as every file's ancestor"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: reports-each-renamed-line-and-never-leaves-a-link-to-nothing-87eab1ae89
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_converter_reports_each_renamed_line_and_never_leaves_a_link_to_nothing"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Layout conversion: a migration renamed the old constitution in a sentence about both names, which then said one name twice, and it left a link with no target where a retired tool had been linked; its report listed paths, so neither showed."
+  risk_class: methodology
+  oracle: "The assertion message 'CONVERTER RENAMED A TWO-NAME SENTENCE, HID A REWRITE OR LEFT AN EMPTY LINK' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "The converter renames the old constitution in a sentence that names both files"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: operator-py-test-a-relative-root-means-the-callers-directory-8978092529
+  kind: pytest
+  selectors:
+  - "tests/test_multioperator.py::test_a_relative_root_means_the_callers_directory"
+  source_paths:
+  - "tests/test_multioperator.py"
+  covers:
+  - "bin/multioperator"
+  - "lib/agentic_starter/multioperator.py"
+  - "lib/agentic_starter/multioperator_transition.py"
+  contract: "Record tool: run from another directory with a relative root, it validated the tool's own repository instead and refused a valid tree with a message about the constitution."
+  risk_class: methodology
+  oracle: "The assertion message 'RELATIVE ROOT WAS READ FROM THE WRONG DIRECTORY' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "A relative root is read from the tool's own directory"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: tired-sketches-keep-exact-bytes-reserved-ids-and-index-links-0d1f013982
+  kind: pytest
+  selectors:
+  - "tests/test_retained_phase_sketches.py::test_retired_sketches_keep_exact_bytes_reserved_ids_and_index_links"
+  source_paths:
+  - "tests/test_retained_phase_sketches.py"
+  covers:
+  - "plan/phase-20.md"
+  - "plan/phase-bounded-indexing.md"
+  - "collaboration/retained-phase-sketches.json"
+  contract: "Retired sketches keep exact bytes reserved ids and index links."
+  risk_class: custody
+  oracle: "Executable assertions over the tool's observable output in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Change one byte of a retained retired sketch"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: py-test-wrapper-run-excludes-runtime-state-from-dropbox-sync-e162f56bda
+  kind: pytest
+  selectors:
+  - "tests/test_toolchain_entrypoints.py::test_wrapper_run_excludes_runtime_state_from_dropbox_sync"
+  source_paths:
+  - "tests/test_toolchain_entrypoints.py"
+  covers:
+  - "bin/_python-toolchain"
+  - "bin/setup"
+  - "bin/test"
+  - "bin/check"
+  contract: "Wrapper run excludes runtime state from dropbox sync."
+  risk_class: methodology
+  oracle: "The assertion message 'RUNTIME STATE NOT SYNC-EXCLUDED' with the command's exit status in an isolated fixture."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "Other proofs in the same source module; this family keeps a distinct executable claim."
+  historical_evidence: []
+  mutation_evidence:
+  - "Drop the sync-exclusion call from the shared toolchain initialiser"
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: policy-docs-291cff235c
+  kind: gate
+  selectors:
+  - "policy-docs"
+  source_paths:
+  - "bin/check"
+  covers:
+  - "bin/check"
+  - "bin/docs"
+  - "lib/agentic_starter/documentation.py"
+  - "manual/**"
+  - "documentation.toml"
+  contract: "The full gate builds and checks the curated manual: sources, generated links, assets, anchors, search and print."
+  risk_class: methodology
+  oracle: "Fail-closed exit status of ./bin/docs check inside the policy lane."
+  admission: "Starter v1.9.0 teach admission funded by the named 2026-11-20 budget; no retirement."
+  nearest_overlap: "The documentation proofs exercise the checker in fixtures; only this gate runs it over the real manual."
+  historical_evidence: []
+  mutation_evidence:
+  - "Put a private absolute path into a published manual chapter."
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0

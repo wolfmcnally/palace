@@ -1,0 +1,11 @@
+{
+  "from": null,
+  "id": "f47c5e06338257c0a13601db3f7bd771",
+  "owner": null,
+  "phase": "release-zero-three",
+  "previous": null,
+  "reason": "Imported source state, not a new acceptance or lease",
+  "source_phase": "23",
+  "state": "completed",
+  "writer": "wolf"
+}

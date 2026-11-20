@@ -19,7 +19,7 @@ ORCHESTRATION_POLICY = _normalized(REPO_ROOT / "policies" / "orchestration-evide
 INCREMENTAL_BRIEF = _normalized(REPO_ROOT / "briefs" / "incremental-orchestration.md")
 METHODOLOGY_BRIEF = _normalized(REPO_ROOT / "briefs" / "methodology.md")
 BOOTSTRAP_BRIEF = _normalized(REPO_ROOT / "briefs" / "agentic-bootstrap.md")
-CLAUDE = _normalized(REPO_ROOT / "CLAUDE.md")
+CLAUDE = _normalized(REPO_ROOT / "AGENTS.md")
 KICKOFF = " ".join(
     _normalized(path) for path in sorted((REPO_ROOT / ".claude/skills/kickoff").glob("*.md"))
 )
@@ -125,7 +125,7 @@ def _assert_rule_one_and_control_plane_propagate_as_atomic_bundles() -> None:
 
     required = (
         "bin/kickoff-command-zero",
-        "bin/check-log",
+        "bin/multioperator",
         "lib/agentic_starter/kickoff_runbook.py",
         "lib/agentic_starter/log_blocks.py",
     )

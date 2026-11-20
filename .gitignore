@@ -15,7 +15,10 @@ dist/
 
 # Local agent state and private operational records
 .kickoff/
+.claude/scheduled_tasks.lock
 .claude/settings.local.json
 .claude/projects/
 .codex/cache/
 .private-development/
+
+/.collaboration-views/

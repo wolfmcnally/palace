@@ -1,0 +1,168 @@
+{
+  "departures_from_automated_rehearse": [
+    {
+      "effect": "read only; the source INDEX bytes are not edited before transcription",
+      "kind": "heading-case",
+      "schema": "## Phase Table",
+      "source": "## Phase table"
+    },
+    {
+      "kind": "named-row",
+      "reason": "v1.9.0 PHASE_ROW decodes only numeric rows; the named row is read with its actual id and actual marker, never renumbered",
+      "row": "| [Release](phase-release.md) | Public release preparation | ✅ |",
+      "source_phase": "release",
+      "state": "completed"
+    },
+    {
+      "authority": "plan/INDEX.md identity corrections dated 2026-10-20 (source commit)",
+      "disposition": "not imported as phases (no v1.9.0 state expresses retired/parked); kept byte-identical at their original paths; identifiers reserved, never reused",
+      "files": {
+        "plan/phase-20.md": "6d1ac7b30178a26f0ed6fab158293cf62e5ba80548e74be64e7f9307f287aebb",
+        "plan/phase-bounded-indexing.md": "c40644e34926b29c53d0ac2ff7cc7018e0ee0aa8c41a9e9b0e5ab97378be7609"
+      },
+      "kind": "retained-retired-sketches"
+    },
+    {
+      "kind": "file-reference-aliases",
+      "resolved": [
+        {
+          "field": "depends_on",
+          "id": "22",
+          "phase": "23",
+          "source": "phase-22.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "23",
+          "phase": "24",
+          "source": "phase-23.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "24",
+          "phase": "25",
+          "source": "phase-24.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "25",
+          "phase": "26",
+          "source": "phase-25.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "26",
+          "phase": "27",
+          "source": "phase-26.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "26",
+          "phase": "28",
+          "source": "phase-26.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "27",
+          "phase": "28",
+          "source": "phase-27.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "25",
+          "phase": "29",
+          "source": "phase-25.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "26",
+          "phase": "30",
+          "source": "phase-26.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "27",
+          "phase": "30",
+          "source": "phase-27.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "28",
+          "phase": "30",
+          "source": "phase-28.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "25",
+          "phase": "31",
+          "source": "phase-25.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "31",
+          "phase": "32",
+          "source": "phase-31.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "32",
+          "phase": "33",
+          "source": "phase-32.md"
+        },
+        {
+          "field": "informs",
+          "id": "34",
+          "phase": "33",
+          "source": "phase-34.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "33",
+          "phase": "34",
+          "source": "phase-33.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "34",
+          "phase": "35",
+          "source": "phase-34.md"
+        },
+        {
+          "field": "depends_on",
+          "id": "35",
+          "phase": "36",
+          "source": "phase-35.md"
+        }
+      ]
+    },
+    {
+      "kind": "order",
+      "order": {
+        "bedrock-embedding-provider": "3",
+        "bounded-indexing-recovery": "1",
+        "compatible-vector-reuse": "5",
+        "deterministic-reindex-proofs": "11",
+        "exact-vector-cache": "16",
+        "generic-operator-wording": "10",
+        "prepared-multistore-search": "6",
+        "public-release-preparation": "2",
+        "release-zero-seven": "17",
+        "release-zero-six": "15",
+        "release-zero-three": "4",
+        "returned-hit-evidence": "12",
+        "typed-provider-failures": "14",
+        "unloadable-front-matter": "13",
+        "watcher-postreadiness-diagnostics": "9",
+        "watcher-qualification-design": "8",
+        "watcher-readiness-witnesses": "7"
+      },
+      "rule": "order key = row position in the source table (original execution order); numeric sorting would misplace the named Release row"
+    }
+  ],
+  "donor_release": "v1.9.0",
+  "retained_sketch_record": "collaboration/retained-phase-sketches.json",
+  "schema": "palace.methodology-transcription.v1",
+  "script_sha256": "fae95d9abf700522a66ce30dc01ee1f1ee002a569331a5d6e052fe74d732b721",
+  "slug_map_status": "adopted under the operator instruction of 2026-11-20 relayed by the authenticated factotum (sentinel 08e79969c6ac81918958b010f79d8682) to keep the 17 verified phases and complete the teach",
+  "writer": "wolf"
+}

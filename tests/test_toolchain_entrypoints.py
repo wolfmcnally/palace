@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -65,14 +66,11 @@ printf '%s\n' 'FOCUSED' 'fixture selection' 'tests/test_check.py'
         "new-name",
         "deliver",
         "treatise",
-        "check-log",
-        "check-log-prefix",
-        "check-log-monotonic",
+        "multioperator",
         "kickoff-command-zero",
-        "log-append",
-        "log-relocate",
         "normalize-final-newline",
         "check-candidate-partition",
+        "docs",
     ):
         _write_executable(root / "bin" / executable, "#!/usr/bin/env bash\nexit 0\n")
     (root / ".python-version").write_text("3.11\n")
@@ -86,6 +84,10 @@ printf '%s\n' 'FOCUSED' 'fixture selection' 'tests/test_check.py'
         tool_dir / "uv",
         """#!/usr/bin/env bash
 set -u
+if [[ "${VIRTUAL_ENV+x}" == x ]]; then
+  echo 'Inherited environment reached project selection' >&2
+  exit 87
+fi
 printf 'uv cwd=%s args=%s\\n' "$PWD" "$*" >> "$TOOLCHAIN_TEST_LOG"
 if [[ -n "${TOOLCHAIN_TEST_FAIL_MATCH:-}" && "$*" == *"$TOOLCHAIN_TEST_FAIL_MATCH"* ]]; then
   exit "${TOOLCHAIN_TEST_FAIL_CODE:-23}"
@@ -140,6 +142,8 @@ def test_test_defaults_to_every_repository_test_from_any_cwd(
 ) -> None:
     root, environment = toolchain_repo
 
+    environment["VIRTUAL_ENV"] = str(tmp_path / "standalone-script-environment")
+
     result = _run(root, environment, "test", cwd=tmp_path)
 
     assert result.returncode == 0, result.stderr
@@ -150,6 +154,27 @@ def test_test_defaults_to_every_repository_test_from_any_cwd(
             "--managed-python python -m pytest -q -m not native tests"
         ),
     ]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="Dropbox ignore attributes are macOS-only")
+def test_wrapper_run_excludes_runtime_state_from_dropbox_sync(
+    toolchain_repo: tuple[Path, dict[str, str]],
+) -> None:
+    root, environment = toolchain_repo
+
+    result = _run(root, environment, "setup")
+
+    assert result.returncode == 0, result.stderr
+    for attribute in ("com.dropbox.ignored", "com.apple.fileprovider.ignore#P"):
+        stored = subprocess.run(
+            ["/usr/bin/xattr", "-p", attribute, str(root / ".kickoff")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert stored.stdout.strip() == "1", (
+            f"RUNTIME STATE NOT SYNC-EXCLUDED {attribute}: {stored.stderr}"
+        )
 
 
 def _assert_selected_repository(

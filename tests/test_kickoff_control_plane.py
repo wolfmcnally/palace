@@ -14,10 +14,6 @@ sys.path.insert(0, str(ROOT / "lib"))
 
 from agentic_starter import kickoff_runbook  # noqa: E402
 
-from tests.test_log_control_plane import (  # noqa: E402
-    exercise_append_prefix_chronology_and_bounded_repairs_preserve_bytes,
-)
-
 
 def executable(path: Path, body: str) -> None:
     path.write_text("#!/bin/sh\nset -eu\n" + body)
@@ -25,7 +21,6 @@ def executable(path: Path, body: str) -> None:
 
 
 def test_manifest_preflight_and_runner_admission_fail_closed(tmp_path: Path) -> None:
-    exercise_append_prefix_chronology_and_bounded_repairs_preserve_bytes(tmp_path / "log-control")
     root = tmp_path / "repo"
     run_dir = tmp_path / "run"
     (root / "bin").mkdir(parents=True)
@@ -39,7 +34,7 @@ def test_manifest_preflight_and_runner_admission_fail_closed(tmp_path: Path) -> 
         root / "bin" / "check",
         f"test \"$1\" = format\nprintf '%s\\n' format >> {calls}\n",
     )
-    executable(root / "bin" / "check-log", f"printf '%s\\n' log >> {calls}\n")
+    executable(root / "bin" / "multioperator", f"printf '%s\\n' log >> {calls}\n")
     document = {
         "schema_version": 1,
         "commands": [

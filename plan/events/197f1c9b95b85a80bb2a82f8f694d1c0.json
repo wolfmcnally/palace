@@ -1,0 +1,11 @@
+{
+  "from": null,
+  "id": "197f1c9b95b85a80bb2a82f8f694d1c0",
+  "owner": null,
+  "phase": "deterministic-reindex-proofs",
+  "previous": null,
+  "reason": "Imported source state, not a new acceptance or lease",
+  "source_phase": "30",
+  "state": "completed",
+  "writer": "wolf"
+}

@@ -1,1 +1,230 @@
-CLAUDE.md
+# AGENTS.md
+
+`AGENTS.md` is the regular primary constitution for every coding agent in this repository.
+
+## Hard rules — read these before any action
+
+These rules govern every action and come first so they are read before anything irreversible. Full policy text is in `policies/`; consult it before bending a rule.
+
+1. **Deliver gate-proved work; the user owns judgment and the destructive Git surface.** Once a phase closes with every gate green, the orchestrator uses `./bin/deliver` to commit and fast-forward-push it — binding the live handoff candidate, staging only its explicit paths, and verifying the staged and committed path sets, with no agent credit and never `--no-verify`. Delegated roles never commit or push. Everything destructive stays the user's: tags, force-pushes, branch deletion, reset, rebase, checkout-based restoration, clean, remote creation or selection, and history repair or rewrite. A candidate mismatch, unexpected path, hook refusal, missing or ambiguous upstream, rejected push, divergence, or residual dirt **parks delivery**; never work around it. **Delivery is not acceptance.** Manual, perceptual, product, readability, custody, policy, and brief-authorship judgments — including the phase's `User Demo:` protocol — stay open for the user after delivery. Failed executable gates and open `DECIDE` items block close. Full policy: [`policies/human-in-the-loop.md`](policies/human-in-the-loop.md).
+
+2. **Greenfield until released: no backward-compatibility code.** Do not write legacy aliases, `@deprecated` markers, schema migrations to read older formats, transitional code paths, version-conditional branches, or "compat" shims of any kind. When an earlier shape turns out wrong, replace it directly and update every call site, fixture, test, sample data file, brief, plan, and doc in the same phase. This rule ends only when palace ships a stable external release and explicitly amends the policy. Full policy: [`policies/greenfield-until-released.md`](policies/greenfield-until-released.md).
+
+If the user explicitly restricts or waives one of these rules for a named scope, record the instruction verbatim in the phase's END block. Restrictions and waivers are one-shot; the next phase reverts to the default. A delivery restriction narrows delivery only — it never relaxes a gate or closes a parked criterion.
+
+<!-- PROJECT_CONTEXT_START -->
+
+# Project Context
+
+## Palace
+
+Palace is a personal-memory substrate for agents and applications. Preserve provenance, local ownership and interchangeable consumer surfaces. Runtime source lives at repository-root `palace/`; metadata, lockfile and tests also live at root. This is an intentional flat layout, not an isolated `project/` deliverable.
+
+## Product invariants
+
+- **Files are the API.** Markdown with YAML frontmatter owns semantic facts; JSON/JSONL owns structured streams. Databases and search/graph indexes are derived and rebuildable. Never store the sole copy of information in an index.
+- **Local-first.** Default embeddings, reranking and graph operations run on-device. Third-party embedding requires an explicitly opted-in already-published corpus. Private HTTPS inference requires an explicit operator-controlled boundary attestation and the native adapter; neither path permits the personal store or personal-vault overlap. Apply the binding [local-first policy](policies/local-first.md) before network access; never substitute providers.
+- **Bitemporal facts and provenance.** Preserve event time and ingestion time. Facts are invalidated or superseded, never deleted; provenance lists source-event SHA-256 identifiers. Standard Markdown, JSON and hashing tools must recover every canonical field.
+- **Capture is hot; extraction is cold.** Capture hooks and event handlers append raw events quickly; scoring, extraction, contradiction detection and promotion belong to consolidation. `events/`, `sessions/` and `raw/<source>/` remain append-only; retractions are appended events.
+- **Session snapshots stay frozen.** Context injected at session start is read once; mid-session writes become visible next session. Dynamic recall uses `palace search`.
+- **One substrate, many consumers.** Preserve parametric independent machine-store and human-vault roots. Consumer applications may expose wikilinks, hierarchical tags and other conveniences but must not become requirements of the canonical layer.
+- **Daemon declarations are infrastructure.** Every daemon has a tracked launchd plist. Do not introduce untracked daemons or console-only lifecycle setup. Linux synchronous support does not imply porting macOS daemons.
+- **Eval-driven retrieval.** Before tuning retrieval parameters or swapping a reranker, the personal evaluation set must exist and score the change ([sota memory brief](briefs/sota-memory-and-recall.md), §E.2; [retrieval policy](policies/retrieval.md)). A synthetic benchmark does not satisfy this prerequisite. The shipped default-on reranker exception allowed default-on reranking before the personal evaluation; its first run must confirm or reverse that decision. Preserve the exception and its declared validity gap.
+- **No consumer disclosures.** All upstream artifacts describe capability classes, never consuming projects or their private identifiers. This includes existing files, examples, fixtures and logs. Remove discovered references from the current tree; public release also requires a separate disposition of historical copies.
+
+## Product briefs
+
+- [Memory System Improvements Plan](briefs/Memory-System-Improvements-Plan.md)
+- [bedrock embedding provider](briefs/bedrock-embedding-provider.md)
+- [consolidator extraction source pluggability](briefs/consolidator-extraction-source-pluggability.md)
+- [contextual enrichment](briefs/contextual-enrichment.md)
+- [deployed consumer readiness](briefs/deployed-consumer-readiness.md)
+- [embedding provider and index identity](briefs/embedding-provider-and-index-identity.md)
+- [eval fixture corpus](briefs/eval-fixture-corpus.md)
+- [eval set candidates](briefs/eval-set-candidates.md)
+- [project index generator](briefs/project-index-generator.md)
+- [provider throttling and request pacing](briefs/provider-throttling-and-request-pacing.md)
+- [remote embedding throughput](briefs/remote-embedding-throughput.md)
+- [reranker defaults and providers](briefs/reranker-defaults-and-providers.md)
+- [sota memory and recall](briefs/sota-memory-and-recall.md)
+- [store parametric external consumers](briefs/store-parametric-external-consumers.md)
+- [structured external indexing](briefs/structured-external-indexing.md)
+- [tooling](briefs/tooling.md)
+- [vector index cache](briefs/vector-index-cache.md)
+
+## Product policies
+
+- [consolidation](policies/consolidation.md)
+- [fact schema](policies/fact-schema.md)
+- [local first](policies/local-first.md)
+- [policies](policies/policies.md)
+- [retrieval](policies/retrieval.md)
+- [storage layout](policies/storage-layout.md)
+- [surface vs substrate](policies/surface-vs-substrate.md)
+
+## Runtime, operations and models
+
+Python 3.12 with uv, Ruff, mypy and pytest. `./bin/setup`, `./bin/test [args...]`, `./bin/check all` and `./bin/python` own the locked toolchain. The full gate includes lint, formatting, type checking, tests, CLI smoke and policies. Preserve authoritative override refusal and hermetic automated tests.
+
+The editable system-wide uv tool has its own dependency environment: source changes need no reinstall; dependency changes require `uv tool install --editable . --reinstall` and a reinstall note in the END block. Daemons use the repository environment.
+
+`kickoff.yaml` owns model/effort pins, timeouts and research budgets; `roles` edits pins or expands presets. Primary routing uses Astra/high in Codex and Opus/high in Claude Code: the eligible primary plans and codes inline, cross-provider advisory review is preferred with a fresh same-provider fallback, constrained primaries use delegated approval gates, and live preflight precedes mutation. The Claude-led plan reviewer and code critic are Astra/high in primary and delegated routing; existing delegated pins remain available.
+
+`palace search` is this library's hybrid retrieval API; a consuming agent's similarly named memory tool is a separate call surface. Preserve Markdown semantics on ingest. Integrations are deliberate and opt-in, never inferred from a sibling directory.
+
+`./bin/deliver` keeps complete-tree, deletion-aware custody through commit; never substitute handwritten Git delivery.
+
+<!-- PROJECT_CONTEXT_END -->
+
+<!-- METHODOLOGY_CONTRACT_START -->
+
+# Methodology Contract
+
+## Methodology briefs
+
+- [Methodology and glossary](briefs/methodology.md)
+- [Diagnosis and durable learning](briefs/rule-one-diagnostic-learning.md)
+- [Bootstrap](briefs/agentic-bootstrap.md)
+- [Cross-CLI invocation](briefs/cross-agent-invocation.md)
+- [Incremental assurance](briefs/incremental-orchestration.md)
+- [Command custody](briefs/deterministic-orchestration-control-plane.md)
+- [Draft workflow design](briefs/deterministic-orchestration.md)
+- [Lessons flywheel](briefs/harness-self-improvement.md)
+- [Context compaction](briefs/session-context-compaction.md)
+- [Proof-estate design](briefs/test-suite-value-governance.md)
+- [Minimal methodology scaffold](briefs/mini-method.md)
+- [Reader-centered documentation](briefs/software-documentation.md)
+- [Refactoring](briefs/refactoring-methodology.md)
+- [Multi-operator draft](briefs/multi-operator-collaboration.md)
+- [Open-source releases](briefs/open-source-releases.md)
+- [Transfer draft](briefs/transfer-management.md)
+
+## Policies catalog
+
+Every applicable policy binds.
+
+- [Policy catalog](policies/README.md)
+- [Brief lifecycle](policies/briefs.md)
+- [Authority direction](policies/briefs-and-policies.md)
+- [Reference pins](policies/docs.md)
+- [Software documentation](policies/software-documentation.md)
+- [Mirrors and loading](policies/cross-harness-parity.md)
+- [Roles and convergence](policies/four-canonical-agents.md)
+- [Role routing](policies/role-models.md)
+- [Role deadlines](policies/role-timeouts.md)
+- [Research authority](policies/research-authority.md)
+- [Evidence and close](policies/orchestration-evidence.md)
+- [Command custody](policies/orchestration-control-plane.md)
+- [Timing and reports](policies/execution-telemetry.md)
+- [Scripts versus judgment](policies/mechanistic-vs-intelligence.md)
+- [Staging](policies/commit-staging.md)
+- [Build gates](policies/build-gates.md)
+- [Test governance](policies/test-suite-governance.md)
+- [Park/resume](policies/fail-closed-resume.md)
+- [Review lanes](policies/review-lanes.md)
+- [Multi-operator migration](policies/multi-operator-migration.md)
+- [Phase state](policies/phase-status.md)
+- [Ripple](policies/phase-ripple.md)
+- [Acceptance](policies/acceptance-empirical.md)
+- [User demos](policies/user-demo-protocols.md)
+- [Treatise](policies/treatise.md)
+- [Verification](policies/verification-discipline.md)
+- [Log](policies/log-discipline.md)
+- [User actions](policies/user-actions.md)
+- [Lessons](policies/lessons.md)
+- [Human judgment](policies/human-in-the-loop.md)
+- [Paths](policies/repo-relative-paths.md)
+- [Isolation](policies/project-isolation.md)
+- [Simplicity](policies/simplicity-and-consolidation.md)
+- [Greenfield](policies/greenfield-until-released.md)
+
+## Universal repo layout
+
+[docs catalog](docs/README.md): operations and evaluation; [reference catalog](docs/reference/README.md): third-party pins; [bin catalog](bin/README.md): executables. `lib/agentic_starter/`: shared machinery; `tests/`: proofs. `.githooks/`: opt-in via `bin/install-hooks`, witnessed by `bin/check-hooks-installed`. `reports/`: sanitized execution reports and recipient-local proofs. `log/entries/`: immutable history; `user-actions/`, `lessons/`: queues with archives.
+
+### Universal skills
+
+- [kickoff](.claude/skills/kickoff/SKILL.md)
+- [methodology](.claude/skills/methodology/SKILL.md)
+- [rule-one](.claude/skills/rule-one/SKILL.md)
+- [learn](.claude/skills/learn/SKILL.md)
+- [teach](.claude/skills/teach/SKILL.md)
+- [roles](.claude/skills/roles/SKILL.md)
+- [sweep](.claude/skills/sweep/SKILL.md)
+- [sweep-planning](.claude/skills/sweep-planning/SKILL.md)
+- [sweep-coding](.claude/skills/sweep-coding/SKILL.md)
+- [demo](.claude/skills/demo/SKILL.md)
+- [treatise](.claude/skills/treatise/SKILL.md)
+- [plain](.claude/skills/plain/SKILL.md)
+- [ask](.claude/skills/ask/SKILL.md)
+- [refactor](.claude/skills/refactor/SKILL.md)
+- [docs](.claude/skills/docs/SKILL.md)
+
+### Canonical roles and mirrors
+
+- [phase-planner](.claude/agents/phase-planner.md)
+- [plan-reviewer](.claude/agents/plan-reviewer.md)
+- [phase-coder](.claude/agents/phase-coder.md)
+- [code-critic](.claude/agents/code-critic.md)
+
+`.claude/` is canonical; edit it. `.agents/skills/<name>` → `../../.claude/skills/<name>` exposes all resources; `.codex/agents/<role>.toml` is a thin pointer with matching description. Product phases use `kickoff`; methodology follows the routing rule below.
+
+## Phase work and the `kickoff` skill
+
+Invoke `/kickoff` (Claude Code) or `$kickoff` (Codex). Read the [kickoff](.claude/skills/kickoff/SKILL.md) and each linked resource before its branch, including follow-ups/recovery; links do not prove reads. Limits: root 20480 UTF-8 bytes; entry 10240. Preserve obligations and catalogs; move explanation to its owner.
+
+### Phase identity and status
+
+`plan/phases/<id>.md` defines each permanent three-word id, title, rational order, parent and links; `plan/events/` is the append-only lifecycle and owner/claim authority; `plan/INDEX.md` is context only. Select with `./bin/multioperator select --root . --owner <operator>` (or `--phase <id>`) and verify coordinated custody first. One queued next phase per operator. Completion binds accepted run inputs and custody. Read [phase status](policies/phase-status.md).
+
+### Reading protocol for phase work
+
+1. Read `plan/INDEX.md`, then the phase definitions/events for dependencies, order and custody.
+2. Read the parent phase if targeting a child, then the target phase.
+3. Read every Brief ref and every pinned document on which it depends.
+4. Read the phase file of every `depends_on` id and the immediately preceding completed phase.
+5. Read applicable policies, root invariants and the stage resource. Read only required phase files.
+
+### Architectural invariants (load-bearing — do not violate)
+
+Rationale: [methodology](briefs/methodology.md#operating-invariants-and-vocabulary).
+
+- **Rules, not memory; Rule One.** Keep durable cross-harness knowledge in its owning repo authority. Diagnose failures, corrections, surprises and discarded work; separate containment, correction and prevention. File unsettled learning in `lessons/` and harvest every END/PARK, including `none`; only the human graduates rules.
+- **Monotonic progress.** Hold authorized scope fixed; defer tangents once. Stop unsupported expansion. Dispatch authorized unblocked work or state the hold; inspect any command refusal before continuing.
+- **Evidence over proxies.** Name the authoritative property, proxy, innocent triggers and sign-inversion risk. Read cited identifiers at their definitions; grep is a lead. Recheck affected callers, fixtures, tests and independent inventories.
+- **Concrete uses; one home.** No speculative abstraction without a second present use. Consolidate at three copies; prefer fewer concepts. Use scripts for deterministic work and intelligence for contextual judgment.
+- **Tests earn their cost.** Each test addresses a plausible failure mode and is worth its cost; keep genuine security, boundary and contract checks ([test governance](policies/test-suite-governance.md)).
+- **Authority direction.** Policies prevail; plans refine and outrank briefs. Fix ambiguity at its owner; briefs never cite policies or plans.
+- **Coherent outcomes.** Multiple surfaces and absent children do not require splitting. Split only at consequential decisions, independently accepted prerequisites, deployment/migration/human seams or demonstrated coherence limits. Ordinary internals belong to the coder; consequential scope stays approved. Never merge completed phases.
+- **Empirical acceptance and product review.** Name falsifying checks and manual criteria. Discover broadly, batch evidenced blockers, separate optional advice, preserve stable findings; rebase on changed authority, scope, risk or lost continuity. Product primary mode uses advisory reports and at most two passes per stage for recorded cause; delegated mode keeps the role policy's limits. Methodology work requires no independent review.
+- **Candidate-bound assurance.** Product identity binds review; full-tree identity binds gate non-mutation and delivery. Declared-authority and reviewed-bookkeeping checks remain independent. Unknown tracked classifications refuse; unknown nonignored untracked paths and `candidate-partition.yaml` itself stay active.
+- **Two full gates.** Focused iteration precedes product critique; methodology work is self-checked by the primary. The orchestrator runs the full implementation-candidate sequence ending in `./bin/check all`; accepted close precedes captured status mutation. After all bookkeeping, run the second bare full handoff gate; no tracked write follows success. Bind prospective child completion; parent completion requires separate acceptance.
+- **Execution truth.** One append-only trace, exact joins and overlap-safe unions; separately report operator-input parks. Missing measurement is unknown, never zero. Give a refusing command its own block and read its diagnostic before the next command; repair and delivery are where chaining recurs. Finalize evidence before sanitized offline reports.
+- **Safe acceleration.** Use substantial, obvious low-risk time savings within scope, preserving correctness, coverage, determinism, the selected product review contract and both gates. No optimization tangents.
+- **Atomic toolchain.** Runtime, metadata, lockfile, setup, focused/full tests, receipts, proofs and callers move together. Use repository wrappers; bad overrides and failed probes never fall back. Keep scratch captures outside the reviewable tree or explicitly ignored.
+- **Methodology routing.** All authorized methodology work, including `teach` and `learn`, is one-shot by the primary with commit and fast-forward-push authority after required checks. No delegated planning/coding or independent review/critique. Applies across harnesses and model tiers. Read [review lanes](policies/review-lanes.md).
+- **Portable parity.** Canonical sources and thin mirrors; repo-relative committed paths; the declared flat package boundary. Greenfield replacement and delivery/human-judgment boundaries follow the hard rules.
+
+### Activity log (`log/entries/`)
+
+Owning writers append new immutable entries with `multioperator append`; preserve exact bodies and per-writer predecessor sequences. Parks remain in progress; terminal records carry Lessons, evidence, remaining work and truthful outcomes.
+
+### User actions (`user-actions/`)
+
+Glob `user-actions/*.md` at session start; read frontmatter and surface dependencies before work. File human-only actions before ending; use `bin/new-name`, record dependencies/deferral and archive closed entries. Agents close only personally completed actions; GUI, console, pricing and billing checkoff stays human-only.
+
+### Lessons (`lessons/`)
+
+Read both lesson directories before filing/recurring; one row per observation. Run `./bin/lessons validate` and `./bin/lessons candidates`. Human ratification owns graduation/rejection. Harvest process observations and failure analysis at each close/park.
+
+## Universal conventions
+
+Never hard-wrap Markdown prose: one physical line per paragraph, including list-item prose. Preserve syntax-required breaks. Give one executable command per copyable shell fence. Use bare skill names in neutral prose and both harness invocation forms when showing commands. Follow `plain` for operator messages; peers retain full technical fidelity. Use User/operator/owner and they/them in durable role language; authorship credit is separate.
+
+Agent decisions use kickoff’s input-park/`blocked-owner` route; unattended decisions park in artifacts. Only the operator invokes `ask`. Record rulings at their authority and human work in `user-actions/`.
+
+## Glossary
+
+Use the canonical [glossary](briefs/methodology.md#glossary); flag terminology mismatches.
+
+<!-- METHODOLOGY_CONTRACT_END -->

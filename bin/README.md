@@ -4,7 +4,10 @@
 
 ## Convention
 
-- **Invoke repo-relative:** `./bin/<name>`. Scripts `cd` to the repo root themselves where they need to, so they work from any working directory.
+- **Invoke repo-relative:** `./bin/<name>`. Shell entry points resolve their own
+  symlink chains before deriving the repository root, then `cd` there where
+  needed, so they work from any working directory and through single-hop or
+  chained launch symlinks.
 - **One concern per script.** A script does one mechanical job and exits with a meaningful status code (0 = clean/done, non-zero = findings/failure).
 - **Document every script here** — what it does, when to run it, and its exit/refusal behavior — so this README is the operator-facing index for the directory. Derived projects extend this list as they add their own mechanistic scripts.
 - **Reach for `bin/` deliberately.** When a phase needs a repeatable check, a mechanical sweep, a generator, or a reconciler, that is `bin/` work, not agent work. When it needs judgment, it is not. The triage rule is [`policies/mechanistic-vs-intelligence.md`](../policies/mechanistic-vs-intelligence.md).
@@ -57,6 +60,10 @@ worst-case cost before dispatch and aborts if a successful response omits `usage
 ```bash
 ./bin/palace-embed-remote-probe --store "$(mktemp -d)" --pin
 ```
+### `docs` — build, review and publish the curated manual
+
+`./bin/docs setup` uses exact installed mdBook/admonish versions or installs locked tools under `.kickoff/docs-tools`; the compiler pin is explicit and global tools are unchanged. `./bin/docs` builds and opens the local book. `build` and `check` validate curated sources, generated links/anchors/assets and search/print. `serve` opens a foreground loopback preview; `--url` accepts an existing approved Tailnet proxy URL and creates no route. `deploy` requires the clean latest pushed configured release branch and an already approved Pages workflow; `deploy continuous on|off` changes the explicit push switch without removing manual deployment. `verify` probes the live site and private-path exclusions. A refusal exits nonzero; dispatch does not claim deployment completion or live/browser verification. See [software documentation](../policies/software-documentation.md) and [the manual](../manual/src/SUMMARY.md).
+
 ### `check-candidate-partition` — validate declared paths
 
 `./bin/check-candidate-partition` validates the live declaration and every tracked path. `./bin/check-candidate-partition --staged` validates indexed declaration bytes against the complete index. Missing, malformed, or incomplete classification exits nonzero; a valid declaration reports its digest and tracked-path count. The declaration format and review boundary are owned by [orchestration evidence](../policies/orchestration-evidence.md). The checker runs in the policy gate and opt-in commit hook; it does not install hooks or mutate Git configuration.
@@ -107,13 +114,9 @@ failed dependency probe stops the command; no managed or ambient fallback is
 tried. Select a base interpreter outside `.venv`; an interpreter inside
 the environment uv manages is rejected before synchronization can replace it.
 
-### `_python-toolchain` — shared runtime resolver and probe
+### `_python-toolchain` — shared runtime resolver, probe and sync exclusion
 
-Source-only helper used by `setup`, `test`, `check`, and `python`. It validates
-the Python bundle, resolves the managed default or authoritative override, and
-runs the real project-and-tool dependency probe with the same selection
-arguments used by the eventual command. It is part of the atomic toolchain
-contract and is not invoked directly.
+Source-only helper used by `setup`, `test`, `check`, and `python`. It validates the Python bundle, resolves the managed default or authoritative override, and runs the real project-and-tool dependency probe with the same selection arguments used by the eventual command. On macOS its initialiser also creates `.kickoff/` and marks it excluded from Dropbox syncing on every run, whether or not the checkout is inside a Dropbox folder; a failed marking stops the entry point ([build gates](../policies/build-gates.md#runtime-state-stays-out-of-file-syncing)). It is part of the atomic toolchain contract and is not invoked directly.
 
 ### `check` — authoritative repository build gate
 
@@ -145,6 +148,39 @@ lockfile. Behavioral coverage lives in
 `tests/test_toolchain_entrypoints.py`, `tests/test_check.py`, and
 `tests/test_check_receipt.py`.
 
+### `test-governance` — inventory and govern the proof estate
+
+Inventories collapsed families and expanded leaves across pytest, the full
+gate, and the commit hook; validates Palace's frozen reset, dispositions,
+critical risks, effectiveness evidence, and zero-growth budget; selects vital
+or changed iteration lanes; runs the digest-bound assay; and reports the live
+estate. Fast-lane uncertainty widens to the complete retained suite.
+
+```bash
+./bin/test-governance validate
+./bin/test-governance reassess
+```
+
+Behavioral coverage lives in `tests/test_test_governance.py`.
+
+### `kickoff-command-zero` — cheap ordered acceptance preflight
+
+Validates the active immutable command manifest, real-read venue receipt, and
+stage topology; runs every manifest-declared selector dry-run; then checks
+format and log policy. It stops on the first failure.
+
+```bash
+./bin/kickoff-command-zero --run-dir "$RUN_DIR"
+```
+
+
+uncommitted block only by unique content digest. `normalize-final-newline` is
+closed to the three admitted bookkeeping files.
+
+```bash
+./bin/normalize-final-newline --path plan/INDEX.md --check
+```
+
 ### `check-receipt` — durable full-gate record and exact reuse
 
 Internal manager used by `bin/check all` and the pre-push hook. It identifies
@@ -166,7 +202,8 @@ Behavioral coverage lives in `tests/test_check_receipt.py`.
 ### `install-hooks` — opt in to tracked Git hooks
 
 Configures only the current checkout's `core.hooksPath` to `.githooks`. The
-pre-commit hook runs the fast harness-parity and toolchain-caller checks; the
+pre-commit hook runs the fast structural checks (harness parity, toolchain callers,
+the staged log, the staged candidate partition and proof-estate validation); the
 pre-push hook reuses a verified exact full-gate receipt or runs
 `./bin/check all` on any miss. Installation is explicit and idempotent.
 A different existing hooks path is preserved and reported; only `--force`
@@ -199,6 +236,16 @@ policy lane.
 ```
 
 Behavioral coverage lives in `tests/test_check_hooks_installed.py`.
+
+### `check-release-worktrees` — one clean checkout before a release
+
+A release is cut from one checkout, and work left in another registered worktree of the same repository cannot be seen from it. This check passes only when the repository has exactly one registered worktree, the checkout being released, and that checkout has no tracked, staged or untracked change. Any other registered worktree fails it, clean or not; so does a locked, prunable, bare, missing or unreadable registration, a record without its commit and branch-or-detached fields, and a listing that changes while it is read. It reads `git worktree list --porcelain -z` and `git status --porcelain=v1 -z --untracked-files=all`, so a path containing spaces or newlines is read exactly. It only reads: it never removes, prunes, moves, resets or unlocks anything. Exit 0 is a pass, 1 a refusal naming each worktree and its observed state, and 2 a Git failure, which is never read as clean.
+
+```bash
+./bin/check-release-worktrees
+```
+
+Run it at the start of release preparation and again immediately before each tag or publication, per [`policies/human-in-the-loop.md`](../policies/human-in-the-loop.md#before-a-tag-or-publication-one-clean-checkout). It is not part of `./bin/check all`. Behavioral coverage lives in `tests/test_check_release_worktrees.py`.
 
 ### `kickoff-config` — human-editable `kickoff` configuration and enforcement
 
@@ -295,6 +342,8 @@ behavioral coverage lives in `tests/test_kickoff_tree_id.py`.
 
 ### `kickoff-evidence` — run-scoped review and gate evidence
 
+`kickoff-evidence verify-completion --repository <root> --record <durable-json>` reads back scope-owned delivery resource dispositions without executing cleanup. See [delivery resource disposition](../policies/human-in-the-loop.md#delivery-resource-disposition) for the record contract and authority boundaries.
+
 Initializes and validates the authority, change, finding, packet, role-attempt,
 trace-binding, candidate-lineage, timing-summary, and gate records for one
 `kickoff` run. It extracts exact JSON evidence blocks from role artifacts,
@@ -313,6 +362,8 @@ digest plus a loud warning rather than stranding the closed gate span. Run
 reports missing acceptance roles and allowed next actions. `close` materializes
 one idempotent accepted, parked, or failed terminal record and appends its exact
 log block once; parked and failed closes require a validated failure signature.
+
+`run-gate` prints the immutable execution hash with diagnostics explicitly unreviewed. Inspect the complete command output, then use `review-gate --gate <hash> --warning-count <observed-count> --summary <assessment>` with the same run directory. Diagnostic observations live in `gate-reviews.jsonl`; corrections require the prior review hash through `--supersedes` and do not create new execution rows. Acceptance refuses any managed execution without a valid diagnostic review. Imported nonfinal evidence continues to carry an already observed count through `record-gate`.
 
 ```bash
 ./bin/kickoff-evidence --help
@@ -353,6 +404,12 @@ runtime data. An empty archive is valid before the first completed phase.
 ./bin/check-execution-dashboards
 ```
 
+```bash
+./bin/check-execution-dashboards --regenerate
+```
+
+`--regenerate` rewrites any tracked report file that differs from its regeneration, from tracked inputs only. It renders every existing report from that report's own accepted trace, handoff and park observations, applies every check to the result, and writes only after the whole archive has validated; a failure leaves every file as it was. It never selects a different accepted trace, never rewrites a handoff and never touches the trace ledger. Run it when a later trace for a phase, such as a cancelled or failed attempt, has changed a report that was already rendered. The plain form never writes.
+
 ### `serve-execution-dashboard` — local report server
 
 Serves `reports/execution/` on loopback for browser review. `kickoff` uses its
@@ -361,25 +418,6 @@ validation.
 
 ```bash
 ./bin/serve-execution-dashboard --open
-```
-
-### `check-harness-parity` — canonical/mirror consistency
-
-Verifies the top-level instruction symlink, skill-directory symlinks, and thin
-Codex agent pointers against their canonical Claude definitions.
-
-```bash
-./bin/check-harness-parity
-```
-
-### `check-toolchain-callers` — repository runtime boundary
-
-Inventories active scripts, hooks, workflows, and instructions and rejects
-raw dependency-bearing runtime or test commands that bypass repository-owned
-entry points.
-
-```bash
-./bin/check-toolchain-callers
 ```
 
 ### `lessons` — lessons-ledger validation and queries
@@ -404,13 +442,75 @@ outside this tool.
 ./bin/lessons candidates
 ```
 
+Open lessons with no new occurrence in sixty days, proposed at the next sweep for closing as not recurring:
+
+```bash
+./bin/lessons aged
+```
+
 Governed by [`policies/lessons.md`](../policies/lessons.md); behavioral
 coverage lives in `tests/test_lessons.py`.
 
-### `check-catalogs` — catalog, link, citation, and phase-ledger fitness
+### `treatise` — editorial-record validation
+
+Validates every brief whose frontmatter carries a `treatise:` mapping: the
+required keys, the field shapes, and ISO dates on directives, renderings, and
+external facts. A leftover `briefs/<name>.yaml` sidecar beside its brief fails,
+because the record has one home. The checks are about shape; the history of the
+`directives` log lives in version control.
+
+```
+./bin/treatise validate
+```
+
+```
+./bin/treatise show
+```
+
+`validate` is the default subcommand. Exit 0 when every treatise validates, 1 on
+a violation, 2 when `briefs/` cannot be read.
+
+Governed by [`policies/treatise.md`](../policies/treatise.md); behavioral
+coverage in `tests/test_treatise.py`.
+
+### `deliver` — fail-closed ordinary Git delivery
+
+Requires the gate-proved candidate identity, stages every and only explicit
+changed path, verifies the staged and resulting commit path sets, makes an ordinary factual commit,
+and non-force-pushes to one unambiguous aligned upstream. It refuses unexpected
+paths, hook failures, missing or ambiguous upstreams, divergence, rejected
+pushes, and residual dirt. `--no-push` and `--no-commit` implement named
+one-shot restrictions without relaxing any gate.
+
+```bash
+./bin/deliver --candidate "$HANDOFF_CANDIDATE" --message "Complete Phase 4.2" -- path/one path/two
+```
+
+Behavioral coverage lives in `tests/test_deliver.py`.
+
+### `check-harness-parity` — canonical/mirror consistency
+
+Verifies the top-level instruction symlink, skill-directory symlinks, and thin
+Codex agent pointers against their canonical Claude definitions.
+
+```bash
+./bin/check-harness-parity
+```
+
+### `check-toolchain-callers` — repository runtime boundary
+
+Inventories active scripts, hooks, workflows, and instructions and rejects
+raw dependency-bearing runtime or test commands that bypass repository-owned
+entry points.
+
+```bash
+./bin/check-toolchain-callers
+```
+
+### `check-catalogs` — document and phase-ledger fitness functions
 
 Verifies the durable-document catalogs stay closed under sync: every
-`policies/*.md` and `briefs/*.md` file is indexed in `CLAUDE.md` and every
+`policies/*.md` and `briefs/*.md` file is indexed in `AGENTS.md` and every
 indexed entry resolves to a file (no orphans either way). It also validates
 current-candidate repository-internal Markdown links — both tracked and
 nonignored untracked files, path *and* the
@@ -433,9 +533,11 @@ link quoted inside backticks is a quoted edit target, not a live link. It also
 enforces [`policies/phase-status.md`](../policies/phase-status.md) over
 per-phase files: a `status:` frontmatter field or a `Status: ✅`-shaped
 declaration line in any `plan/phase-*.md` fails; narrative emoji mentions in
-prose stay fine. `--closing-phase <id>` additionally refuses a completed child
-that neither completes its parent nor leaves that parent in progress with
-another drafted incomplete direct child.
+prose stay fine. A `depends_on` or `informs` value that is not a phase id, a
+file path above all, fails with the id to write, since the ordering check
+could not read it. `--closing-phase <id>` additionally refuses a completed
+child that neither completes its parent nor leaves that parent in progress
+with another drafted incomplete direct child.
 
 ```bash
 ./bin/check-catalogs
@@ -479,7 +581,8 @@ Mechanistic post-implementation check `kickoff` runs after `capture-change`
 and before the code critic is dispatched (Step 5). About one code finding in
 seven over a month was the critic discovering an item the approved plan named
 and the coder never wrote; a script reads the plan's own inventory against the
-tree instead. Every `### New Files` path must exist; every identifier the
+tree instead. Every `### New Files` path must exist; every `### Deleted
+Files` path must be gone (`deleted-file-present` otherwise); every identifier the
 plan's `## Definitions Read` table declares `introduced` must occur in the
 tree; every backticked `test_*` node and `path::member` cited under Testing
 Strategy, Build Gate Sequence, or Acceptance must exist. An item that is
@@ -524,49 +627,55 @@ exists.
 
 Behavioral coverage lives in `tests/test_review_verdicts.py`.
 
-### `test-governance` — inventory and govern the proof estate
+### `check-shell-syntax` — shell-script parse gate
 
-Inventories collapsed families and expanded leaves across pytest, the full
-gate, and the commit hook; validates Palace's frozen reset, dispositions,
-critical risks, effectiveness evidence, and zero-growth budget; selects vital
-or changed iteration lanes; runs the digest-bound assay; and reports the live
-estate. Fast-lane uncertainty widens to the complete retained suite.
-
-```bash
-./bin/test-governance validate
-./bin/test-governance reassess
-```
-
-Behavioral coverage lives in `tests/test_test_governance.py`.
-
-### `deliver` — fail-closed ordinary Git delivery
-
-Requires the gate-proved candidate identity, stages every and only explicit
-changed path, verifies the staged and resulting commit path sets, makes an ordinary factual commit,
-and non-force-pushes to one unambiguous aligned upstream. It refuses unexpected
-paths, hook failures, missing or ambiguous upstreams, divergence, rejected
-pushes, and residual dirt. `--no-push` and `--no-commit` implement named
-one-shot restrictions without relaxing any gate.
+Runs `bash -n` over every shell script (selected by shebang) under `bin/` and
+`.githooks/`, so a parse error in a gate or hook script is caught by the gate
+rather than surfacing the next time that script runs — possibly inside the
+failure path it guards. Exit 0 clean; exit 1 with one `ERROR:` line per
+failing file. Part of `./bin/check policy` as `policy-shell-syntax`.
 
 ```bash
-./bin/deliver --candidate "$HANDOFF_CANDIDATE" --message "Complete Phase 4.2" -- path/one path/two
+./bin/check-shell-syntax
 ```
 
-Behavioral coverage lives in `tests/test_deliver.py`.
+Behavioral coverage lives in `tests/test_shell_syntax.py`.
 
-### `treatise` — editorial-record validation
+### `new-name` — ledger slug generator
 
-Validates the `treatise:` mapping embedded in canonical brief frontmatter:
-audience, readings, rulings, renderings, external facts, and open questions.
-It is the mechanical preservation layer for audience-specific outward prose
-and runs in the policy lane of `./bin/check all`.
+Prints one random, memorable, hyphenated slug (default two words) for naming
+`lessons/` and `user-actions/` files. Filters connective filler tokens and
+refuses candidates that collide with any existing basename across all four
+ledger directories (`lessons/`, `lessons-archived/`, `user-actions/`,
+`user-actions-archived/`). Exit 2 on a word count below 2; exit 1 if no
+acceptable slug is found within the attempt budget.
 
 ```bash
-./bin/treatise validate
+./bin/new-name        # two words (the ledger convention)
+./bin/new-name 3      # three words
 ```
 
-Behavioral coverage lives in `tests/test_treatise.py`.
+Behavioral coverage lives in `tests/test_new_name.py`.
 
+
+Phase numbers of work that has not started follow its order of execution. To
+insert a phase ahead of waiting work, this script moves the waiting phase at
+that number, every later waiting sibling and all their sub-phases up by one:
+it renames the phase files, rewrites their `id`, `depends_on` and `informs`
+fields, the phase table, the dependency graph and every plan link, and adds a
+dated renumbering record to the ledger. It refuses when a phase that is in
+progress or completed would move, or when a `depends_on` or `informs` value is
+not a phase id and so could not be carried to the new number. It rewrites no
+dated prose: it lists the mentions it left for a reader.
+
+```bash
+```
+
+Then add the new phase's file and its row at the number that was opened.
+Governed by [`policies/phase-status.md`](../policies/phase-status.md) § Numbers
+follow the order of upcoming work; `bin/check-catalogs` refuses a plan whose
+waiting phases are numbered out of their declared order. Behavioral coverage
+lives in `tests/test_multioperator.py`.
 
 ## Palace-specific scripts
 
@@ -588,3 +697,42 @@ Operator helpers for palace's own daemons and smokes (documented per phase):
 `kickoff-evidence` registers only independent reviewers in primary mode. Its watcher-owned `start-advice` consumes the phase-wide pass allowance. `ingest-findings` stores advisory reports separately; `accept-primary --input <json>` records primary dispositions and final-candidate acceptance; `carry-advice --source-run <prior>` preserves observations across continuations. Status and timing distinguish advisory observations from delegated verdicts. Shared implementation lives in `lib/agentic_starter/workflow.py` and `lib/agentic_starter/advisory.py`; transfer them with the managers and finding schema.
 
 `review-verdicts --advisory-run <run-directory>` reads canonical advisory observations and primary decisions into separate dataset arrays, without treating declined advice as a rejection loop. Repeat the option for selected runs; historical transcript verdict harvesting remains unchanged. A stored primary decision is historical evidence, not proof that today's working tree is accepted.
+
+### A registration that was never launched
+
+`kickoff-evidence record-unlaunched-attempt --run-dir <run> --registration <registration.json> --refusal-artifact <file inside the run>` records that a registered attempt was refused before anything launched. It is accepted only while no dispatch row, execution span or advisory claim exists for the attempt, and validation re-proves that each time. `register-role-attempt` refuses a later attempt of an operation while an earlier one was never dispatched and names the relaunch. The supervised test runner builds each script tool's cached environment once before starting parallel workers.
+
+### A review the owner directed outside the watcher
+
+`kickoff-evidence record-owner-directed-review --run-dir <run> --operation <review operation> --harness <claude|codex> --model <model> [--effort <effort>] --launcher <text> --scope <text> --owner-evidence <file>` records the owner's task-specific direction that a review use a named reviewer or launcher. It replaces the frozen reviewer for that operation's next attempts only. `kickoff-evidence attest-directed-launch --run-dir <run> --registration <registration.json> --launch-evidence <file> --prompt <file> --observed-model <value|unknown> --observed-effort <value|unknown> --posture <read-only|not-read-only|unknown>` retains what the launcher reported. The attempt is otherwise registered, claimed, timed, dispatched and ingested as usual, and `status` lists it under `owner_directed_reviews` as attested rather than witnessed. Rule: [orchestration evidence](../policies/orchestration-evidence.md#owner-directed-review-outside-the-watcher).
+
+### Immutable advice-source recovery
+
+`kickoff-evidence attest-advice-source --run-dir <fresh-continuation> --source-run <historical-run> --predecessor-run <earlier-run>` records a continuation-local provenance receipt for a historical numbering gap that ordinary export refuses. Invoke the fresh continuation's pinned tool, then use ordinary `carry-advice` and fresh primary acceptance. Repeat `--predecessor-run` for distinct original role predecessors; duplicate or ambiguous originals refuse. All originals remain read-only; the earlier source must independently validate all role joins, and its unique accepted launch must precede the missing attempt in the same phase budget. The receipt binds metadata, captured plans, closed spans and the original budget prefix. Repeated identical admission is idempotent; conflicts, changed originals, missing claims, wrong work items and unmatched spans refuse. An un-ingested earlier artifact is never promoted to an accepted report. This command neither launches a reviewer nor resets or consumes an allowance. See [evidence policy](../policies/orchestration-evidence.md).
+
+An attested continuation starts its own role numbering at 1 if any additional review is separately authorized; the receipt preserves historical provenance and does not assign local attempt numbers or authorize another pass.
+
+## Durable evidence and interruption
+
+`kickoff-evidence init` first runs the checkout's own `bin/check-catalogs` and refuses, capturing nothing, when it fails. It defaults to an opaque `.kickoff/runs/` directory and refuses known temporary storage; keep preflight and all required outputs persistent too. Gate artifacts, diagnostics and revision packets are retained by content address and rehashed during validation. See [evidence storage](../policies/orchestration-evidence.md#retained-artifact-validation-and-interrupted-adoption).
+
+`execution-telemetry interrupt --trace-id <old> --successor-trace-id <new> --custody-evidence <file>` records a separately checked cross-boot interruption/successor observation without closing or rewriting the old trace. See [clock and custody requirements](../policies/execution-telemetry.md#cross-boot-interruption-observation). It supplies no missing original review evidence or new review allowance.
+
+- `multioperator` — transition rehearsal and maintenance (`rehearse`, `validate`, `add`, `order`, `event`, `append`, `render`). `validate` verifies every retained acceptance byte that is present and reports ignored evidence absent from the checkout as `EVIDENCE NOT HELD` without refusing; `transfer-preflight` also returns the receiver's recorded methodology provenance and the source releases it has not recorded; `append` refuses a methodology close that is not an END or PARK record. For terminal log records, use `append-terminal --root . --writer <operator> --content <content.json>` to compose and publish through the immutable writer, or `compose-terminal --content <content.json> --output <fresh-block.md>` to prepare the exact body for evidence close. Supply the shared `title`, `body` and explicit `lessons` array as defined in [log discipline](../policies/log-discipline.md#follow-up-correction-format); the tool never infers a lessons answer. See [the migration runbook](../policies/multi-operator-migration.md#0-unified-migration-runbook). Use `transfer-preflight --intent methodology|capability --entry teach|learn --donor <source> --recipient <destination>` for symmetric read-only routing. The same `rehearse` command accepts the explicit existing-product retrofit recipe in [the transfer runbook](../policies/multi-operator-migration.md#9-symmetric-transfer-and-existing-product-retrofit), retaining narrative history and seeding prospective records without adoption. It never grants ownership or runs Git rollback; rehearsal is not adoption. `transfer-ancestry --donor <source> --recipient <destination> [--release <revision>]` reports, for each shared file that differs, the source revision nearest the recipient's copy, the recipient lines no source revision ever held and the conflicts a merge on that ancestor leaves; it is read-only. `adopt --root <target>` records the owner's adoption of a delivered conversion, refusing while the plan index still carries the rehearsal banner; it is the only manifest change the staged validator admits.
+
+- `multioperator` — structured records and isolated migration rehearsal; current-format semantics require separate qualification.
+
+### Mechanical record authoring
+
+The owning tools accept semantic input instead of agent-copied structural templates. `lib/agentic_starter/input_io.py` shares only bounded checked-file publication: canonical repository-relative destinations, expected preimages for edits, validation before publication and create collisions without overwrite. It does not choose content, approval, classifications or evidence. Existing independent validators and delivery gates remain authoritative.
+
+| Surface | Supported writer | Supplied meaning and retained limits |
+|---|---|---|
+| Lessons | `lessons create/recur/edit --slug <name> --input-json <file>` | Candidate content or one actual occurrence; existing edits need `--expect-sha256`. Archived recurrence preserves disposition and body. |
+| Treatise metadata | `treatise write --brief briefs/<name>.md --input-json <file> --expect-sha256 <digest>` | Full initial editorial meaning or changed fields; date/serialization generated, unrelated content retained. |
+| Candidate declaration | `check-candidate-partition --write-input <file>` | Approved active/bookkeeping arrays; schema and YAML generated; edits need `--expect-sha256`. |
+| Dashboard handoff | `execution-telemetry compose-handoff --phase <id> --input-json <file> --output <durable-relative-file>` | Substantive presentation fields; phase/schema generated, privacy validator reused, edits need `--expect-sha256`. |
+| Harness mirrors | `check-harness-parity --sync-role <role>` or `--sync-skill <skill>` | Canonical source generates mirror; existing preimage required; custom fields and directory collisions refuse. |
+| Catalogs/skeletons | `check-catalogs --create-input <file>` then `--register-input <file> --expect-sha256 <digest>` | Explicit document content and zone; structure, links, placement and destination checked. |
+
+Read each owning policy's Mechanical authoring section for the semantic fields and failure boundaries. These methods do not migrate other repositories, normalize historical evidence, grant permission or establish human acceptance.

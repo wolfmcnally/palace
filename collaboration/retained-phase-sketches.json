@@ -1,0 +1,24 @@
+{
+  "authority": "plan/INDEX.md identity corrections dated 2026-10-20, preserved verbatim in the discovery index",
+  "files": {
+    "plan/phase-20.md": {
+      "bytes": 4324,
+      "disposition": "Launch refused before provider creation because the identity was already present in the hashed advisory-budget inventory; its parked run is preserved. Superseded by Phase 21 under the same approved scope.",
+      "original_id": "20",
+      "sha256": "6d1ac7b30178a26f0ed6fab158293cf62e5ba80548e74be64e7f9307f287aebb"
+    },
+    "plan/phase-bounded-indexing.md": {
+      "bytes": 3546,
+      "disposition": "Initial named entry; its parked execution and captured plan are preserved. Superseded by the 2026-10-20 identity correction that mapped it to Phase 20.",
+      "original_id": "bounded-indexing",
+      "sha256": "c40644e34926b29c53d0ac2ff7cc7018e0ee0aa8c41a9e9b0e5ab97378be7609"
+    }
+  },
+  "purpose": "Exact-byte historical records of two retired phase sketches. They are not phases, carry no lifecycle state, and their identifiers are reserved.",
+  "schema": "palace.retained-phase-sketches.v1",
+  "source_commit": "cbbfd797d162cb3937f7e6f709aa811657b124a7",
+  "successor": {
+    "phase": "bounded-indexing-recovery",
+    "source_phase": "21"
+  }
+}

@@ -106,7 +106,7 @@ A tag requires `CHECK RELEASE VERIFIED`. A failed native run blocks the release 
 
 A published release is not running on the publishing host until its supervised services run it. The editable system tool and the launchd daemons are separate: the daemons run `uv run palace … serve` from this checkout, and a running process keeps the code it started with until it restarts. After publication, on the published commit:
 
-1. Reinstall the editable tool against the lock, as `CLAUDE.md` describes, and confirm that `palace --version` reports the release.
+1. Reinstall the editable tool against the lock, as `AGENTS.md` describes, and confirm that `palace --version` reports the release.
 2. Confirm with read-only commands that the release opens the operator's existing store without refusal: `palace index status`, `palace index embedder show` and `palace index vector-backend show` report the stamped identity. Take a non-destructive backup of the derived index first, for example with SQLite's online `.backup`.
 3. Confirm that each installed LaunchAgent plist still equals its rendered tracked template under `daemons/`, then restart each supervised daemon in turn with `launchctl kickstart -k gui/$(id -u)/<label>`.
 4. Verify the running release, not only liveness. Check for new process start times, exactly one instance of each daemon, the version reported by the capture daemon's `/health`, and clean startup log lines. Then confirm that a real change flowed from the watched root through reindex and index. Never write to the watched root to manufacture that evidence; wait for an ordinary change.

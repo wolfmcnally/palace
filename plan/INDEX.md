@@ -1,28 +1,14 @@
+# Plan discovery
+
+State lives in `phases/` and `events/`; `./bin/multioperator render --root .` produces disposable local views. Entries written before the 2026-11-20 migration name phases by their former identifiers (numbers and the named `release`); `collaboration/manifest.json` maps each to its permanent id.
+
 # Public Palace plan
 
-## Phase table
-
-| Phase | Title | Status |
-|---|---|---|
-| [Phase 21](phase-21.md) | Bounded indexing and recovery | ✅ |
-| [Release](phase-release.md) | Public release preparation | ✅ |
-| [Phase 22](phase-22.md) | Bedrock embedding provider and composed settings | ✅ |
-| [Phase 23](phase-23.md) | Release 0.3.0 preparation | ✅ |
-| [Phase 24](phase-24.md) | Compatible file-vector reuse | ✅ |
-| [Phase 25](phase-25.md) | Prepared multi-store search | ✅ |
-| [Phase 26](phase-26.md) | Native watcher readiness witnesses | ✅ |
-| [Phase 27](phase-27.md) | Native watcher qualification design | ✅ |
-| [Phase 28](phase-28.md) | Native watcher post-readiness diagnostics | ✅ |
-| [Phase 29](phase-29.md) | Generic operator wording in source and operations docs | ✅ |
-| [Phase 30](phase-30.md) | Deterministic reindex pipeline proofs and a mandatory native watcher lane | ✅ |
-| [Phase 31](phase-31.md) | Returned-hit evidence with prepared single- and multi-store search | ✅ |
-| [Phase 32](phase-32.md) | Unloadable front matter and a bounded indexed-root lookup | ✅ |
-| [Phase 33](phase-33.md) | Typed provider failures, one retry loop and request pacing | ✅ |
-| [Phase 34](phase-34.md) | Release 0.6.0 with typed provider throttling | ✅ |
-| [Phase 35](phase-35.md) | Opt-in exact in-memory vector cache | ✅ |
-| [Phase 36](phase-36.md) | Release 0.7.0 with the opt-in vector cache | ✅ |
-
 Private phase history is excluded. Retained policies and current API contracts govern future work.
+
+## Retained retired sketches
+
+The two sketches below are historical records, not phases. They keep their exact bytes at their original paths, outside the live inventory in `phases/`; their identifiers stay reserved and are never reused. [`collaboration/retained-phase-sketches.json`](../collaboration/retained-phase-sketches.json) records each file's digest, original identifier and provenance. The corrections that retired them are preserved verbatim:
 
 Identity correction authorized 2026-10-20: the initial `bounded-indexing` entry maps explicitly to Phase 20 because downstream lifecycle tools require numeric identities. The original [named sketch](phase-bounded-indexing.md), parked execution and captured plan remain preserved; Phase 20 uses fresh authority capture and the same approved product scope. Public release preparation is unchanged.
 

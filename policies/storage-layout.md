@@ -94,7 +94,7 @@ Everything under `~/palace-data.noindex/index/` is a derived view over `~/palace
 The relationship between the two:
 
 - `facts/MEMORY.md` is the **canonical durable store** — long-term, append-mostly, fully-attributed.
-- `context/working.md` is the **frozen snapshot loaded at session start** — short, curated, prompt-cache-friendly. Per the CLAUDE.md "in-session writes take effect next session" rule, mid-session edits land on disk but become visible next session.
+- `context/working.md` is the **frozen snapshot loaded at session start** — short, curated, prompt-cache-friendly. Per the AGENTS.md "in-session writes take effect next session" rule, mid-session edits land on disk but become visible next session.
 - The consolidator promotes facts from `facts/MEMORY.md` into `context/working.md` based on recency and relevance, and prunes stale entries to stay under the cap. A `working.md` over its cap is itself a consolidator failure to surface, not an acceptable steady state.
 
 ### 4. Daily files are timezone-stable

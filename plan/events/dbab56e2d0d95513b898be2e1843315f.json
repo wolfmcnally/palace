@@ -1,0 +1,11 @@
+{
+  "from": null,
+  "id": "dbab56e2d0d95513b898be2e1843315f",
+  "owner": null,
+  "phase": "watcher-qualification-design",
+  "previous": null,
+  "reason": "Imported source state, not a new acceptance or lease",
+  "source_phase": "27",
+  "state": "completed",
+  "writer": "wolf"
+}

@@ -1,6 +1,6 @@
 # Policies — meta
 
-`policies/` holds the binding rules that govern how palace is built and operated. Every agent working in this repo reads policies *on demand* — when the action it's about to take is governed by one. `CLAUDE.md` is the always-loaded identity card; `policies/` is the spec library beneath it.
+`policies/` holds the binding rules that govern how palace is built and operated. Every agent working in this repo reads policies *on demand* — when the action it's about to take is governed by one. `AGENTS.md` is the always-loaded identity card; `policies/` is the spec library beneath it.
 
 ## What goes in `policies/`
 
@@ -11,7 +11,7 @@
 
 A policy file is the right home when:
 
-1. The rule is too long or too detail-heavy to live in `CLAUDE.md`, and
+1. The rule is too long or too detail-heavy to live in `AGENTS.md`, and
 2. Future work will cite it as authoritative, and
 3. It should outlive any single decision, brief, or cycle.
 
@@ -20,7 +20,7 @@ A policy file is the right home when:
 - **Research, surveys, methodology investigations.** Those are briefs (`briefs/`). A brief *informs* a policy; the policy is the rule extracted from it.
 - **Logs of what happened.** Those are commits and (eventually) `LOG.md`.
 - **Active execution queues.** Live queues are directories at the repo root (`user-actions/` per [`user-actions.md`](user-actions.md)), not policy bodies. A policy here may *govern* a queue's format and lifecycle; the queue itself does not live under `policies/`.
-- **Identity / framing material** that every agent needs every turn. That stays in `CLAUDE.md`.
+- **Identity / framing material** that every agent needs every turn. That stays in `AGENTS.md`.
 
 ## How a policy evolves
 
@@ -34,7 +34,7 @@ A policy file is the right home when:
 When two rules conflict:
 
 1. The operator's explicit instructions and applicable harness instructions override everything in palace.
-2. Palace's `CLAUDE.md` overrides individual policy files.
+2. Palace's `AGENTS.md` overrides individual policy files.
 3. Policy files override briefs (briefs inform, policies bind).
 4. `plan/` files override briefs (the plan is the refinement — it knows what the brief did not; update the brief to record the refinement).
 5. A more-specific policy overrides a more-general one.

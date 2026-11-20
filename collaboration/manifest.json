@@ -1,0 +1,30 @@
+{
+  "active_imports": [],
+  "adopted": true,
+  "format": "starter.multioperator.v1",
+  "migration_tool_sha256": "0630fa4c705003f38a9803c99524fb056c4aeeed93c9b870e0f680cb36251db0",
+  "original_log_bytes": 398911,
+  "original_log_sha256": "dd9f938371d5cae2b1765aca0c4fca678ad1cd99dccf16300448a06a2b962028",
+  "phase_mapping": {
+    "21": "bounded-indexing-recovery",
+    "22": "bedrock-embedding-provider",
+    "23": "release-zero-three",
+    "24": "compatible-vector-reuse",
+    "25": "prepared-multistore-search",
+    "26": "watcher-readiness-witnesses",
+    "27": "watcher-qualification-design",
+    "28": "watcher-postreadiness-diagnostics",
+    "29": "generic-operator-wording",
+    "30": "deterministic-reindex-proofs",
+    "31": "returned-hit-evidence",
+    "32": "unloadable-front-matter",
+    "33": "typed-provider-failures",
+    "34": "release-zero-six",
+    "35": "exact-vector-cache",
+    "36": "release-zero-seven",
+    "release": "public-release-preparation"
+  },
+  "source_archive_sha256": "5d1caf55465be04ae11c1609910bbaf8e661f283bf3ff575efbb5e25c0d125f4",
+  "source_commit": "cbbfd797d162cb3937f7e6f709aa811657b124a7",
+  "writer": "wolf"
+}

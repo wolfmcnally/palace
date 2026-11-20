@@ -5,6 +5,7 @@ from __future__ import annotations
 import fcntl
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -198,8 +199,54 @@ def validate_budget(root: Path, phase: str, text: str) -> list[dict[str, Any]]:
     return rows
 
 
+def grant_exception(
+    root: Path,
+    phase: str,
+    run_dir: Path,
+    registration: dict[str, Any],
+    candidate: str,
+    scope: str,
+    evidence: dict[str, Any],
+) -> str:
+    """Record an already verified User instruction; this is not an authenticator."""
+    file = budget_path(root, phase)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    with file.open("a+") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        handle.seek(0)
+        prefix = handle.read()
+        validate_budget(root, phase, prefix)
+        permit = {
+            "repository": str(root.resolve()),
+            "phase": phase,
+            "operation": registration["operation"],
+            "run": str(run_dir.resolve()),
+            "registration_sha256": digest(registration),
+            "candidate_id": candidate,
+            "scope": scope,
+            "owner_evidence": evidence,
+            "prefix_sha256": hashlib.sha256(prefix.encode()).hexdigest(),
+        }
+        identifier = digest(permit)
+        row = {"exception": permit, "exception_sha256": identifier}
+        updated = prefix + json.dumps(row, sort_keys=True) + "\n"
+        validate_budget(root, phase, updated)
+        handle.write(json.dumps(row, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+        return identifier
+
+
 def start(
-    root: Path, phase: str, run_dir: Path, operation: str, attempt: int, cause: str
+    root: Path,
+    phase: str,
+    run_dir: Path,
+    operation: str,
+    attempt: int,
+    cause: str,
+    *,
+    registration: dict[str, Any] | None = None,
+    candidate: str | None = None,
 ) -> dict[str, Any]:
     """Claim a launch atomically across continuations, before candidate transmission."""
     file = budget_path(root, phase)
@@ -207,12 +254,33 @@ def start(
     with file.open("a+") as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)
         handle.seek(0)
-        records = active_launches([json.loads(line) for line in handle if line.strip()])
-        matching = [r for r in records if r["operation"] == operation]
+        prefix = handle.read()
+        records = validate_budget(root, phase, prefix)
+        matching = [r for r in active_launches(records) if r["operation"] == operation]
         if any(r["run"] == str(run_dir.resolve()) and r["attempt"] == attempt for r in matching):
             raise AdvisoryError("advisory invocation already launched; resume is another pass")
+        extra = {}
         if len(matching) >= 2:
-            raise AdvisoryError("maximum two advisory passes per stage across continuations")
+            permits = [r for r in records if "exception" in r]
+            permit_row = permits[-1] if permits else None
+            if (
+                len(matching) != 2
+                or not permit_row
+                or registration is None
+                or permit_row["exception"]["run"] != str(run_dir.resolve())
+                or permit_row["exception"]["operation"] != operation
+                or permit_row["exception"]["candidate_id"] != candidate
+                or permit_row["exception"]["registration_sha256"] != digest(registration)
+            ):
+                raise AdvisoryError(
+                    "maximum two advisory passes per stage across continuations; "
+                    "no matching owner exception"
+                )
+            extra = {
+                "exception_sha256": permit_row["exception_sha256"],
+                "candidate_id": candidate,
+                "registration_sha256": digest(registration),
+            }
         if matching and not cause.strip():
             raise AdvisoryError("second advisory pass requires a recorded cause")
         row = {
@@ -221,9 +289,13 @@ def start(
             "attempt": attempt,
             "pass": len(matching) + 1,
             "cause": cause,
+            **extra,
         }
-        handle.write(json.dumps(row, sort_keys=True) + "\n")
+        serialized = json.dumps(row, sort_keys=True) + "\n"
+        validate_budget(root, phase, prefix + serialized)
+        handle.write(serialized)
         handle.flush()
+        os.fsync(handle.fileno())
         return row
 
 

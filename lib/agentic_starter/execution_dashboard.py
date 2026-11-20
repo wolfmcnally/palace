@@ -24,10 +24,10 @@ from agentic_starter.execution_telemetry import (
     validate_ledger,
 )
 
-DASHBOARD_SCHEMA = "agentic_starter.execution_dashboard.v1"
-INDEX_SCHEMA = "agentic_starter.execution_dashboard_index.v1"
-HANDOFF_SCHEMA = "agentic_starter.execution_dashboard_handoff.v1"
-RENDERER_VERSION = "dashboard-v4"
+DASHBOARD_SCHEMA = "agentic_starter.execution_dashboard.v2"
+INDEX_SCHEMA = "agentic_starter.execution_dashboard_index.v2"
+HANDOFF_SCHEMA = "agentic_starter.execution_dashboard_handoff.v2"
+RENDERER_VERSION = "dashboard-v5"
 DATA_PREFIX = "window.AGENTIC_STARTER_EXECUTION_DASHBOARD_DATA="
 INDEX_PREFIX = "window.AGENTIC_STARTER_EXECUTION_DASHBOARD_INDEX="
 PHASE_RE = re.compile(r"^\d+(?:\.\d+)*$")
@@ -42,6 +42,15 @@ ROLE_LABELS = {
     "reviewer": "Plan Review",
     "coder": "Implementation",
     "critic": "Code Review",
+}
+# A stage whose work the orchestrating primary did itself. A trace with no
+# planner (or coder) role span has no separate span for that work: the stage
+# span is the work, and the report attributes it to the role's activity.
+# A delegated trace always carries the role span, even for a dispatch that
+# was rejected, so its stage time stays coordination.
+INLINE_STAGE_ROLES = {
+    "orchestration.planning": "planner",
+    "orchestration.implementation": "coder",
 }
 SAFE_SPAN_FIELDS = (
     "trace_id",
@@ -79,6 +88,7 @@ RECOMMENDATION_KINDS = frozenset({"action", "blocking", "ready"})
 HANDOFF_KEYS = frozenset(
     {
         "schema",
+        "project",
         "phase_id",
         "what_just_landed",
         "see_for_yourself",
@@ -99,7 +109,14 @@ HANDOFF_FORBIDDEN = tuple(
     )
 )
 PARK_SUMMARY_KEYS = frozenset(
-    {"phase_id", "intervals", "total_duration_ns", "total_exact", "total_method", "open"}
+    {
+        "phase_id",
+        "intervals",
+        "total_duration_ns",
+        "total_exact",
+        "total_method",
+        "open",
+    }
 )
 PARK_INTERVAL_KEYS = frozenset(
     {
@@ -136,6 +153,22 @@ def _safe_script_json(value: Any) -> str:
 
 def _script(prefix: str, value: Any) -> str:
     return f"{prefix}Object.freeze({_safe_script_json(value)});\n"
+
+
+# A span's operation label as it is serialized in dashboard data. The value
+# pattern is the telemetry ledger's own label alphabet.
+OPERATION_LABEL = re.compile(r'"operation":\s*"[A-Za-z0-9][A-Za-z0-9._:/+-]{0,127}"')
+
+
+def content_scan_text(text: str) -> str:
+    """Return dashboard data with span operation labels blanked.
+
+    The dashboard check scans published data for words that suggest private
+    content. An operation label is a short identifier the orchestrator
+    writes, such as a gate's name, and is not content: a gate named for what
+    it checks must not fail the scan. Everything else is returned unchanged.
+    """
+    return OPERATION_LABEL.sub('"operation":""', text)
 
 
 def parse_data_script(text: str, *, index: bool = False) -> dict[str, Any]:
@@ -243,6 +276,8 @@ def validate_handoff(value: Mapping[str, Any], *, phase_id: str) -> dict[str, An
         )
     return {
         "schema": HANDOFF_SCHEMA,
+        # The reader may have several projects' reports open; the name says whose this is.
+        "project": _handoff_text(value["project"], "project", maximum=80),
         "phase_id": phase_id,
         "what_just_landed": valid_landed,
         "see_for_yourself": valid_demos,
@@ -363,8 +398,18 @@ def _dashboard_view(
         root_interval = (origin, origin + root["duration_ns"])
         roots.append(root_interval)
         root_ids.add(root["span_id"])
+        delegated_roles = {
+            raw.get("role") for raw in bundle["spans"] if raw["category"] == "intelligence"
+        }
         for raw in bundle["spans"]:
             safe = {key: raw[key] for key in SAFE_SPAN_FIELDS if key in raw}
+            inline_role = (
+                INLINE_STAGE_ROLES.get(raw["operation"])
+                if raw["category"] == "reconciliation"
+                else None
+            )
+            if inline_role is not None and inline_role not in delegated_roles:
+                safe["inline_role"] = inline_role
             start = origin + raw["start_offset_ns"]
             end = origin + raw["end_offset_ns"]
             interval_by_id[raw["span_id"]] = (start, end)
@@ -666,6 +711,7 @@ def build_phase_payload(
     return {
         "schema": DASHBOARD_SCHEMA,
         "renderer_version": RENDERER_VERSION,
+        "project": valid_handoff["project"],
         "phase_id": phase_id,
         "utc_date": finalized_date,
         "accepted_trace_id": accepted_trace_id,
@@ -691,7 +737,7 @@ PHASE_HTML = """<!doctype html>
  img-src 'self' data:; font-src 'none'; connect-src 'none'; object-src 'none';
  base-uri 'none'; form-action 'none'">
 <title>Execution dashboard</title>
-<link rel="stylesheet" href="../../assets/dashboard-v4.css"></head>
+<link rel="stylesheet" href="../../assets/dashboard-v5.css"></head>
 <body data-view="phase"><header class="sticky"><nav aria-label="Breadcrumb">
 <a href="../../index.html">Execution archive</a><span aria-hidden="true">›</span>
 <span id="crumb-date"></span><span aria-hidden="true">›</span>
@@ -701,7 +747,7 @@ PHASE_HTML = """<!doctype html>
 <main id="app"><p class="loading">Loading local telemetry…</p></main>
 <script src="../../assets/echarts-6.1.0.min.js"></script>
 <script src="data.js"></script><script src="../../index-data.js"></script>
-<script src="../../assets/dashboard-v4.js"></script></body></html>
+<script src="../../assets/dashboard-v5.js"></script></body></html>
 """
 
 INDEX_HTML = """<!doctype html>
@@ -712,13 +758,13 @@ INDEX_HTML = """<!doctype html>
  img-src 'self' data:; font-src 'none'; connect-src 'none'; object-src 'none';
  base-uri 'none'; form-action 'none'">
 <title>Execution dashboard archive</title>
-<link rel="stylesheet" href="assets/dashboard-v4.css"></head>
+<link rel="stylesheet" href="assets/dashboard-v5.css"></head>
 <body data-view="index"><header class="sticky"><nav aria-label="Breadcrumb">
 <strong>Execution archive</strong></nav></header>
 <main id="app"><p class="loading">Loading local telemetry…</p></main>
 <script src="assets/echarts-6.1.0.min.js"></script>
 <script src="index-data.js"></script>
-<script src="assets/dashboard-v4.js"></script></body></html>
+<script src="assets/dashboard-v5.js"></script></body></html>
 """
 
 
@@ -752,6 +798,7 @@ def _archive_lock(engine_root: Path) -> Iterator[None]:
 def _summary(payload: Mapping[str, Any]) -> dict[str, Any]:
     phase_view = payload["phase_view"]
     return {
+        "project": payload["project"],
         "phase_id": payload["phase_id"],
         "utc_date": payload["utc_date"],
         "accepted_trace_id": payload["accepted_trace_id"],
@@ -797,6 +844,8 @@ def _write_index(output_root: Path, payloads: Sequence[Mapping[str, Any]]) -> No
     index = {
         "schema": INDEX_SCHEMA,
         "renderer_version": RENDERER_VERSION,
+        # The archive is named for the most recently finished phase's project.
+        "project": summaries[-1]["project"] if summaries else None,
         "phases": summaries,
         "dates": [{"utc_date": key, "phases": grouped[key]} for key in sorted(grouped)],
     }
