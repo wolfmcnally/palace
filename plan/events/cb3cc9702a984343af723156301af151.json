@@ -1,0 +1,15 @@
+{
+  "acceptance": {
+    "path": ".kickoff/runs/run.SBebJmjF/closure.json",
+    "sha256": "b115f008bd521e05ea1520762c85dc4c7864669d5d6270720cfb59063fb5102e"
+  },
+  "claim": "operator authorization relayed by the authenticated factotum, Folded Sentinel_7fbf7bbb93b4819180f962d519c91c8e, 2026-11-21T06:28:22Z; sole writer session a6a8fd88",
+  "from": "in-progress",
+  "id": "cb3cc9702a984343af723156301af151",
+  "owner": "wolf",
+  "phase": "distinct-source-results",
+  "previous": "0157a62ed8ef465bbba62a029e925fcc",
+  "reason": "Accepted close: gates green on the approved candidate",
+  "state": "completed",
+  "writer": "wolf"
+}

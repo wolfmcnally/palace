@@ -12,9 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 105
-  leaves: 143
-budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once.; and the hosted-CI repair of the public handoff path guard under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (21:09:57Z) to repair the failed hosted checks with a focused cross-platform proof, of which exactly one family and one leaf are used once.; and the 0.7.1 tie-policy proof under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (23:49:06Z) to release a patch removing the SQLite fallback for tied in-memory scores with paired exact proofs, of which exactly one family and one leaf are used once.; and the beyond-limit tie proof under a ceiling of one family and one leaf, from the operator's 2026-11-21 correction relayed by the authenticated factotum (00:17:12Z) to rank tied groups beyond sqlite-vec's KNN limit without the released fallback, of which exactly one family and one leaf are used once."
+  families: 112
+  leaves: 154
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once.; and the hosted-CI repair of the public handoff path guard under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (21:09:57Z) to repair the failed hosted checks with a focused cross-platform proof, of which exactly one family and one leaf are used once.; and the 0.7.1 tie-policy proof under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (23:49:06Z) to release a patch removing the SQLite fallback for tied in-memory scores with paired exact proofs, of which exactly one family and one leaf are used once.; and the beyond-limit tie proof under a ceiling of one family and one leaf, from the operator's 2026-11-21 correction relayed by the authenticated factotum (00:17:12Z) to rank tied groups beyond sqlite-vec's KNN limit without the released fallback, of which exactly one family and one leaf are used once.; and the 0.8.0 opt-in distinct-results proofs under a ceiling of 7 families and 11 leaves, from the operator's 2026-11-21 order relayed by the authenticated factotum (06:28:22Z, sentinel 7fbf7bbb93b4819180f962d519c91c8e) to implement the distinct-source enhancement with duplicate, stale-sibling, cross-store, tie, limit, underfilled, non-opt-in and provider-budget tests, of which exactly 7 families and 11 leaves are used once."
 critical_risks:
   custody:
     state: applicable
@@ -8228,6 +8228,177 @@ families:
   mutation_evidence:
   - "Rank a tie that reaches the KNN limit by sqlite-vec's own choice instead of the exact distance scan."
   - "Send a cached leg to the released SQL when more than 4,096 rows lie at or below the cut distance."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: d-past-early-duplicates-return-ten-from-the-same-rerank-call-dff03d37b4
+  kind: pytest
+  selectors:
+  - "tests/test_distinct_results.py::test_ten_requested_past_early_duplicates_return_ten_from_the_same_rerank_call"
+  source_paths:
+  - "tests/test_distinct_results.py"
+  covers:
+  - "tests/test_distinct_results.py"
+  - "palace/prepared.py"
+  - "palace/search.py"
+  - "palace/multistore.py"
+  contract: "A distinct request for 10 over a reranked, expanded pool with three early duplicates returns exactly 10 first-per-key hits from the same single score call with identical inputs, keeping the plain ranking's hits and rank fields, while execution makes no embedding or expansion call with or without grouping; a pool genuinely holding seven distinct keys returns seven and reports underfilled after walking the whole pool."
+  risk_class: public-contract
+  oracle: "Chosen per-note scores; the plain prepared-limit result and its recorded score call; exact DistinctOutcome counts."
+  admission: "0.8.0 distinct-results admission funded by the named 2026-11-21 phase budget; no retirement."
+  nearest_overlap: "No retained proof groups results; the prepared-search proofs fix the plain ranking only."
+  historical_evidence: []
+  mutation_evidence:
+  - "Keep the single-store rerank truncation at the prepared limit in distinct mode."
+  - "Keep walking and keying the pool after the distinct limit is reached."
+  - "Make a second score call in distinct mode."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: ale-head-yields-to-the-reranked-sibling-not-the-fused-winner-e4b71dabbf
+  kind: pytest
+  selectors:
+  - "tests/test_distinct_results.py::test_an_ineligible_stale_head_yields_to_the_reranked_sibling_not_the_fused_winner"
+  source_paths:
+  - "tests/test_distinct_results.py"
+  covers:
+  - "tests/test_distinct_results.py"
+  - "palace/prepared.py"
+  - "palace/search.py"
+  - "palace/multistore.py"
+  contract: "An ineligible top-scored hit never fills its group: the kept sibling is the reranked winner, which the fused order ranks below the other sibling."
+  risk_class: public-contract
+  oracle: "Fused order learned from a failed-rerank pool; scores chosen to invert it; exact DistinctOutcome counts."
+  admission: "0.8.0 distinct-results admission funded by the named 2026-11-21 phase budget; no retirement."
+  nearest_overlap: "No retained proof exercises caller eligibility over reranked hits."
+  historical_evidence: []
+  mutation_evidence:
+  - "Let an ineligible (None-keyed) hit head its group."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: te-pools-what-it-already-produced-and-ties-keep-rerank-order-7ce1bdddcd
+  kind: pytest
+  selectors:
+  - "tests/test_distinct_results.py::test_every_route_pools_what_it_already_produced_and_ties_keep_rerank_order"
+  source_paths:
+  - "tests/test_distinct_results.py"
+  covers:
+  - "tests/test_distinct_results.py"
+  - "palace/prepared.py"
+  - "palace/search.py"
+  - "palace/multistore.py"
+  contract: "Constant scores rank by chunk id and the walk keeps that order; the direct and fused routes pool only the hits they already return and otherwise equal the released result; an empty pool calls no key and reports underfilled."
+  risk_class: public-contract
+  oracle: "The same store's plain results per route; chunk-id ordering of the full ranked pool."
+  admission: "0.8.0 distinct-results admission funded by the named 2026-11-21 phase budget; no retirement."
+  nearest_overlap: "Route proofs in tests/test_prepared_search.py cover plain results only."
+  historical_evidence: []
+  mutation_evidence:
+  - "Keep the single-store rerank truncation at the prepared limit in distinct mode."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: idence-is-read-in-the-retrieval-snapshot-and-reaches-the-key-6f36fb729f
+  kind: pytest
+  selectors:
+  - "tests/test_distinct_results.py::test_pool_evidence_is_read_in_the_retrieval_snapshot_and_reaches_the_key"
+  source_paths:
+  - "tests/test_distinct_results.py"
+  covers:
+  - "tests/test_distinct_results.py"
+  - "palace/prepared.py"
+  - "palace/search.py"
+  - "palace/multistore.py"
+  contract: "With evidence prepared, every pool hit's evidence, including hits beyond the prepared limit, equals the evidence read before a second connection commits inside the retrieval snapshot, on single-store applied and failed routes and multi-store applied, disabled and failed routes; the key receives the aligned entry, or None without evidence."
+  risk_class: public-contract
+  oracle: "Rows read before the search with an independent connection; a retrieval wrapper that commits from a second connection."
+  admission: "0.8.0 distinct-results admission funded by the named 2026-11-21 phase budget; no retirement."
+  nearest_overlap: "tests/test_hit_evidence.py fixes evidence for returned hits without distinct mode."
+  historical_evidence: []
+  mutation_evidence:
+  - "Read single-store pool evidence through a new connection after the retrieval snapshot closed."
+  - "Keep the single-store rerank truncation at the prepared limit in distinct mode."
+  - "Read multi-store pool evidence through a new connection after the snapshots closed."
+  - "Cut the multi-store unranked pool at the prepared limit in distinct mode."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: identity-is-the-callers-key-and-the-score-call-is-unchanged-2d3ef500df
+  kind: pytest
+  selectors:
+  - "tests/test_distinct_results.py::test_cross_store_identity_is_the_callers_key_and_the_score_call_is_unchanged"
+  source_paths:
+  - "tests/test_distinct_results.py"
+  covers:
+  - "tests/test_distinct_results.py"
+  - "palace/prepared.py"
+  - "palace/search.py"
+  - "palace/multistore.py"
+  contract: "On the multi-store seam a key by note collapses identical copies across stores to the first in ranked order, a key by encoded origin keeps both, and the single score call and its inputs equal the plain execution's, while execution makes no embedding or rewrite call."
+  risk_class: public-contract
+  oracle: "The plain multi-store result and recorded score call; first appearance in the origin-keyed pool."
+  admission: "0.8.0 distinct-results admission funded by the named 2026-11-21 phase budget; no retirement."
+  nearest_overlap: "Multi-store prepared proofs cover plain results only."
+  historical_evidence: []
+  mutation_evidence:
+  - "Keep the multi-store rerank truncation at the prepared limit in distinct mode."
+  - "Make a second score call in distinct mode."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: test-the-key-runs-after-every-snapshot-and-lease-has-closed-a713245796
+  kind: pytest
+  selectors:
+  - "tests/test_distinct_results.py::test_the_key_runs_after_every_snapshot_and_lease_has_closed"
+  source_paths:
+  - "tests/test_distinct_results.py"
+  covers:
+  - "tests/test_distinct_results.py"
+  - "palace/prepared.py"
+  - "palace/search.py"
+  - "palace/multistore.py"
+  contract: "The caller's key runs only after every admitted store snapshot has closed and, with a vector cache, after its lease has ended, on both seams."
+  risk_class: public-contract
+  oracle: "Wrapped admission recording snapshot closure; the cache's lease count."
+  admission: "0.8.0 distinct-results admission funded by the named 2026-11-21 phase budget; no retirement."
+  nearest_overlap: "Vector-cache proofs fix lease scope through rerank and evidence but no caller callback."
+  historical_evidence: []
+  mutation_evidence:
+  - "Keep the single-store rerank truncation at the prepared limit in distinct mode."
+  - "Keep the multi-store rerank truncation at the prepared limit in distinct mode."
+  - "Apply the single-store key inside the vector-cache lease."
+  - "Apply the multi-store key inside the vector-cache lease."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: tinct-refuses-malformed-requests-and-propagates-key-failures-380371ecd8
+  kind: pytest
+  selectors:
+  - "tests/test_distinct_results.py::test_distinct_refuses_malformed_requests_and_propagates_key_failures"
+  source_paths:
+  - "tests/test_distinct_results.py"
+  covers:
+  - "tests/test_distinct_results.py"
+  - "palace/prepared.py"
+  - "palace/search.py"
+  - "palace/multistore.py"
+  contract: "A non-callable key, a non-positive, boolean or non-integer limit, a value that is not DistinctResults (refused before any admission, cache lease or score call, with and without a vector cache), and a non-string key result refuse with IndexError; a key exception propagates unchanged; distinct=None returns the plain result."
+  risk_class: public-contract
+  oracle: "Exact refusal texts and the caller's own exception type."
+  admission: "0.8.0 distinct-results admission funded by the named 2026-11-21 phase budget; no retirement."
+  nearest_overlap: "No retained proof covers distinct inputs."
+  historical_evidence: []
+  mutation_evidence:
+  - "Accept a key result that is neither a string nor None."
+  - "Validate the distinct value only after store admission has begun."
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0

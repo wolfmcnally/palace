@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Opt-in distinct results per caller-supplied key. `execute_prepared_search` and `multistore.execute_prepared` accept `distinct=DistinctResults(key=..., limit=...)`: the search keeps its bounded pool (on the reranked route every admitted candidate, ranked by the same single rerank call, whose local truncation is all that is lifted) and, after every snapshot and vector-cache lease has closed, keeps the first hit per key in pool order, skipping hits the key marks ineligible with `None`, until `limit` are kept. Results gain `distinct`, a `DistinctOutcome(pool, walked, ineligible, duplicates, returned, underfilled)`; evidence, when prepared, is read for every pool hit in its store's snapshot and stays aligned. Provider calls, candidates and inputs are unchanged, and without `distinct` every result is the 0.7.1 result. See `docs/multi-store.md`.
+
 ## 0.7.1 — 2026-11-20
 
 - Equal vector distances are ordered by chunk id, nearest first, in both the released sqlite-vec search and the opt-in vector cache. sqlite-vec chooses which of several equally distant rows fills its bounded `k`, so the released search asks for one row more than the pool and, when the last place is tied, widens within sqlite-vec's 4,096-row KNN limit until the tied group is complete before taking the first `pool` by distance and chunk id; a tie that reaches that limit (and every full pool of 4,096) is ranked by scanning every row's distance with the same `vec_distance_l2`. A store without ties returns the same answer as 0.7.0; with ties, the members and order are now deterministic.

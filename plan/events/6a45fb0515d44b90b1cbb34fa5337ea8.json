@@ -1,0 +1,10 @@
+{
+  "from": null,
+  "id": "6a45fb0515d44b90b1cbb34fa5337ea8",
+  "owner": null,
+  "phase": "distinct-source-results",
+  "previous": null,
+  "reason": "New phase; not a claim or acceptance",
+  "state": "not-started",
+  "writer": "wolf"
+}

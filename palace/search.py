@@ -106,10 +106,13 @@ from palace.metadata import (
     parse_filters,
 )
 from palace.prepared import (
+    DistinctOutcome,
+    DistinctResults,
     HitEvidence,
     _changed_axis,
     _collect_hit_evidence,
     _seal,
+    _select_distinct,
     _selected_backend,
     _StoreBinding,
 )
@@ -146,6 +149,8 @@ __all__ = [
     "DEFAULT_LIMIT",
     "DEFAULT_POOL",
     "RRF_K",
+    "DistinctOutcome",
+    "DistinctResults",
     "ExpandResult",
     "ExpandSection",
     "PreparedSearch",
@@ -234,6 +239,8 @@ class RerankedSearch:
     order, when the search was prepared with ``evidence=True``; otherwise ``None``.
     ``vector_cache`` reports how an opt-in :class:`~palace.vector_cache.VectorCache`
     served the store's vector legs, when one was passed; otherwise ``None``.
+    ``distinct`` reports the walk of an opt-in
+    :class:`~palace.prepared.DistinctResults`, when one was passed; otherwise ``None``.
     """
 
     hits: list[SearchHit]
@@ -243,6 +250,7 @@ class RerankedSearch:
     vector_usage: VectorUsageSummary | None = None
     evidence: tuple[HitEvidence, ...] | None = None
     vector_cache: tuple[VectorCacheOutcome, ...] | None = None
+    distinct: DistinctOutcome | None = None
 
 
 @dataclass(frozen=True)
@@ -757,6 +765,7 @@ def execute_prepared_search(
     *,
     reranker: Reranker | None = None,
     vector_cache: VectorCache | None = None,
+    distinct: DistinctResults | None = None,
 ) -> RerankedSearch:
     """Freshly admit the prepared store and search its current rows with prepared vectors.
 
@@ -772,6 +781,15 @@ def execute_prepared_search(
     authorization hook and pins the store's resident view before admission, holds it
     through retrieval and the rerank, serves the sqlite-vec vector legs from memory with
     the released answer, and reports how in the result's ``vector_cache``.
+
+    An opt-in ``distinct`` (:class:`~palace.prepared.DistinctResults`) keeps the
+    search's bounded pool instead of its first ``limit``: on the reranked route every
+    admitted candidate, ranked by the same single rerank call; otherwise the hits the
+    route already returns, or every admitted candidate in fused order when the rerank
+    failed. After the snapshot and any vector-cache lease have closed, the caller's key
+    walks that pool in order, keeping the first eligible hit per key until
+    ``distinct.limit`` are kept. Hits and evidence are the kept ones and ``distinct``
+    reports the walk. Calls, candidates and inputs are the same as without it.
     """
     if not isinstance(prepared, PreparedSearch) or not hmac.compare_digest(
         prepared.seal, _seal(_unsealed_search(prepared))
@@ -781,8 +799,12 @@ def execute_prepared_search(
         raise IndexError(
             "prepared search reranker injection differs from execution; prepare the query again"
         )
+    if distinct is not None and not isinstance(distinct, DistinctResults):
+        raise IndexError("distinct must be a DistinctResults value or None")
+    ranked_pool = distinct is not None
     if vector_cache is None:
-        return _execute_prepared(prepared, reranker, None)
+        result = _execute_prepared(prepared, reranker, None, ranked_pool=ranked_pool)
+        return result if distinct is None else _distinct_search(result, distinct)
     backend = prepared.binding.vector_backend
     bypass = (
         prepared.absent
@@ -795,8 +817,17 @@ def execute_prepared_search(
         vector_cache.lease([prepared.store], bypass=[prepared.store] if bypass else ()) as lease,
         ExitStack() as hold,
     ):
-        result = _execute_prepared(prepared, reranker, lease.handle(prepared.store), hold)
-        return replace(result, vector_cache=lease.outcomes())
+        result = _execute_prepared(
+            prepared, reranker, lease.handle(prepared.store), hold, ranked_pool=ranked_pool
+        )
+        result = replace(result, vector_cache=lease.outcomes())
+    # The key runs only after the snapshot and the lease have closed.
+    return result if distinct is None else _distinct_search(result, distinct)
+
+
+def _distinct_search(result: RerankedSearch, distinct: DistinctResults) -> RerankedSearch:
+    hits, evidence, outcome = _select_distinct(result.hits, result.evidence, distinct)
+    return replace(result, hits=hits, evidence=evidence, distinct=outcome)
 
 
 def _execute_prepared(
@@ -804,6 +835,8 @@ def _execute_prepared(
     reranker: Reranker | None,
     cache: _StoreHandle | None,
     hold: ExitStack | None = None,
+    *,
+    ranked_pool: bool = False,
 ) -> RerankedSearch:
     configuration = prepared.binding.reranker
     selected_identity = configuration.identity if configuration is not None else None
@@ -850,10 +883,12 @@ def _execute_prepared(
                         configuration, store=prepared.store, local_loader=load_reranker
                     )
                 assert reranker is not None
+                # Every reranker scores all candidates in its one call; the ranked
+                # pool lifts only the local truncation.
                 ranked = rerank(
                     query=prepared.query,
                     candidates=candidates,
-                    top_k=prepared.limit,
+                    top_k=len(candidates) if ranked_pool else prepared.limit,
                     reranker=reranker,
                 )
             except RerankUnavailableError as exc:
@@ -864,13 +899,14 @@ def _execute_prepared(
                     detail=detail,
                     private=configuration is not None and configuration.provider == "endpoint",
                 )
+                unranked = fused if ranked_pool else fused[: prepared.limit]
                 return RerankedSearch(
-                    hits=fused[: prepared.limit],
+                    hits=unranked,
                     status="failed",
                     detail=detail,
                     reranker_identity=selected_identity,
                     vector_usage=_served_usage(usage),
-                    evidence=attested(fused[: prepared.limit]),
+                    evidence=attested(unranked),
                 )
 
             hit_by_id = {hit.chunk_id: hit for hit in fused}

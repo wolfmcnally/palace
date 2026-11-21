@@ -31,10 +31,13 @@ from palace.index.s3vectors import (
 )
 from palace.index.schema import assert_identity, assert_identity_readable, indexed_watch_roots
 from palace.prepared import (
+    DistinctOutcome,
+    DistinctResults,
     HitEvidence,
     _changed_axis,
     _collect_hit_evidence,
     _seal,
+    _select_distinct,
     _selected_backend,
     _StoreBinding,
 )
@@ -96,6 +99,7 @@ class MultiStoreSearch:
     vector_usage: VectorUsageSummary | None = None
     evidence: tuple[HitEvidence, ...] | None = None
     vector_cache: tuple[VectorCacheOutcome, ...] | None = None
+    distinct: DistinctOutcome | None = None
 
 
 class _QueryVectors:
@@ -474,6 +478,7 @@ def execute_prepared(
     *,
     reranker: Reranker | None = None,
     vector_cache: VectorCache | None = None,
+    distinct: DistinctResults | None = None,
 ) -> MultiStoreSearch:
     """Freshly admit each prepared store and search its current rows with prepared vectors.
 
@@ -489,6 +494,14 @@ def execute_prepared(
     An opt-in ``vector_cache`` runs its authorization hook for every store, then takes
     one lease over all of them before any store is admitted, holds it through retrieval,
     rerank and evidence, and reports each store's outcome in the result.
+
+    An opt-in ``distinct`` (:class:`~palace.prepared.DistinctResults`) keeps the whole
+    fused union of every store's admitted candidates instead of its first ``limit``:
+    ranked by the same single rerank call when it applied, otherwise in fused order.
+    Evidence, when prepared, is read for every one of them in its store's snapshot.
+    After every snapshot and any vector-cache lease have closed, the caller's key walks
+    that pool in order, keeping the first eligible hit per key until ``distinct.limit``
+    are kept. Calls, candidates and inputs are the same as without it.
     """
     if not isinstance(prepared, PreparedStoreSearch) or not hmac.compare_digest(
         prepared.seal, _seal(_unsealed(prepared))
@@ -498,12 +511,16 @@ def execute_prepared(
         raise IndexError(
             "prepared search reranker injection differs from execution; prepare the query again"
         )
+    if distinct is not None and not isinstance(distinct, DistinctResults):
+        raise IndexError("distinct must be a DistinctResults value or None")
     roots = list(prepared.stores)
     for root in roots:
         if root.resolve() != root:
             raise IndexError(f"prepared store no longer resolves to the same directory: {root}")
+    ranked_pool = distinct is not None
     if vector_cache is None:
-        return _execute_prepared(prepared, reranker, None)
+        result = _execute_prepared(prepared, reranker, None, ranked_pool)
+        return result if distinct is None else _distinct_search(result, distinct)
     bypass = [
         binding.store
         for binding in prepared.bindings
@@ -514,15 +531,27 @@ def execute_prepared(
         )
     ]
     with vector_cache.lease(roots, bypass=bypass) as lease:
-        result = _execute_prepared(prepared, reranker, lease)
-        return replace(result, vector_cache=lease.outcomes())
+        result = _execute_prepared(prepared, reranker, lease, ranked_pool)
+        result = replace(result, vector_cache=lease.outcomes())
+    # The key runs only after every snapshot and the lease have closed.
+    return result if distinct is None else _distinct_search(result, distinct)
+
+
+def _distinct_search(result: MultiStoreSearch, distinct: DistinctResults) -> MultiStoreSearch:
+    hits, evidence, outcome = _select_distinct(result.hits, result.evidence, distinct)
+    return replace(result, hits=hits, evidence=evidence, distinct=outcome)
 
 
 def _execute_prepared(
-    prepared: PreparedStoreSearch, reranker: Reranker | None, lease: VectorCacheLease | None
+    prepared: PreparedStoreSearch,
+    reranker: Reranker | None,
+    lease: VectorCacheLease | None,
+    ranked_pool: bool = False,
 ) -> MultiStoreSearch:
     query, limit, rrf_k = prepared.query, prepared.limit, prepared.rrf_k
     roots = list(prepared.stores)
+    # The ranked pool keeps every fused candidate; without it, the first ``limit``.
+    cut = None if ranked_pool else limit
     try:
         with ExitStack() as stack:
             usage = stack.enter_context(_tracked_vector_usage())
@@ -601,7 +630,7 @@ def _execute_prepared(
                 return tuple(collected[item.store][item.hit.chunk_id] for item in hits)
 
             if not prepared.rerank_enabled:
-                returned = [union[key] for key in fused[:limit]]
+                returned = [union[key] for key in fused[:cut]]
                 return MultiStoreSearch(
                     returned,
                     "disabled",
@@ -628,7 +657,7 @@ def _execute_prepared(
                 ranked = rerank(
                     query=query,
                     candidates=[candidates[key] for key in fused],
-                    top_k=limit,
+                    top_k=len(fused) if ranked_pool else limit,
                     reranker=reranker,
                 )
             except RerankUnavailableError as exc:
@@ -639,7 +668,7 @@ def _execute_prepared(
                     private=reranker_identity is not None
                     and reranker_identity.provider.startswith("endpoint:"),
                 )
-                returned = [union[key] for key in fused[:limit]]
+                returned = [union[key] for key in fused[:cut]]
                 return MultiStoreSearch(
                     returned,
                     "failed",

@@ -1,0 +1,11 @@
+{
+  "claim": "operator authorization relayed by the authenticated factotum, Folded Sentinel_7fbf7bbb93b4819180f962d519c91c8e, 2026-11-21T06:28:22Z; sole writer session a6a8fd88",
+  "from": "not-started",
+  "id": "0157a62ed8ef465bbba62a029e925fcc",
+  "owner": "wolf",
+  "phase": "distinct-source-results",
+  "previous": "6a45fb0515d44b90b1cbb34fa5337ea8",
+  "reason": "Start the authorized distinct-results phase",
+  "state": "in-progress",
+  "writer": "wolf"
+}

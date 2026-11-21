@@ -5,7 +5,9 @@ is imported. It binds stable store configuration (:class:`_StoreBinding`), never
 corpus content. Returned-hit evidence (:class:`HitEvidence`) reports, per hit, the
 exact stored bytes read in the retrieval's own read transaction, or a closed status
 naming why that one entry could not be verified. Palace reports; the caller owns
-whatever policy it applies to the evidence.
+whatever policy it applies to the evidence. An opt-in :class:`DistinctResults`
+keeps the first eligible hit per caller-supplied key, with the caller's own key and
+eligibility rule, and reports the walk in a :class:`DistinctOutcome`.
 """
 
 from __future__ import annotations
@@ -16,10 +18,10 @@ import math
 import secrets
 import sqlite3
 import struct
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from palace.index._errors import IndexError
 from palace.index.config import EmbeddingIdentity
@@ -34,7 +36,7 @@ from palace.index.s3vectors import (
 )
 from palace.rerank_config import RerankConfig
 
-__all__ = ["HitEvidence", "HitEvidenceStatus"]
+__all__ = ["DistinctOutcome", "DistinctResults", "HitEvidence", "HitEvidenceStatus"]
 
 # Drawn at import: a prepared value verifies in this process and in forked children
 # that inherit the key, never in a spawned or separate process.
@@ -193,3 +195,79 @@ def _collect_hit_evidence(
             store, chunk_id, "verified", identity, *located, body, body_hash, digest, blob
         )
     return evidence
+
+
+@dataclass(frozen=True)
+class DistinctResults:
+    """An opt-in request for at most ``limit`` hits, one per caller-supplied key.
+
+    ``key(hit, evidence)`` receives each hit of the search's bounded pool in order
+    with its :class:`HitEvidence` (``None`` when the search was not prepared with
+    evidence) and returns the hit's group key, or ``None`` when the caller judges
+    the hit ineligible. The first eligible hit per key is kept until ``limit`` are
+    kept. The caller owns the key and the eligibility rule; Palace imposes neither.
+    """
+
+    key: Callable[[Any, HitEvidence | None], str | None]
+    limit: int
+
+    def __post_init__(self) -> None:
+        if not callable(self.key):
+            raise IndexError("distinct key must be callable")
+        if isinstance(self.limit, bool) or not isinstance(self.limit, int) or self.limit <= 0:
+            raise IndexError("distinct limit must be a positive integer")
+
+
+@dataclass(frozen=True)
+class DistinctOutcome:
+    """How a :class:`DistinctResults` walk over the search's bounded pool went.
+
+    ``pool`` hits were available and ``walked`` were passed to the key, in order,
+    until ``returned`` hits were kept; of the walked hits ``ineligible`` had no key
+    and ``duplicates`` repeated a kept key. ``underfilled`` is true when fewer than
+    the requested limit were kept, which happens only after the whole pool was walked.
+    """
+
+    pool: int
+    walked: int
+    ineligible: int
+    duplicates: int
+    returned: int
+    underfilled: bool
+
+
+def _select_distinct[Hit](
+    hits: Sequence[Hit],
+    evidence: Sequence[HitEvidence] | None,
+    distinct: DistinctResults,
+) -> tuple[list[Hit], tuple[HitEvidence, ...] | None, DistinctOutcome]:
+    """Keep the first eligible hit per key, in pool order, until the limit is kept."""
+    if evidence is not None and len(evidence) != len(hits):
+        raise IndexError("distinct selection received misaligned evidence")
+    kept: list[int] = []
+    seen: set[str] = set()
+    walked = ineligible = duplicates = 0
+    for index, hit in enumerate(hits):
+        if len(kept) == distinct.limit:
+            break
+        walked += 1
+        group = distinct.key(hit, evidence[index] if evidence is not None else None)
+        if group is None:
+            ineligible += 1
+        elif not isinstance(group, str):
+            raise IndexError("distinct key must return a string or None")
+        elif group in seen:
+            duplicates += 1
+        else:
+            seen.add(group)
+            kept.append(index)
+    outcome = DistinctOutcome(
+        pool=len(hits),
+        walked=walked,
+        ineligible=ineligible,
+        duplicates=duplicates,
+        returned=len(kept),
+        underfilled=len(kept) < distinct.limit,
+    )
+    aligned = tuple(evidence[i] for i in kept) if evidence is not None else None
+    return [hits[i] for i in kept], aligned, outcome
