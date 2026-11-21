@@ -1409,16 +1409,34 @@ def _vector_search(
             return served
     blob = sqlite_vec.serialize_float32(embeddings[0])
     constraint, parameters = _metadata_constraint(filters, "v.chunk_id")
-    rows = conn.execute(
-        f"""
-        SELECT v.chunk_id, v.distance
-        FROM chunks_vec v
-        WHERE v.embedding MATCH ? AND k = ? {constraint}
-        ORDER BY v.distance
-        """,
-        (blob, pool, *parameters),
-    ).fetchall()
-    return [VectorMatch(chunk_id=cid, distance=float(dist)) for cid, dist in rows]
+
+    def nearest(k: int) -> list[tuple[str, float]]:
+        rows = conn.execute(
+            f"""
+            SELECT v.chunk_id, v.distance
+            FROM chunks_vec v
+            WHERE v.embedding MATCH ? AND k = ? {constraint}
+            """,
+            (blob, k, *parameters),
+        ).fetchall()
+        return sorted(((str(cid), float(dist)) for cid, dist in rows), key=_vector_order)
+
+    # Ties are ordered by chunk id. sqlite-vec picks which of several equally distant
+    # rows fills its k slots, so a tie that crosses the cut is fetched whole (within its
+    # KNN limit) before the canonical first ``pool`` are taken.
+    fetch = pool + 1 if pool < SQLITE_VEC_MAX_K else pool
+    rows = nearest(fetch)
+    while (
+        len(rows) == fetch > pool and fetch < SQLITE_VEC_MAX_K and rows[-1][1] == rows[pool - 1][1]
+    ):
+        fetch = min(SQLITE_VEC_MAX_K, fetch * 2)
+        rows = nearest(fetch)
+    return [VectorMatch(chunk_id=cid, distance=dist) for cid, dist in rows[:pool]]
+
+
+def _vector_order(row: tuple[str, float]) -> tuple[float, str]:
+    """Nearest first; equal distances by chunk id, in every vector path."""
+    return row[1], row[0]
 
 
 def _fuse_variants(

@@ -14,11 +14,13 @@ Correctness contract:
   ``vec_distance_l2`` on the query's connection. The cut is used only when it is
   certified: the ``pool``-th rescored distance is below every unrescored row's lower
   bound. Otherwise more rows are rescored, up to every visible row. Returned distances
-  are sqlite-vec's. When parity cannot be certified (equal distances among the returned
-  rows or at the cut, a filter that admits a chunk without a vector, a filtered row a
-  concurrent compaction moved, a pool above sqlite-vec's KNN limit, a non-finite query,
-  or a component outside the range the error bound is proved for), that leg runs the
-  released SQL on the same connection and is reported as ``oracle``.
+  are sqlite-vec's, and equal distances are ordered by chunk id, as the released search
+  orders them; a tie at the cut is resolved from memory, since the certificate leaves no
+  unscored row at or below it. When parity cannot be certified (a filter that admits a
+  chunk without a vector, a filtered row a concurrent compaction moved, a pool or a tie
+  at the cut beyond sqlite-vec's KNN limit, a non-finite query, or a component outside
+  the range the error bound is proved for), that leg runs the released SQL on the same
+  connection and is reported as ``oracle``.
 - **Pinned views.** :meth:`VectorCache.lease` runs the authorization hook for every
   store, then pins each store's accelerator before the caller admits any store. After
   admission the first vector leg reads its snapshot's feed position, applies the feed
@@ -642,13 +644,13 @@ def _exact_top(
             values = conn.execute(f"SELECT {expressions}", parameters).fetchone()
             for row, value in zip(batch, values, strict=True):
                 scored[row] = float(value)
-        ordered = sorted((scored[int(row)], int(row)) for row in candidates)
+        # Equal distances are ordered by chunk id, as the released search orders them.
+        ordered = sorted(
+            (scored[int(row)], view[int(blocks[row])][0].ids[int(slots[row])] or "", int(row))
+            for row in candidates
+        )
         returned = ordered[: min(pool, visible)]
-        distances = [distance for distance, _row in returned]
-        if any(left == right for left, right in zip(distances, distances[1:], strict=False)):
-            return "tie"
-        if len(ordered) > len(returned) and ordered[len(returned)][0] == distances[-1]:
-            return "tie"
+        distances = [distance for distance, _chunk, _row in returned]
         if count == visible:
             break
         outside = np.ones(visible, dtype=bool)
@@ -658,10 +660,16 @@ def _exact_top(
             break
         margin *= 2
         cache._count("cut.widened")
+    # The certificate leaves no unscored row at or below the cut, so every row tied at it
+    # is ranked above. The released search can rank a tie only within sqlite-vec's KNN
+    # limit; beyond it the leg is the released one.
+    if distances and sum(1 for distance, _c, _r in ordered if distance <= distances[-1]) > (
+        SQLITE_VEC_MAX_K
+    ):
+        return "knn-limit"
     matches = []
-    for distance, row in returned:
-        chunk_id = view[int(blocks[row])][0].ids[int(slots[row])]
-        assert chunk_id is not None
+    for distance, chunk_id, row in returned:
+        assert view[int(blocks[row])][0].ids[int(slots[row])] == chunk_id and chunk_id
         matches.append(VectorMatch(chunk_id=chunk_id, distance=distance))
     return matches
 

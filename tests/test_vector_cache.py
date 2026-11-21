@@ -351,6 +351,39 @@ def test_cached_vector_hybrid_and_reranked_results_equal_the_released_path(
     assert {item.store for item in cache.stats().stores} == {store, other}
 
 
+def test_ties_rank_by_chunk_id_in_memory_and_in_sql_without_the_released_fallback(
+    tmp_path: Path,
+) -> None:
+    """Equal distances order by chunk id in both paths, inside k and across the cut."""
+    extra = {f"t{index}.md": "# Twin\n\ntwin\n" for index in range(5)}
+    extra.update({f"near{index}.md": f"# Near\n\nnear{index}\n" for index in range(1, 4)})
+    store, _root = _store(tmp_path, "store", 20, extra=extra)
+    query = np.asarray(ShapedEmbedder()._vector_for("query-twin"), dtype=np.float32)
+    with _probe_conn(store) as conn:
+        everything = sorted(
+            (float(distance), str(chunk_id))
+            for chunk_id, distance in conn.execute(
+                "SELECT chunk_id, vec_distance_l2(embedding, ?) FROM chunks_vec",
+                (query.tobytes(),),
+            )
+        )
+    twins = [chunk for distance, chunk in everything if distance == everything[0][0]]
+    assert len(twins) == 5 and [chunk for _d, chunk in everything[:5]] == twins
+    cache = _cache(block_rows=3)
+    for pool in (2, 4, 5, 6, 9):
+        expected = [chunk for _distance, chunk in everything[:pool]]
+        prepared = _prepared(store, "query-twin", mode="vector", pool=pool, limit=pool)
+        released = execute_prepared_search(prepared)
+        assert [hit.chunk_id for hit in released.hits] == expected, pool
+        for _repeat in range(2):
+            cached = execute_prepared_search(prepared, vector_cache=cache)
+            assert cached.hits == released.hits, pool
+            (outcome,) = cached.vector_cache
+            assert (outcome.cached_legs, outcome.oracle_legs, outcome.fallback_legs) == (1, 0, 0)
+            assert outcome.reasons == ()
+    assert not any(name.startswith(("oracle.", "fallbacks.")) for name in cache.stats().counters)
+
+
 def test_every_cut_is_the_released_answer_or_the_counted_oracle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -359,19 +392,19 @@ def test_every_cut_is_the_released_answer_or_the_counted_oracle(
     store, root = _store(tmp_path, "store", 30, extra=extra)
     cache = _cache(block_rows=3)
 
-    # Exact ties across block boundaries go to the oracle and equal the released answer.
+    # Exact ties across block boundaries are ranked from memory and equal the released answer.
     outcome = _same(_prepared(store, "query-twin", mode="vector", pool=6), cache)[0]
-    assert outcome.oracle_legs == 1 and outcome.reasons == ("tie",)
-    # Near duplicates without ties are certified from memory.
+    assert outcome.cached_legs == 1 and not outcome.oracle_legs and outcome.reasons == ()
+    # A tie crossing the cut is ranked from memory too.
     outcome = _same(_prepared(store, "query-twin", mode="vector", pool=2), cache)[0]
-    assert outcome.cached_legs == 1 or outcome.reasons == ("tie",)
+    assert outcome.cached_legs == 1 and not outcome.oracle_legs and outcome.reasons == ()
 
     # A margin of one forces the certificate to widen; answers stay the released ones.
     monkeypatch.setattr(cache_module, "_initial_margin", lambda _pool: 1)
     widened = cache.stats().counters.get("cut.widened", 0)
     for query in ("lantern", "near3", "copper entry"):
         outcome = _same(_prepared(store, query, mode="vector", pool=4), cache)[0]
-        assert outcome.fallback_legs == 0 and outcome.reasons in ((), ("tie",))
+        assert outcome.fallback_legs == 0 and outcome.reasons == ()
     assert cache.stats().counters["cut.widened"] > widened
 
     # Reused slots, a reload and compaction keep the answers.
