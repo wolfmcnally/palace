@@ -384,6 +384,27 @@ def test_ties_rank_by_chunk_id_in_memory_and_in_sql_without_the_released_fallbac
     assert not any(name.startswith(("oracle.", "fallbacks.")) for name in cache.stats().counters)
 
 
+def test_a_tie_beyond_the_knn_limit_ranks_by_chunk_id_without_the_released_fallback(
+    tmp_path: Path,
+) -> None:
+    """More equal rows than sqlite-vec's KNN limit: canonical members, from memory too."""
+    rng = np.random.default_rng(7)
+    store = _synthetic(tmp_path, "wide", 40, rng)
+    tied = [f"tie-{index:06d}" for index in range(4300)]
+    order = rng.permutation(len(tied))
+    _feed_write(store, inserts=[(tied[int(index)], TWIN.tobytes()) for index in order])
+    cache = _cache(budget_bytes=1024 * 2**20, block_rows=2048)
+    for pool in (8, 4096):
+        prepared = _prepared(store, "query-twin", mode="vector", pool=pool, limit=pool)
+        released = execute_prepared_search(prepared)
+        assert [hit.chunk_id for hit in released.hits] == tied[:pool], pool
+        cached = execute_prepared_search(prepared, vector_cache=cache)
+        assert cached.hits == released.hits, pool
+        (outcome,) = cached.vector_cache
+        assert (outcome.cached_legs, outcome.oracle_legs, outcome.fallback_legs) == (1, 0, 0)
+    assert not any(name.startswith(("oracle.", "fallbacks.")) for name in cache.stats().counters)
+
+
 def test_every_cut_is_the_released_answer_or_the_counted_oracle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

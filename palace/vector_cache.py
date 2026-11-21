@@ -17,8 +17,8 @@ Correctness contract:
   are sqlite-vec's, and equal distances are ordered by chunk id, as the released search
   orders them; a tie at the cut is resolved from memory, since the certificate leaves no
   unscored row at or below it. When parity cannot be certified (a filter that admits a
-  chunk without a vector, a filtered row a concurrent compaction moved, a pool or a tie
-  at the cut beyond sqlite-vec's KNN limit, a non-finite query, or a component outside
+  chunk without a vector, a filtered row a concurrent compaction moved, a pool above
+  sqlite-vec's KNN limit, a non-finite query, or a component outside
   the range the error bound is proved for), that leg runs the released SQL on the same
   connection and is reported as ``oracle``.
 - **Pinned views.** :meth:`VectorCache.lease` runs the authorization hook for every
@@ -661,12 +661,7 @@ def _exact_top(
         margin *= 2
         cache._count("cut.widened")
     # The certificate leaves no unscored row at or below the cut, so every row tied at it
-    # is ranked above. The released search can rank a tie only within sqlite-vec's KNN
-    # limit; beyond it the leg is the released one.
-    if distances and sum(1 for distance, _c, _r in ordered if distance <= distances[-1]) > (
-        SQLITE_VEC_MAX_K
-    ):
-        return "knn-limit"
+    # was ranked above, however many there are.
     matches = []
     for distance, chunk_id, row in returned:
         assert view[int(blocks[row])][0].ids[int(slots[row])] == chunk_id and chunk_id

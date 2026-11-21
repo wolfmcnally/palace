@@ -2,8 +2,8 @@
 
 ## 0.7.1 — 2026-11-20
 
-- Equal vector distances are ordered by chunk id, nearest first, in both the released sqlite-vec search and the opt-in vector cache. sqlite-vec chooses which of several equally distant rows fills its bounded `k`, so the released search asks for one row more than the pool and, when the last place is tied, widens within sqlite-vec's 4,096-row KNN limit until the tied group is complete before taking the first `pool` by distance and chunk id. A store without ties returns the same answer as 0.7.0; with ties, the members and order are now deterministic.
-- The vector cache ranks ties, including a tie at the cut, from memory: its certificate already leaves no unscored row at or below the cut distance. The `tie` oracle reason is gone. A leg still goes to the released SQL as `knn-limit` when more than 4,096 rows lie at or below the cut distance, where sqlite-vec itself cannot rank the tie.
+- Equal vector distances are ordered by chunk id, nearest first, in both the released sqlite-vec search and the opt-in vector cache. sqlite-vec chooses which of several equally distant rows fills its bounded `k`, so the released search asks for one row more than the pool and, when the last place is tied, widens within sqlite-vec's 4,096-row KNN limit until the tied group is complete before taking the first `pool` by distance and chunk id; a tie that reaches that limit (and every full pool of 4,096) is ranked by scanning every row's distance with the same `vec_distance_l2`. A store without ties returns the same answer as 0.7.0; with ties, the members and order are now deterministic.
+- The vector cache ranks ties, including a tie at the cut, from memory: its certificate already leaves no unscored row at or below the cut distance. The `tie` oracle reason is gone, and a tie of any size is answered from memory; `knn-limit` again means only a pool above 4,096.
 
 ## 0.7.0 — 2026-11-19
 

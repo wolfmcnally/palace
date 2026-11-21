@@ -1431,6 +1431,18 @@ def _vector_search(
     ):
         fetch = min(SQLITE_VEC_MAX_K, fetch * 2)
         rows = nearest(fetch)
+    if len(rows) == fetch == SQLITE_VEC_MAX_K and rows[-1][1] == rows[pool - 1][1]:
+        # The tie at the cut reaches the KNN limit, where sqlite-vec cannot say which
+        # further rows share it: rank every row by the same scalar distance instead.
+        scanned = conn.execute(
+            f"""
+            SELECT v.chunk_id, vec_distance_l2(v.embedding, ?)
+            FROM chunks_vec v
+            WHERE 1 {constraint}
+            """,
+            (blob, *parameters),
+        )
+        rows = sorted(((str(cid), float(dist)) for cid, dist in scanned), key=_vector_order)
     return [VectorMatch(chunk_id=cid, distance=dist) for cid, dist in rows[:pool]]
 
 

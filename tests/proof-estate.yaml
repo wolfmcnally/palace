@@ -12,9 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 104
-  leaves: 142
-budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once.; and the hosted-CI repair of the public handoff path guard under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (21:09:57Z) to repair the failed hosted checks with a focused cross-platform proof, of which exactly one family and one leaf are used once.; and the 0.7.1 tie-policy proof under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (23:49:06Z) to release a patch removing the SQLite fallback for tied in-memory scores with paired exact proofs, of which exactly one family and one leaf are used once."
+  families: 105
+  leaves: 143
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once.; and the hosted-CI repair of the public handoff path guard under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (21:09:57Z) to repair the failed hosted checks with a focused cross-platform proof, of which exactly one family and one leaf are used once.; and the 0.7.1 tie-policy proof under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (23:49:06Z) to release a patch removing the SQLite fallback for tied in-memory scores with paired exact proofs, of which exactly one family and one leaf are used once.; and the beyond-limit tie proof under a ceiling of one family and one leaf, from the operator's 2026-11-21 correction relayed by the authenticated factotum (00:17:12Z) to rank tied groups beyond sqlite-vec's KNN limit without the released fallback, of which exactly one family and one leaf are used once."
 critical_risks:
   custody:
     state: applicable
@@ -8206,6 +8206,28 @@ families:
   mutation_evidence:
   - "Order cached ties by internal row instead of chunk id."
   - "Order released ties without the chunk-id key."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: he-knn-limit-ranks-by-chunk-id-without-the-released-fallback-768dab8449
+  kind: pytest
+  selectors:
+  - "tests/test_vector_cache.py::test_a_tie_beyond_the_knn_limit_ranks_by_chunk_id_without_the_released_fallback"
+  source_paths:
+  - "tests/test_vector_cache.py"
+  covers:
+  - "palace/vector_cache.py"
+  - "palace/search.py"
+  contract: "A tied group larger than sqlite-vec's 4,096-row KNN limit, written in shuffled order, yields the canonical chunk-id members for a pool crossing the tie and for the maximum pool, in the released search and from memory, with no oracle or fallback leg."
+  risk_class: public-contract
+  oracle: "Sorted chunk ids of the tied rows; equal released and cached hits; per-store outcome counters."
+  admission: "0.7.1 tie-policy admission funded by the named 2026-11-21 correction budget; no retirement."
+  nearest_overlap: "The tie-policy proof covers ties within the KNN limit only."
+  historical_evidence: []
+  mutation_evidence:
+  - "Rank a tie that reaches the KNN limit by sqlite-vec's own choice instead of the exact distance scan."
+  - "Send a cached leg to the released SQL when more than 4,096 rows lie at or below the cut distance."
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0
