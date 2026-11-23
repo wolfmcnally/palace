@@ -83,17 +83,16 @@ def _response(
 
 
 class BedrockStub:
-    """Answers both Bedrock clients and records every request they would have sent."""
+    """Answers Bedrock clients and records every request they would have sent."""
 
     def __init__(self) -> None:
         self.requests: list[Any] = []
-        self.mode = "none"
+        self.opened: list[str] = []  # every service the provider opens a client for
         # An invoke answer to inject: (status, code), (status, code, extra headers), or a
         # transport exception to raise in place of sending.
         # ``None`` answers that invoke normally.
         self.errors: list[tuple[int, str] | tuple[int, str, dict[str, str]] | Exception | None] = []
         self.hook: Callable[[Any], None] | None = None  # runs on each invoke before answering
-        self.retention_errors: list[tuple[int, str]] = []
         self.error_message = "fixture"
         self.shape = "list"
         self.body: Callable[[list[str], int], object] | None = None
@@ -102,6 +101,7 @@ class BedrockStub:
         real = bedrock.open_bedrock_client
 
         def opener(service: str, *, profile: str | None, region: str) -> Any:
+            self.opened.append(service)
             client = real(service, profile=profile, region=region)
             client.meta.events.register("before-send", self.answer)
             return client
@@ -110,13 +110,9 @@ class BedrockStub:
 
     def answer(self, request: Any, **_: Any) -> Any:
         self.requests.append(request)
-        if urlsplit(request.url).path == "/data-retention":
-            if self.retention_errors:
-                status, code = self.retention_errors.pop(0)
-                return _response(
-                    request, status, {"message": self.error_message}, {"x-amzn-ErrorType": code}
-                )
-            return _response(request, 200, {"mode": self.mode})
+        if not request.url.startswith(RUNTIME_HOST):
+            # Answered only so that a regression shows as a recorded control-plane request.
+            return _response(request, 200, {"mode": "none"})
         if self.hook is not None:
             self.hook(request)
         error = self.errors.pop(0) if self.errors else None
@@ -140,10 +136,7 @@ class BedrockStub:
         )
 
     def invokes(self) -> list[Any]:
-        return [r for r in self.requests if urlsplit(r.url).path != "/data-retention"]
-
-    def retention_reads(self) -> list[Any]:
-        return [r for r in self.requests if urlsplit(r.url).path == "/data-retention"]
+        return [r for r in self.requests if r.url.startswith(RUNTIME_HOST)]
 
 
 def header(request: Any, name: str) -> str:
@@ -356,7 +349,7 @@ def test_bedrock_settings_and_selector_refuse_before_any_request(
 # --------------------------------------------------------------------- F2
 
 
-def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
+def test_bedrock_embedder_sends_bounded_requests_without_reading_retention(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, guard_outbound_aws: Path
 ) -> None:
     store = tmp_path / "store"
@@ -418,20 +411,24 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
     frozen = clean.get_frozen_credentials()
     assert (frozen.access_key, frozen.token, frozen.account_id) == ("fixture", None, None)
 
-    # Retention fails closed: every mode but none refuses after one audited read, no invoke.
-    for mode in ("default", "aws_review", "provider_data_share", "inherit"):
-        stub.mode = mode
-        before_requests, before_audit = len(stub.requests), len(audit(store))
-        with pytest.raises(PalaceError, match=f"retention mode in us-east-1 is '{mode}'"):
-            embedder(store).embed(["fixture text"])
-        new = stub.requests[before_requests:]
-        assert [urlsplit(r.url).path for r in new] == ["/data-retention"]
-        records = audit(store)[before_audit:]
-        assert [
-            (r["kind"], r["operation"], r["attempt"], r["status"], r["region"]) for r in records
-        ] == [("bedrock_retention_check", "GetAccountDataRetention", 1, "ok", REGION)]
-    assert stub.invokes() == []
-    stub.mode = "none"
+    # No control-plane read: probe sends nothing and opens only the runtime client, and the
+    # first request of a fresh embedder is its InvokeModel on the runtime endpoint. Palace
+    # neither reads nor enforces the account's retention mode.
+    stub.opened.clear()  # the refused probe above reached the opener before refusing
+    fresh_store = tmp_path / "fresh-store"
+    fresh = embedder(fresh_store)
+    fresh.probe()
+    assert stub.requests == [] and audit(fresh_store) == [] and stub.opened == ["bedrock-runtime"]
+    assert fresh.embed(["fixture text"]) == [vector_for("fixture text")]
+    assert [(r.url.split("/")[2], urlsplit(r.url).path) for r in stub.requests] == [
+        ("bedrock-runtime.us-east-1.amazonaws.com", "/model/cohere.embed-v4%3A0/invoke")
+    ]
+    assert stub.opened == ["bedrock-runtime"]
+    assert [(r["kind"], r["operation"]) for r in audit(fresh_store)] == [
+        ("cloud_embed_call", "InvokeModel")
+    ]
+    fresh.close()
+    stub.requests.clear()
 
     # Endpoint witness: every ambient override is set, yet both clients stay on the Region's
     # standard endpoints; a client opened without the flag honors the override (control).
@@ -458,10 +455,7 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
     before = len(stub.requests)
     with usage_scope(usage):
         vectors = first.embed(documents)
-    sent = stub.requests[before:]
-    assert [urlsplit(r.url).path for r in sent][0] == "/data-retention"
-    assert all(r.url.startswith(CONTROL_HOST) for r in sent[:1])
-    invokes = sent[1:]
+    invokes = stub.requests[before:]
     assert [len(json.loads(r.body)["texts"]) for r in invokes] == [96, 96, 8]
     for index, request in enumerate(invokes):
         assert request.url.startswith(RUNTIME_HOST)
@@ -499,7 +493,7 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
     assert all("document number" not in json.dumps(r) for r in audit(store))
     assert (usage.summary().requests, usage.summary().failed_requests) == (3, 0)
 
-    # The retention check runs once per instance; a query carries search_query.
+    # A further batch sends only its InvokeModel; a query carries search_query.
     before = len(stub.requests)
     first.embed(["again"])
     assert [urlsplit(r.url).path for r in stub.requests[before:]] == [
@@ -556,9 +550,9 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
     assert len(stub.invokes()) - before_sends == 1 and len(sleeps) == 1
     query.close()
 
-    # Bearer admission: a Bedrock API key alone is admitted, and the real SDK signs both the
-    # retention read and InvokeModel with it. Admission is not authorization: retention
-    # still decides, and the token never reaches an error or the audit.
+    # Bearer admission: a Bedrock API key alone is admitted, and the real SDK signs
+    # InvokeModel with it. Admission is not authorization: the service still decides, and
+    # the token never reaches an error or the audit.
     for name in aws_env_credential_names():
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", BEARER_TOKEN)
@@ -569,31 +563,23 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
     assert token_only.embed(["bearer text"]) == [vector_for("bearer text")]
     signed = stub.requests[before:]
     assert [(r.url.split("/")[2], urlsplit(r.url).path) for r in signed] == [
-        ("bedrock.us-east-1.amazonaws.com", "/data-retention"),
         ("bedrock-runtime.us-east-1.amazonaws.com", "/model/cohere.embed-v4%3A0/invoke"),
     ]
-    assert [header(r, "Authorization") for r in signed] == [f"Bearer {BEARER_TOKEN}"] * 2
+    assert [header(r, "Authorization") for r in signed] == [f"Bearer {BEARER_TOKEN}"]
     token_only.close()
     # A service message is never echoed: a token inside one reaches neither the refusal nor
     # the audit.
-    stub.retention_errors = [(403, "AccessDeniedException")]
-    stub.error_message = f"key {BEARER_TOKEN} may not read retention"
+    stub.errors = [(403, "AccessDeniedException")]
+    stub.error_message = f"key {BEARER_TOKEN} may not invoke this model"
     before = len(stub.requests)
     with pytest.raises(
-        PalaceError, match="GetAccountDataRetention failed in us-east-1: AccessDeniedException"
+        PalaceError, match="InvokeModel failed in us-east-1: AccessDeniedException"
     ) as denied:
         embedder(bearer_store).embed(["denied"])
-    assert str(denied.value) == (
-        "bedrock GetAccountDataRetention failed in us-east-1: AccessDeniedException"
-    )
+    assert str(denied.value) == "bedrock InvokeModel failed in us-east-1: AccessDeniedException"
     stub.error_message = "fixture"
-    for mode in ("default", "provider_data_share"):
-        stub.mode = mode
-        with pytest.raises(PalaceError, match=f"retention mode in us-east-1 is '{mode}'"):
-            embedder(bearer_store).embed(["shared"])
-    stub.mode = "none"
-    assert [urlsplit(r.url).path for r in stub.requests[before:]] == ["/data-retention"] * 3
-    assert [r["status"] for r in audit(bearer_store)][-3:] == ["AccessDeniedException", "ok", "ok"]
+    assert len(stub.invokes()) - before == 1 and len(stub.requests) - before == 1
+    assert [r["status"] for r in audit(bearer_store)][-1:] == ["AccessDeniedException"]
 
     # Keys and a token together: the SDK prefers the token (its own precedence, documented).
     fixture_credentials(monkeypatch)
@@ -602,7 +588,7 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
     both.embed(["both"])
     assert [header(r, "Authorization") for r in stub.requests[before:]] == [
         f"Bearer {BEARER_TOKEN}"
-    ] * 2
+    ]
     both.close()
     assert BEARER_TOKEN not in json.dumps(audit(bearer_store))
 
@@ -613,12 +599,12 @@ def test_bedrock_embedder_checks_retention_then_sends_bounded_requests(
 
     def record_blank(request: Any, **_: Any) -> Any:
         blank.append(header(request, "Authorization"))
-        return _response(request, 200, {"mode": "none"})
+        return _response(request, 200, {"embeddings": [], "response_type": "embeddings_floats"})
 
-    control_client = boto3.Session(region_name=REGION).client("bedrock")
-    control_client.meta.events.register("before-send", record_blank)
-    control_client.get_account_data_retention()
-    control_client.close()
+    runtime_client = boto3.Session(region_name=REGION).client("bedrock-runtime")
+    runtime_client.meta.events.register("before-send", record_blank)
+    runtime_client.invoke_model(modelId=MODEL, body=b"{}")
+    runtime_client.close()
     assert blank == ["Bearer  "]
     before = len(stub.requests)
     with pytest.raises(PalaceError, match="AWS_BEARER_TOKEN_BEDROCK is set but blank"):
@@ -826,11 +812,9 @@ def test_bedrock_failures_are_typed_paced_and_bounded(
     session = boto3.Session(region_name=REGION)._session
     declared = {
         shape.name
-        for service, operation in (
-            ("bedrock-runtime", "InvokeModel"),
-            ("bedrock", "GetAccountDataRetention"),
-        )
-        for shape in session.get_service_model(service).operation_model(operation).error_shapes
+        for shape in session.get_service_model("bedrock-runtime")
+        .operation_model("InvokeModel")
+        .error_shapes
     }
     assert declared - bedrock.BEDROCK_RETRYABLE_CODES - bedrock._DEFINITE_REFUSALS == {
         "ModelErrorException"
@@ -880,7 +864,7 @@ def test_bedrock_failures_are_typed_paced_and_bounded(
     error = fails(make(pacer=RecordingPacer(refuse_on=1)), ["refused"])
     assert (error.kind, error.delivery, error.attempts) == ("pacer-refused", "not-sent", 0)
     assert error.sent == 0  # type: ignore[attr-defined]
-    assert [r["kind"] for r in audit(store)[before:]] == ["bedrock_retention_check"]
+    assert audit(store)[before:] == []
 
     # Retry-After: a hint beyond the cap ends the request at once with the hint, uncapped.
     before_sleeps = len(sleeps)
@@ -1023,7 +1007,7 @@ def test_bedrock_failures_are_typed_paced_and_bounded(
     assert 4 < seen["deadline 5.0"] <= 5 and 49 < seen["deadline 50.0"] <= 50
 
     # The pacer sees one acquire per physical attempt with its byte size, and exactly one
-    # settle each; the retention read is not paced.
+    # settle each.
     pacer = RecordingPacer()
     query = make(pacer=pacer, purpose="query")
     texts = [f"{i}:" + "漢字🙂" * 10 for i in range(96)] + ["e\u0301" * 30, "\u0344" * 20]
@@ -1066,7 +1050,7 @@ def test_bedrock_failures_are_typed_paced_and_bounded(
     assert "has dim 8; expected 1536" in str(error)
 
     # Diagnostics are library-owned: provider text (an echoed input, a credential, a huge
-    # multiline body), an undeclared code, transport text and a hostile retention mode reach
+    # multiline body), an undeclared code and transport text reach
     # neither the error, its fields nor the audit.
     input_marker = "CORPUSMARKER-input-never-echoed"
     hostile = f"{input_marker}\nkey {BEARER_TOKEN}\n" + "line of provider text\n" * 5000
@@ -1087,11 +1071,6 @@ def test_bedrock_failures_are_typed_paced_and_bounded(
         fields = repr((error.code, error.provider, error.operation, error.history, error.args))
         assert not any(marker in fields for marker in markers)
     stub.error_message = "fixture"
-    stub.mode = hostile
-    with pytest.raises(PalaceError, match="is an unrecognized value; palace requires") as mode:
-        make().probe()
-    assert not any(marker in str(mode.value) for marker in markers)
-    stub.mode = "none"
     written = json.dumps(audit(store)[before_audit:])
     assert not any(marker in written for marker in markers)
     assert "UnrecognizedServiceError" in written

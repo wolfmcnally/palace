@@ -5930,7 +5930,7 @@ families:
 - id: bedrock-provider-requests
   kind: pytest
   selectors:
-  - tests/test_bedrock_provider.py::test_bedrock_embedder_checks_retention_then_sends_bounded_requests
+  - tests/test_bedrock_provider.py::test_bedrock_embedder_sends_bounded_requests_without_reading_retention
   source_paths:
   - tests/test_bedrock_provider.py
   covers:
@@ -5938,13 +5938,14 @@ families:
   - palace/bedrock.py
   - palace/settings.py
   - palace/index/**
-  contract: The Bedrock embedder refuses without credentials or a Bedrock API key and on a blank or syntactically invalid token without echoing it, fails closed on any retention mode but none and on a denied retention read before an embedding request under SigV4 or bearer signing, stays on the Region's standard endpoints under every ambient override, sends exact SigV4- or bearer-signed Embed v4 bodies in batches of at most 96 inside the request budget, validates both response shapes, retries only retryable codes, audits every attempt, redacts a service-echoed token from refusals and never writes the token to the audit.
+  contract: "The Bedrock embedder refuses without credentials or a Bedrock API key and on a blank or syntactically invalid token without echoing it, makes no Bedrock control-plane request (probe sends nothing and opens only the runtime client, and a fresh embedder's first request is its InvokeModel, with no retention read or retention audit record), stays on the Region's standard runtime endpoint under every ambient override, sends exact SigV4- or bearer-signed Embed v4 bodies in batches of at most 96 inside the request budget, validates both response shapes, retries only retryable codes, audits every attempt, redacts a service-echoed token from refusals and never writes the token to the audit."
   risk_class: remote-egress
-  oracle: Real boto3 clients answered by before-send stubs that record every prepared, signed request; decoy credential files, an unflagged client and an ordinary client signing a blank token and the HTTP library echoing a newline-bearing header as positive controls; parsed audit records; the suite transport guard.
-  admission: Phase 22 compensated admission; offline stubbed qualification only, no live Bedrock run.
-  nearest_overlap: OpenRouter and private-endpoint families prove HTTP providers; S3 Vectors proves a boto3 vector store; none checks retention, endpoint binding or Embed v4 request shape.
+  oracle: "Real boto3 clients answered by before-send stubs that record every prepared, signed request and every client the provider opens; decoy credential files, an unflagged client and an ordinary client signing a blank token and the HTTP library echoing a newline-bearing header as positive controls; parsed audit records; the suite transport guard."
+  admission: "Phase 22 compensated admission; renamed by the 0.8.1 retention-read removal under the operator's 2026-11-23 order, compensated by the retired former selector; offline stubbed qualification only, no live Bedrock run."
+  nearest_overlap: "OpenRouter and private-endpoint families prove HTTP providers; S3 Vectors proves a boto3 vector store; none checks Bedrock endpoint binding, the absence of a control-plane read or Embed v4 request shape."
   historical_evidence: []
-  mutation_evidence: []
+  mutation_evidence:
+  - "Restoring the released retention read, or any always-passing control-plane read before the first InvokeModel, fails the family."
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0
@@ -6472,14 +6473,14 @@ families:
   - tests/test_bedrock_provider.py
   - palace/bedrock.py
   - palace/index/**
-  contract: Every Bedrock embedding failure ends in a ProviderCallError (still an IndexError, message unchanged) whose kind is the latest failure and whose delivery is merged over every attempt, so a read timeout followed by throttles stays unknown and a pacer refusal after a timeout stays unknown; definite refusals stop after one attempt; a Retry-After beyond the cap or the caller's deadline ends the request at once with the uncapped hint and no sleep, and a short hint is a jittered floor (delta-seconds or HTTP-date against Date); a passed deadline sends nothing, an initialization queued behind another caller stops typed at its own deadline or cancellation, and cancellation during a backoff starts no further attempt; each request's read timeout is the scope's remaining time without changing the shared client, per concurrent call; a shared pacer sees one acquire per physical attempt with purpose, input count and UTF-8 request bytes and exactly one settle each, and the retention read is not paced; partial success reports completed_inputs; unusable answers are processed and never retried; usage counts throttled and indeterminate attempts; four threads sharing one embedder, pacer and usage lose no audit record. Failure text is library-owned (operation, Region, declared code) and no provider, transport or credential text reaches the error, its fields or the audit; an HTTP-date hint without a readable Date is measured against the injected UTC clock.
+  contract: Every Bedrock embedding failure ends in a ProviderCallError (still an IndexError, message unchanged) whose kind is the latest failure and whose delivery is merged over every attempt, so a read timeout followed by throttles stays unknown and a pacer refusal after a timeout stays unknown; definite refusals stop after one attempt; a Retry-After beyond the cap or the caller's deadline ends the request at once with the uncapped hint and no sleep, and a short hint is a jittered floor (delta-seconds or HTTP-date against Date); a passed deadline sends nothing, an initialization queued behind another caller stops typed at its own deadline or cancellation, and cancellation during a backoff starts no further attempt; each request's read timeout is the scope's remaining time without changing the shared client, per concurrent call; a shared pacer sees one acquire per physical attempt with purpose, input count and UTF-8 request bytes and exactly one settle each; partial success reports completed_inputs; unusable answers are processed and never retried; usage counts throttled and indeterminate attempts; four threads sharing one embedder, pacer and usage lose no audit record. Failure text is library-owned (operation, Region, declared code) and no provider, transport or credential text reaches the error, its fields or the audit; an HTTP-date hint without a readable Date is measured against the injected UTC clock.
   risk_class: remote-egress
   oracle: Real boto3 clients answered by before-send stubs (status and header injection, raised botocore transport errors, a rendezvous barrier), each prepared request's context, a recording thread-safe pacer with exactly-once reservations, the module sleep seam and seeded jitter, parsed audit records and usage summaries.
   admission: "Phase 33 budget-funded admission under the named owner approval; no retirement."
-  nearest_overlap: bedrock-provider-requests proves request shape, retention, credentials and one throttle-then-success retry; none classifies delivery, honors Retry-After, bounds by deadline or exercises a pacer.
+  nearest_overlap: bedrock-provider-requests proves request shape, the absence of a control-plane read, credentials and one throttle-then-success retry; none classifies delivery, honors Retry-After, bounds by deadline or exercises a pacer.
   historical_evidence: []
   mutation_evidence:
-  - 'Provider message or transport text echoed, an undeclared service code or unvalidated retention mode passed through, ModelErrorException or the old any-ClientError default classified rejected, the HTTP-date fallback clock ignored: each fails the family.'
+  - 'Provider message or transport text echoed, an undeclared service code passed through, ModelErrorException or the old any-ClientError default classified rejected, the HTTP-date fallback clock ignored: each fails the family.'
   - 'Timeout classified rejected, no per-request read bound, pacer dropped, completed_inputs dropped, throttled count dropped, unbounded init lock, hints ignored, 503 classified unknown: each fails the family.'
   - ModelErrorException or an unmodeled code classified rejected, the old any-ClientError-is-rejected default, or quota dropped from the definite refusals fails the family.
   tier: changed

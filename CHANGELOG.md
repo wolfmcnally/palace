@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 — 2026-11-23
+
+- The `bedrock` embedding provider no longer calls `GetAccountDataRetention` or refuses inference based on the account's retention mode. It makes no Bedrock control-plane request, so the `bedrock:GetAccountDataRetention` permission is no longer needed and no `bedrock_retention_check` audit record is written; `probe()` resolves credentials and opens the runtime client without sending a request. Palace does not verify or enforce zero data retention: configuring retention, and any assurance about what the service retains, rests with AWS and the account's administrator. Model and Region pinning, inference-profile refusal, endpoint binding, credential handling and redaction, the published-corpus boundary, bounds, timeouts, retries and the per-attempt `cloud_embed_call` audit are unchanged.
+
 ## 0.8.0 — 2026-11-21
 
 - Opt-in distinct results per caller-supplied key. `execute_prepared_search` and `multistore.execute_prepared` accept `distinct=DistinctResults(key=..., limit=...)`: the search keeps its bounded pool (on the reranked route every admitted candidate, ranked by the same single rerank call, whose local truncation is all that is lifted) and, after every snapshot and vector-cache lease has closed, keeps the first hit per key in pool order, skipping hits the key marks ineligible with `None`, until `limit` are kept. Results gain `distinct`, a `DistinctOutcome(pool, walked, ineligible, duplicates, returned, underfilled)`; evidence, when prepared, is read for every pool hit in its store's snapshot and stays aligned. Provider calls, candidates and inputs are unchanged, and without `distinct` every result is the 0.7.1 result. See `docs/multi-store.md`.

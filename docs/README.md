@@ -11,7 +11,7 @@ Guides for users and library integrators. Start with the repository README and s
 
 - [Private inference providers](private-providers.md) — explicit boundary authorization, HTTPS adapter, audit, failure behavior and synthetic walkthrough.
 
-- [Bedrock embedding and composed settings](bedrock.md) — the `palace` section of a composed configuration, the equivalent TOML selector, the `bedrock` provider's retention check, bounds, audit and per-store vector width.
+- [Bedrock embedding and composed settings](bedrock.md) — the `palace` section of a composed configuration, the equivalent TOML selector, the `bedrock` provider's credentials, bounds, audit and per-store vector width.
 
 - [Vector cache](vector-cache.md) — the opt-in per-store change feed and the exact in-memory vector cache for long-lived processes: enabling, authorization, outcomes, unavailability versus integrity failure, memory accounting and limits.
 

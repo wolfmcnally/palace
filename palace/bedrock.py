@@ -5,10 +5,10 @@ personal-store and personal-vault refusals are applied by the caller through
 :func:`palace.index.embedder_config.assert_remote_corpus_boundary` before an embedder
 is used. Construction is inert. The first :meth:`BedrockEmbedder.probe` or
 :meth:`BedrockEmbedder.embed` resolves the AWS SDK credential chain or a Bedrock API
-key (bearer token), then reads the selector Region's ``GetAccountDataRetention`` mode
-with that same authentication and refuses unless it is exactly ``none``. That check
-reads one Region's configured mode at one moment; it does not observe what the service
-retains (``briefs/bedrock-embedding-provider.md``).
+key (bearer token) and opens the runtime client. Palace makes no control-plane request:
+it neither reads nor enforces the account's Bedrock data-retention mode, which remains
+the responsibility of AWS and the account's administrator
+(``briefs/bedrock-embedding-provider.md``).
 
 SDK retries are disabled and configured endpoint-URL overrides are ignored, so every
 request goes to the selector Region's standard endpoint and every attempt is palace's:
@@ -89,7 +89,7 @@ _RETRYABLE: dict[str, tuple[FailureKind, Delivery]] = {
     "ConnectionClosedError": ("connection", "unknown"),
 }
 BEDROCK_RETRYABLE_CODES = frozenset(_RETRYABLE)
-# Service codes the pinned InvokeModel and GetAccountDataRetention models document as
+# Service codes the pinned InvokeModel model documents as
 # refusing the request itself: missing permission, a missing resource, invalid input, or
 # an exceeded account quota. Any other non-retryable service code may have been processed:
 # ModelErrorException is documented as failing "due to an error while processing the
@@ -102,17 +102,15 @@ _DEFINITE_REFUSALS = frozenset(
         "ServiceQuotaExceededException",
     }
 )
-# Every service code the pinned InvokeModel and GetAccountDataRetention models declare.
+# Every service code the pinned InvokeModel model declares.
 _KNOWN_CODES = BEDROCK_RETRYABLE_CODES | _DEFINITE_REFUSALS | {"ModelErrorException"}
 # A floor so a scope with almost no time left still gets a finite, positive read bound.
 _MIN_READ_TIMEOUT_SECONDS = 0.001
-_REQUIRED_RETENTION_MODE = "none"
 # Diagnostics are library-owned: a failure names the provider, operation, Region and a
 # validated code, never the service's message, a transport error's text or a response
-# value outside a short known shape. A service code the pinned models do not declare is
+# value outside a short known shape. A service code the pinned model does not declare is
 # replaced, so a code cannot carry provider-chosen text into a message or the audit.
 _UNRECOGNIZED_CODE = "UnrecognizedServiceError"
-_SAFE_MODE = re.compile(r"[a-z][a-z_]{0,31}")
 # RFC 6750 section 2.1 ``b64token`` (token68): the only bearer credential syntax Palace admits.
 _TOKEN68 = re.compile(r"[A-Za-z0-9\-._~+/]+=*")
 _sleep = time.sleep  # the retry backoff; a test replaces this seam, not the time module
@@ -136,7 +134,7 @@ def open_bedrock_client(service: str, *, profile: str | None, region: str) -> An
     chain, or a Bedrock API key in the SDK's bearer-token variable for the service's
     signing name (``AWS_BEARER_TOKEN_BEDROCK``), which the SDK prefers when present.
     Refuses before any request when neither resolves, or when that variable is set but
-    blank. Admission is not authorization: the caller's retention read still decides.
+    blank. Admission is not authorization: the service still decides on each request.
     SDK retries are off (one total attempt) and ambient endpoint-URL overrides
     (``AWS_ENDPOINT_URL*`` and a profile's endpoint setting) are ignored.
     """
@@ -300,8 +298,7 @@ class BedrockEmbedder:
         _rng: Callable[[], float] | None = None,
     ) -> None:
         """``retry`` defaults to :class:`RetryPolicy`'s defaults. ``pacer`` admits every
-        ``InvokeModel`` attempt, retries included; the once-per-instance retention read is a
-        control-plane request outside any embedding quota and is not paced."""
+        ``InvokeModel`` attempt, retries included."""
         self.max_concurrency = BEDROCK_EMBED_MAX_CONCURRENCY
         self._store = store
         self._model = model
@@ -320,7 +317,7 @@ class BedrockEmbedder:
     # ---------------------------------------------------------------- API
 
     def probe(self) -> None:
-        """Resolve credentials and run the retention check; no embedding is requested."""
+        """Resolve credentials and open the runtime client; no request is sent."""
         self._ready()
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
@@ -372,7 +369,7 @@ class BedrockEmbedder:
     # ---------------------------------------------------------------- internals
 
     def _ready(self) -> Any:
-        """Open the runtime client once, after a passing same-Region retention check.
+        """Open the runtime client once; no request is sent.
 
         A caller queued behind another's initialization waits no longer than its own scope;
         stopping there is a typed ``deadline``/``cancelled`` failure with nothing sent.
@@ -394,26 +391,6 @@ class BedrockEmbedder:
                     history=(AttemptRecord(signal.reason, "not-sent", signal.reason, None),),
                 ) from signal.__cause__
             if self._runtime is None:
-                control = open_bedrock_client("bedrock", profile=self._profile, region=self._region)
-                try:
-                    response = self._call(
-                        "GetAccountDataRetention",
-                        lambda: control.get_account_data_retention(),
-                        texts=[],
-                    )
-                finally:
-                    control.close()
-                mode = response.get("mode")
-                if mode != _REQUIRED_RETENTION_MODE:
-                    shown = (
-                        repr(mode)
-                        if isinstance(mode, str) and _SAFE_MODE.fullmatch(mode)
-                        else "an unrecognized value"
-                    )
-                    raise IndexError(
-                        f"bedrock retention mode in {self._region} is {shown}; palace "
-                        f"requires {_REQUIRED_RETENTION_MODE!r}"
-                    )
                 self._runtime = open_bedrock_client(
                     "bedrock-runtime", profile=self._profile, region=self._region
                 )
@@ -460,13 +437,12 @@ class BedrockEmbedder:
         ``validate`` checks the complete answer inside the attempt, so an unusable answer
         ends the request typed as ``response-invalid`` with delivery ``processed``.
         """
-        embedding = operation == "InvokeModel"
 
         def send(info: AttemptInfo) -> dict[str, Any]:
             started = time.monotonic()
             try:
                 response = method()
-                raw = response["body"].read() if embedding else None
+                raw = response["body"].read()
             except Exception as exc:  # noqa: BLE001 — only botocore failures are translated
                 code = _error_code(exc)
                 if code is None:
@@ -492,8 +468,7 @@ class BedrockEmbedder:
                 ) from None
             self._audit(operation, texts, "ok", info, started, _http_status(response))
             result = dict(response)
-            if raw is not None:
-                result["body"] = raw
+            result["body"] = raw
             if validate is not None:
                 try:
                     result["vectors"] = validate(result)
@@ -519,7 +494,7 @@ class BedrockEmbedder:
             send,
             request=request,
             policy=self._retry,
-            pacer=self._pacer if embedding else None,
+            pacer=self._pacer,
             completed_inputs=completed_inputs,
             rng=self._rng,
             sleep=_backoff_sleep,
@@ -537,18 +512,14 @@ class BedrockEmbedder:
         throttled: bool = False,
         indeterminate: bool = False,
     ) -> None:
-        embedding = operation == "InvokeModel"
         extra: dict[str, Any] = {
             "operation": operation,
             "attempt": info.number,
             "status": status,
             "pacer_wait_ms": max(0, round(info.pacer_wait_seconds * 1000)),
             "backoff_ms": max(0, round(info.backoff_seconds * 1000)),
+            "input_type": self._input_type,
         }
-        if embedding:
-            extra["input_type"] = self._input_type
-        else:
-            extra["region"] = self._region
         record = build_record(
             provider=self._provider,
             upstream_configured=self._region,
@@ -560,11 +531,11 @@ class BedrockEmbedder:
             cost_usd=None,
             http_status=http_status,
             latency_ms=max(0, round((time.monotonic() - started) * 1000)),
-            kind="cloud_embed_call" if embedding else "bedrock_retention_check",
+            kind="cloud_embed_call",
             extra=extra,
         )
         usage = current_usage()
-        if embedding and usage is not None:
+        if usage is not None:
             # Before the append: the request has been made whether or not its record is written.
             usage.record(
                 ok=status == "ok",
