@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.2 — 2026-11-24
 
 - The `bedrock` embedding selector accepts exactly two model ids: the US geographic inference profile `us.cohere.embed-v4:0` and the direct regional model `cohere.embed-v4:0`. `model` is now optional for Bedrock on both configuration routes and defaults to `us.cohere.embed-v4:0`; a saved selector always records its model, so an existing explicit direct store and its configuration are unchanged. The US profile is admitted only from its documented US source Regions (`us-east-1`, `us-east-2`, `us-west-1`, `us-west-2`), and the profile or an omitted model with any other Region refuses with a message naming those Regions and the direct-model remedy. `eu.`, `apac.` and `global.` profiles, profile ARNs and other models are refused. `InvokeModel` goes to the source Region's runtime endpoint with the selected model id. The identity records `bedrock:<source region>` and the selected model id, so the routes never share an identity or vectors; moving a store between routes is a re-embedding (`palace index build --full` after moving the chunks database and selector aside). See `docs/bedrock.md`.
 
