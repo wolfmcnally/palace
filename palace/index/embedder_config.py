@@ -18,7 +18,10 @@ import palace.index.config as index_config
 from palace.index._errors import IndexError
 from palace.index.config import (
     BEDROCK_DIMENSIONS,
+    BEDROCK_DIRECT_MODEL,
     BEDROCK_MODELS,
+    BEDROCK_US_PROFILE_MODEL,
+    BEDROCK_US_PROFILE_REGIONS,
     REMOTE_EMBED_MAX_CONCURRENCY,
     EmbeddingIdentity,
 )
@@ -65,7 +68,7 @@ _SELECTOR_FIELDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     PROVIDER_OLLAMA: (("provider",), ()),
     PROVIDER_OPENROUTER: (("provider", "model", "upstream", "dim"), _PUBLISHED_FIELDS),
     PROVIDER_ENDPOINT: (("provider", "model", "dim", "endpoint"), ()),
-    PROVIDER_BEDROCK: (("provider", "model", "region", "dim"), ("profile", *_PUBLISHED_FIELDS)),
+    PROVIDER_BEDROCK: (("provider", "region", "dim"), ("model", "profile", *_PUBLISHED_FIELDS)),
 }
 _REGION = re.compile(r"[a-z]{2}(-[a-z]+)+-[0-9]+\Z")
 _dimensions = ", ".join(str(dim) for dim in BEDROCK_DIMENSIONS[:-1])
@@ -86,9 +89,14 @@ _REASON_TEXT = {
     "invalid_dimension": "dim must be a positive integer",
     "unsupported_dimension": f"dim must be one of {_dimensions} or {BEDROCK_DIMENSIONS[-1]}",
     "invalid_region": "region must be an AWS Region name such as us-east-1",
-    "inference_profile_model": "inference-profile model ids are refused; use the direct "
-    "regional model id",
-    "unsupported_model": "model must be one of " + ", ".join(sorted(BEDROCK_MODELS)),
+    "inference_profile_model": f"inference profiles other than {BEDROCK_US_PROFILE_MODEL} "
+    "are refused",
+    "unsupported_model": f"model must be {BEDROCK_DIRECT_MODEL} or {BEDROCK_US_PROFILE_MODEL}",
+    "us_profile_region": f"{BEDROCK_US_PROFILE_MODEL}, the default when model is omitted, is "
+    "invoked only from "
+    + ", ".join(BEDROCK_US_PROFILE_REGIONS[:-1])
+    + f" or {BEDROCK_US_PROFILE_REGIONS[-1]}; choose one of those Regions or pin model "
+    + BEDROCK_DIRECT_MODEL,
     "invalid_boolean": "must be true or false",
     "secret_not_allowed": "an !env reference is accepted only at endpoint.credential_env",
     "invalid_endpoint": "endpoint table has missing, unknown or invalid fields; see the "
@@ -194,7 +202,12 @@ def selector_from_mapping(value: Value) -> EmbedderConfig:
             raise SchemaError("invalid_representation", path=("representation",)) from exc
     if provider == PROVIDER_OLLAMA:
         return replace(_default_config(), representation=representation)
-    model = _string(value, "model")
+    # Only a Bedrock selector may omit its model; it then selects the US profile.
+    model = (
+        _string(value, "model")
+        if provider != PROVIDER_BEDROCK or "model" in value
+        else BEDROCK_US_PROFILE_MODEL
+    )
     dim = value["dim"]
     if isinstance(dim, bool) or not isinstance(dim, int) or dim <= 0:
         raise SchemaError("invalid_dimension", path=("dim",))
@@ -223,15 +236,15 @@ def selector_from_mapping(value: Value) -> EmbedderConfig:
             published_corpus_asserted_at=asserted_at,
         )
     if model not in BEDROCK_MODELS:
-        profiled = model.startswith("arn:") or any(
-            model.endswith("." + allowed) for allowed in BEDROCK_MODELS
-        )
+        profiled = model.startswith("arn:") or model.endswith("." + BEDROCK_DIRECT_MODEL)
         raise SchemaError(
             "inference_profile_model" if profiled else "unsupported_model", path=("model",)
         )
     region = value["region"]
     if not isinstance(region, str) or not _REGION.fullmatch(region):
         raise SchemaError("invalid_region", path=("region",))
+    if model == BEDROCK_US_PROFILE_MODEL and region not in BEDROCK_US_PROFILE_REGIONS:
+        raise SchemaError("us_profile_region", path=("region",))
     if dim not in BEDROCK_DIMENSIONS:
         raise SchemaError("unsupported_dimension", path=("dim",))
     return EmbedderConfig(

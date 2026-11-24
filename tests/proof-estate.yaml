@@ -12,9 +12,9 @@ post_reset_counts:
   families: 271
   leaves: 290
 test_budget_delta:
-  families: 112
-  leaves: 154
-budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once.; and the hosted-CI repair of the public handoff path guard under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (21:09:57Z) to repair the failed hosted checks with a focused cross-platform proof, of which exactly one family and one leaf are used once.; and the 0.7.1 tie-policy proof under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (23:49:06Z) to release a patch removing the SQLite fallback for tied in-memory scores with paired exact proofs, of which exactly one family and one leaf are used once.; and the beyond-limit tie proof under a ceiling of one family and one leaf, from the operator's 2026-11-21 correction relayed by the authenticated factotum (00:17:12Z) to rank tied groups beyond sqlite-vec's KNN limit without the released fallback, of which exactly one family and one leaf are used once.; and the 0.8.0 opt-in distinct-results proofs under a ceiling of 7 families and 11 leaves, from the operator's 2026-11-21 order relayed by the authenticated factotum (06:28:22Z, sentinel 7fbf7bbb93b4819180f962d519c91c8e) to implement the distinct-source enhancement with duplicate, stale-sibling, cross-store, tie, limit, underfilled, non-opt-in and provider-budget tests, of which exactly 7 families and 11 leaves are used once."
+  families: 113
+  leaves: 155
+budget_approval: "Owner root rulings relayed on 2026-11-11: one synthetic consolidation-prompt proof (20:34Z), funded by a one-family, one-leaf budget used exactly once (20:38Z); the Phase 30 lane split's new proofs under a ceiling of twelve families and twenty-three leaves (21:33Z), of which exactly twelve families and twenty-two leaves are used once; and Phase 31's prepared single-store seam and returned-hit evidence proofs under a ceiling of six families and twelve leaves (21:59Z), of which exactly five families and twelve leaves are used once; and Phase 33's typed provider failure, retry, pacing and scope proofs under a ceiling of eight families and eight leaves, from the operator's 2026-11-17 order relayed by the authenticated factotum (14:46:50Z) to implement the throttling work with tests without a further owner question, of which exactly eight families and eight leaves are used once; and Phase 35's opt-in vector feed and exact in-memory vector cache proofs under a ceiling of seventeen families and nineteen leaves, from the operator's 2026-11-19 approval relayed by the authenticated factotum (18:52:25Z) to implement and release that capability after genuine tests, reviews and release qualification, of which exactly seventeen families and nineteen leaves are used once; and the Starter v1.9.0 methodology teach's arriving proofs under a ceiling of 59 families and 78 leaves, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (18:47:28Z, sentinel 08e79969c6ac81918958b010f79d8682) to complete the full Starter v1.9.0 teach with its proofs and gates, of which exactly 59 families (60 new less one retired) and 78 leaves are used once.; and the hosted-CI repair of the public handoff path guard under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (21:09:57Z) to repair the failed hosted checks with a focused cross-platform proof, of which exactly one family and one leaf are used once.; and the 0.7.1 tie-policy proof under a ceiling of one family and one leaf, from the operator's 2026-11-20 instruction relayed by the authenticated factotum (23:49:06Z) to release a patch removing the SQLite fallback for tied in-memory scores with paired exact proofs, of which exactly one family and one leaf are used once.; and the beyond-limit tie proof under a ceiling of one family and one leaf, from the operator's 2026-11-21 correction relayed by the authenticated factotum (00:17:12Z) to rank tied groups beyond sqlite-vec's KNN limit without the released fallback, of which exactly one family and one leaf are used once.; and the 0.8.0 opt-in distinct-results proofs under a ceiling of 7 families and 11 leaves, from the operator's 2026-11-21 order relayed by the authenticated factotum (06:28:22Z, sentinel 7fbf7bbb93b4819180f962d519c91c8e) to implement the distinct-source enhancement with duplicate, stale-sibling, cross-store, tie, limit, underfilled, non-opt-in and provider-budget tests, of which exactly 7 families and 11 leaves are used once.; and the 0.8.2 US geographic Bedrock profile proof under a ceiling of one family and one leaf, from the operator's 2026-11-24 order relayed by the authenticated factotum (18:32:13Z, sentinel ee3819c3f690819197611ec0a10f6b68) to admit the US profile with regression tests for omitted, explicit direct, explicit US, unsupported routing, identity and the AWS request model id, of which exactly one family and one leaf are used once."
 critical_risks:
   custody:
     state: applicable
@@ -5915,7 +5915,7 @@ families:
   - palace/bedrock.py
   - palace/settings.py
   - palace/index/**
-  contract: The composed palace section and the TOML selector share one validator; unknown fields, a missing Region, an inference-profile model and an unsupported dimension refuse with identical text and file locations; the Bedrock identity is Region-qualified; initialization writes once and refuses a different selector; configuration makes no request.
+  contract: The composed palace section and the TOML selector share one validator; unknown fields, a missing Region, a non-US inference-profile model and an unsupported dimension refuse with identical text and file locations; the Bedrock identity is Region-qualified; initialization writes once and refuses a different selector; configuration makes no request.
   risk_class: provider-config
   oracle: Literal expected refusal strings with Conric source locations, selector file bytes, CLI stdout and stderr, an opener that fails the test if called, and absent audit directories.
   admission: Phase 22 compensated admission; offline stubbed qualification only, no live Bedrock run.
@@ -8400,6 +8400,30 @@ families:
   mutation_evidence:
   - "Accept a key result that is neither a string nor None."
   - "Validate the distinct value only after store admission has begun."
+  tier: changed
+  duration_seconds: 0.0
+  flake_rate: 0.0
+  replacement_lineage: []
+- id: er-py-test-bedrock-us-profile-selection-routing-and-identity-1c9ccd272a
+  kind: pytest
+  selectors:
+  - "tests/test_bedrock_provider.py::test_bedrock_us_profile_selection_routing_and_identity"
+  source_paths:
+  - "tests/test_bedrock_provider.py"
+  covers:
+  - "tests/test_bedrock_provider.py"
+  - "palace/index/config.py"
+  - "palace/index/embedder_config.py"
+  - "palace/settings.py"
+  - "palace/bedrock.py"
+  contract: "Exactly cohere.embed-v4:0 and us.cohere.embed-v4:0 are admitted on both configuration routes: an omitted model selects the US profile and a saved selector records it; an explicit direct pin keeps 0.8.1's selector and identity; the US profile is admitted from us-east-1, us-east-2, us-west-1 and us-west-2 only; eu., apac., global. and ARN profiles, other models, and the US profile or an omitted model with a non-US Region refuse with identical clear text before any client; direct and US-profile identities, and US-profile identities in different source Regions, differ; an existing direct store refuses a composition that omits the model with its selector unchanged; and each saved selector's resolved embedder invokes exactly its recorded model id at its source Region's runtime endpoint, signed for that Region, with a matching audit."
+  risk_class: remote-egress
+  oracle: "Composed YAML and TOML selectors through the shared validator; exact refusal texts and paths; selector bytes; real boto3 clients answered by before-send stubs recording host, path and signing scope; parsed audit records."
+  admission: "0.8.2 US-profile admission funded by the named 2026-11-24 phase budget; no retirement."
+  nearest_overlap: "bedrock-settings-and-selector proves the shared validator, Region-qualified identity and a refused profile; none admits the US profile, defaults an omitted model, checks its source Regions or proves the resolved request model id per Region."
+  historical_evidence: []
+  mutation_evidence:
+  - "Defaulting an omitted model to the direct id, dropping the US source-Region check, admitting any *.cohere.embed-v4:0 profile, collapsing the profile identity to the direct id, or a resolver that substitutes the direct model or hardcodes us-east-1: each fails the family."
   tier: changed
   duration_seconds: 0.0
   flake_rate: 0.0

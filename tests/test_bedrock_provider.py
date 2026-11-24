@@ -55,7 +55,12 @@ CONTROL_HOST = "https://bedrock.us-east-1.amazonaws.com"
 RUNTIME_HOST = "https://bedrock-runtime.us-east-1.amazonaws.com"
 DIMENSION_TEXT = "dim must be one of 256, 512, 1024 or 1536"
 MISSING_TEXT = "required field is missing"
-PROFILE_TEXT = "inference-profile model ids are refused; use the direct regional model id"
+PROFILE_TEXT = "inference profiles other than us.cohere.embed-v4:0 are refused"
+US_PROFILE = "us.cohere.embed-v4:0"
+US_REGION_TEXT = (
+    "us.cohere.embed-v4:0, the default when model is omitted, is invoked only from us-east-1, "
+    "us-east-2, us-west-1 or us-west-2; choose one of those Regions or pin model cohere.embed-v4:0"
+)
 UNKNOWN_TEXT = "unknown field; remove it"
 
 
@@ -110,7 +115,7 @@ class BedrockStub:
 
     def answer(self, request: Any, **_: Any) -> Any:
         self.requests.append(request)
-        if not request.url.startswith(RUNTIME_HOST):
+        if not _runtime(request):
             # Answered only so that a regression shows as a recorded control-plane request.
             return _response(request, 200, {"mode": "none"})
         if self.hook is not None:
@@ -136,7 +141,13 @@ class BedrockStub:
         )
 
     def invokes(self) -> list[Any]:
-        return [r for r in self.requests if r.url.startswith(RUNTIME_HOST)]
+        return [r for r in self.requests if _runtime(r)]
+
+
+def _runtime(request: Any) -> bool:
+    """Whether a request went to some Region's standard Bedrock runtime endpoint."""
+    host = urlsplit(request.url).netloc
+    return host.startswith("bedrock-runtime.") and host.endswith(".amazonaws.com")
 
 
 def header(request: Any, name: str) -> str:
@@ -250,9 +261,9 @@ def test_bedrock_settings_and_selector_refuse_before_any_request(
             site_file,  # the nearest winning node: the last file defining palace.embedding
         ),
         (
-            DEFAULTS.replace(MODEL, "us." + MODEL),
+            DEFAULTS.replace(MODEL, "eu." + MODEL),
             SITE,
-            toml.replace(MODEL, "us." + MODEL),
+            toml.replace(MODEL, "eu." + MODEL),
             "model",
             PROFILE_TEXT,
             defaults_file,
@@ -344,6 +355,142 @@ def test_bedrock_settings_and_selector_refuse_before_any_request(
     resolved.close()
     for root in (store, cli_store):
         assert not (root / "events" / "cloud-egress").exists()
+
+
+# --------------------------------------------------------------------- US profile
+
+
+def test_bedrock_us_profile_selection_routing_and_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, guard_outbound_aws: Path
+) -> None:
+    """Exactly two model ids; an omitted model selects the US geographic profile, which is
+    invoked only from its documented US source Regions and stamps its own identity."""
+    stub = BedrockStub()
+    stub.install(monkeypatch)
+    fixture_credentials(monkeypatch)
+
+    def composed(embedding: str) -> EmbedderConfig:
+        case = tmp_path / f"composed-{len(list(tmp_path.glob('composed-*')))}"
+        site = write(case / "site.yaml", "palace:\n  embedding:\n" + embedding)
+        return load_palace_settings([site], root=case).embedding
+
+    def toml(text: str) -> EmbedderConfig:
+        case = tmp_path / f"toml-{len(list(tmp_path.glob('toml-*')))}"
+        return read_embedder_config(write(case / "embedder.toml", text))
+
+    def both(model: str | None, region: str) -> tuple[EmbedderConfig, EmbedderConfig]:
+        """The same selector through the composed section and the TOML selector file."""
+        line = f"    model: {model}\n" if model is not None else ""
+        toml_line = f'model = "{model}"\n' if model is not None else ""
+        return (
+            composed(f"    provider: bedrock\n{line}    region: {region}\n    dim: 1536\n"),
+            toml(f'provider = "bedrock"\n{toml_line}region = "{region}"\ndim = 1536\n'),
+        )
+
+    def refusals(model: str | None, region: str) -> tuple[str, str]:
+        line = f"    model: {model}\n" if model is not None else ""
+        toml_line = f'model = "{model}"\n' if model is not None else ""
+        with pytest.raises(PalaceError) as by_composition:
+            composed(f"    provider: bedrock\n{line}    region: {region}\n    dim: 1536\n")
+        with pytest.raises(PalaceError) as by_file:
+            toml(f'provider = "bedrock"\n{toml_line}region = "{region}"\ndim = 1536\n')
+        return str(by_composition.value), str(by_file.value)
+
+    # An omitted model selects the US profile on both routes; an explicit pin of either id
+    # is kept as written. The direct model's validated selector is 0.8.1's.
+    omitted = both(None, "us-east-1")
+    assert omitted[0] == omitted[1] == EmbedderConfig("bedrock", US_PROFILE, DIM, region=REGION)
+    direct = both(MODEL, "us-east-1")
+    assert direct[0] == direct[1] == EmbedderConfig("bedrock", MODEL, DIM, region=REGION)
+    for region in ("us-east-1", "us-east-2", "us-west-1", "us-west-2"):
+        pinned = both(US_PROFILE, region)
+        assert pinned[0] == pinned[1] == EmbedderConfig("bedrock", US_PROFILE, DIM, region=region)
+    assert both(MODEL, "eu-west-1")[0].region == "eu-west-1"  # the direct route is unchanged
+
+    # Identities: the routes, and the profile's source Regions, never share one.
+    identities = {
+        identity_for(config)
+        for config in (
+            direct[0],
+            omitted[0],
+            both(US_PROFILE, "us-west-2")[0],
+            both(MODEL, "us-west-2")[0],
+        )
+    }
+    assert len(identities) == 4
+    assert {(i.provider, i.model) for i in identities} == {
+        ("bedrock:us-east-1", MODEL),
+        ("bedrock:us-east-1", US_PROFILE),
+        ("bedrock:us-west-2", US_PROFILE),
+        ("bedrock:us-west-2", MODEL),
+    }
+
+    # Unsupported routing refuses with the same clear text on both routes, before any client.
+    for model, region, field, text in (
+        ("eu." + MODEL, "eu-west-1", "model", PROFILE_TEXT),
+        ("apac." + MODEL, "ap-northeast-1", "model", PROFILE_TEXT),
+        ("global." + MODEL, "us-east-1", "model", PROFILE_TEXT),
+        (
+            "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.cohere.embed-v4:0",
+            "us-east-1",
+            "model",
+            PROFILE_TEXT,
+        ),
+        ("cohere.embed-english-v3", "us-east-1", "model", f"model must be {MODEL} or {US_PROFILE}"),
+        (US_PROFILE, "eu-west-1", "region", US_REGION_TEXT),
+        (US_PROFILE, "ca-central-1", "region", US_REGION_TEXT),
+        (None, "eu-west-1", "region", US_REGION_TEXT),
+    ):
+        by_composition, by_file = refusals(model, region)
+        assert by_composition.endswith(f": palace.embedding.{field}: {text}")
+        assert by_file.endswith(f": {field}: {text}")
+    assert stub.requests == [] and stub.opened == []
+
+    # Saved selectors record the model explicitly, and an existing direct store refuses a
+    # composition that omits the model: no silent switch to the US route or reuse of vectors.
+    direct_store = tmp_path / "direct-store"
+    assert initialize_store(direct_store, PalaceSettings(embedding=direct[0])) is True
+    selector = direct_store / "meta" / "embedder.toml"
+    written = selector.read_bytes()
+    assert b'model = "cohere.embed-v4:0"' in written
+    with pytest.raises(PalaceError, match="select a different embedding"):
+        initialize_store(direct_store, PalaceSettings(embedding=omitted[0]))
+    assert selector.read_bytes() == written
+    profile_store = tmp_path / "profile-store"
+    west = both(None, "us-west-2")[0]
+    assert initialize_store(profile_store, PalaceSettings(embedding=west)) is True
+    assert (
+        b'model = "us.cohere.embed-v4:0"' in (profile_store / "meta" / "embedder.toml").read_bytes()
+    )
+
+    # Requests: the resolved embedder of each saved selector invokes exactly its recorded
+    # model id at its source Region's runtime endpoint, and its audit names the same identity.
+    for store, host, path in (
+        (
+            profile_store,
+            "bedrock-runtime.us-west-2.amazonaws.com",
+            "/model/us.cohere.embed-v4%3A0/invoke",
+        ),
+        (
+            direct_store,
+            "bedrock-runtime.us-east-1.amazonaws.com",
+            "/model/cohere.embed-v4%3A0/invoke",
+        ),
+    ):
+        resolved, identity = resolve_embedder(store, purpose="document")
+        before = len(stub.requests)
+        assert resolved.embed(["routed text"]) == [vector_for("routed text")]
+        resolved.close()
+        sent = stub.requests[before:]
+        assert [(urlsplit(r.url).netloc, urlsplit(r.url).path) for r in sent] == [(host, path)]
+        assert f"/{identity.provider.split(':')[1]}/bedrock/aws4_request" in header(
+            sent[0], "Authorization"
+        )
+        records = audit(store)
+        assert [(r["provider"], r["model"], r["upstream_configured"]) for r in records] == [
+            (identity.provider, identity.model, identity.provider.split(":")[1])
+        ]
+    assert stub.opened == ["bedrock-runtime", "bedrock-runtime"]
 
 
 # --------------------------------------------------------------------- F2

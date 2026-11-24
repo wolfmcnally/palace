@@ -1,0 +1,11 @@
+{
+  "claim": "operator authorization relayed by the authenticated factotum, Folded Sentinel_ee3819c3f690819197611ec0a10f6b68, 2026-11-24T18:32:13Z; sole Palace owner session a6a8fd88",
+  "from": "not-started",
+  "id": "258bb53bce5449d5bab88895078e4522",
+  "owner": "wolf",
+  "phase": "us-bedrock-profile",
+  "previous": "03989949bc3a490a82d16e91f30cb1ee",
+  "reason": "Start the authorized US Bedrock profile phase",
+  "state": "in-progress",
+  "writer": "wolf"
+}

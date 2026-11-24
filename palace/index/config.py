@@ -31,7 +31,10 @@ __all__ = [
     "BEDROCK_DIMENSIONS",
     "BEDROCK_EMBED_MAX_CONCURRENCY",
     "BEDROCK_MAX_BATCH",
+    "BEDROCK_DIRECT_MODEL",
     "BEDROCK_MODELS",
+    "BEDROCK_US_PROFILE_MODEL",
+    "BEDROCK_US_PROFILE_REGIONS",
     "BEDROCK_CONNECT_TIMEOUT_SECONDS",
     "BEDROCK_READ_TIMEOUT_SECONDS",
     "BEDROCK_REQUEST_BUDGET",
@@ -150,12 +153,18 @@ EMBED_CONCURRENCY_DEFAULT: int = 8
 # this is a capability ceiling rather than the policy default above.
 REMOTE_EMBED_MAX_CONCURRENCY: int = 16
 
-# Bedrock Cohere Embed v4 (briefs/bedrock-embedding-provider.md, as of
-# 2026-11-07). The request body is specific to Embed v4, so the model set is an
-# allowlist of exactly the direct regional model id; inference profiles are
-# refused. Allowed output dimensions and the 96-input request cap are from the
-# Embed v4 user guide (``model-parameters-embed-v4.html``, retrieved 2026-11-07).
-BEDROCK_MODELS: frozenset[str] = frozenset({"cohere.embed-v4:0"})
+# Bedrock Cohere Embed v4 (briefs/bedrock-embedding-provider.md). The request body
+# is specific to Embed v4, so the model set is an exact allowlist: the direct
+# regional model id and the US geographic inference profile, which is the default
+# when a selector omits the model. Every other profile is refused. The profile's
+# documented source Regions are from the Embed v4 model card
+# (``model-card-cohere-embed-v4.html``, retrieved 2026-11-24); allowed output
+# dimensions and the 96-input request cap are from the Embed v4 user guide
+# (``model-parameters-embed-v4.html``, retrieved 2026-11-07).
+BEDROCK_DIRECT_MODEL: str = "cohere.embed-v4:0"
+BEDROCK_US_PROFILE_MODEL: str = "us.cohere.embed-v4:0"
+BEDROCK_US_PROFILE_REGIONS: tuple[str, ...] = ("us-east-1", "us-east-2", "us-west-1", "us-west-2")
+BEDROCK_MODELS: frozenset[str] = frozenset({BEDROCK_DIRECT_MODEL, BEDROCK_US_PROFILE_MODEL})
 BEDROCK_DIMENSIONS: tuple[int, ...] = (256, 512, 1024, 1536)
 BEDROCK_MAX_BATCH: int = 96
 

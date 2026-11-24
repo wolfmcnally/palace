@@ -1,0 +1,15 @@
+{
+  "acceptance": {
+    "path": ".kickoff/runs/run.e6YVSHbg/closure.json",
+    "sha256": "50968db0e445e94170ef6ed19e7dee2bb29c26b9dff95c527a15d6d7a6f1840f"
+  },
+  "claim": "operator authorization relayed by the authenticated factotum, Folded Sentinel_ee3819c3f690819197611ec0a10f6b68, 2026-11-24T18:32:13Z; sole Palace owner session a6a8fd88",
+  "from": "in-progress",
+  "id": "eeb522588e9f454790c5a2b29fcaa3f3",
+  "owner": "wolf",
+  "phase": "us-bedrock-profile",
+  "previous": "258bb53bce5449d5bab88895078e4522",
+  "reason": "Accepted close: gates green on the approved candidate",
+  "state": "completed",
+  "writer": "wolf"
+}

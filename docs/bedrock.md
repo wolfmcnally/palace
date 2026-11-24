@@ -1,6 +1,6 @@
 # Bedrock embedding and composed settings
 
-As of 2026-11-07. Palace can embed a store with Cohere Embed v4 through AWS Bedrock, selected either from a Palace-owned `palace` section of a composed [Conric](https://github.com/wolfmcnally/conric) configuration or from the store's TOML selector file. Both routes go through one validator and one schema. Bedrock is third-party inference: it is never selected implicitly and is available only for an already-published corpus. As of 2026-11-07, two bounded runs against the real model in one Region with a synthetic ten-note corpus passed, one from a workstation profile and one from an EC2 instance role in a private subnet; other Regions, throughput and real-corpus behaviour are not established, and every repository proof is offline.
+As of 2026-11-07. Palace can embed a store with Cohere Embed v4 through AWS Bedrock, selected either from a Palace-owned `palace` section of a composed [Conric](https://github.com/wolfmcnally/conric) configuration or from the store's TOML selector file. Both routes go through one validator and one schema. Two model routes are accepted: the US geographic inference profile `us.cohere.embed-v4:0`, which is the default when the model is omitted, and the direct regional model `cohere.embed-v4:0`. Bedrock is third-party inference: it is never selected implicitly and is available only for an already-published corpus. As of 2026-11-07, two bounded runs against the real direct model in one Region with a synthetic ten-note corpus passed, one from a workstation profile and one from an EC2 instance role in a private subnet; other Regions, throughput and real-corpus behaviour are not established, and every repository proof is offline.
 
 ## The `palace` section
 
@@ -10,10 +10,10 @@ A consumer that composes its configuration from several YAML files hands Palace 
 palace:
   embedding:
     provider: bedrock
-    model: cohere.embed-v4:0
     region: us-east-1
     dim: 1536
     # optional:
+    model: us.cohere.embed-v4:0   # the default; or cohere.embed-v4:0 for the direct model
     profile: analytics
     published_corpus: true
     published_corpus_note: Published at https://example.test/docs/
@@ -38,7 +38,7 @@ Initialization writes the store's selector once. If the store already has a sele
 
 ```toml
 provider = "bedrock"
-model = "cohere.embed-v4:0"
+model = "us.cohere.embed-v4:0"
 region = "us-east-1"
 dim = 1536
 published_corpus = true
@@ -53,10 +53,11 @@ Each refusal names the field's path and, for composed settings, the file, line a
 | Condition | Text |
 |---|---|
 | A key under `palace` other than `embedding`, or a field the provider does not accept | `unknown field; remove it` |
-| A required field (`provider`, `model`, `region`, `dim`) is absent | `required field is missing` |
+| A required field (`provider`, `region`, `dim`) is absent; for Bedrock `model` is optional | `required field is missing` |
 | A provider other than `ollama`, `openrouter`, `endpoint` or `bedrock` | `provider must be one of ollama, openrouter, endpoint or bedrock` |
-| An inference-profile model id (`us.`, `eu.`, `global.` prefixes or an ARN) | `inference-profile model ids are refused; use the direct regional model id` |
-| Any other model | `model must be one of cohere.embed-v4:0` |
+| Any inference profile other than `us.cohere.embed-v4:0` (`eu.`, `apac.` or `global.` prefixes, or an ARN) | `inference profiles other than us.cohere.embed-v4:0 are refused` |
+| Any other model | `model must be cohere.embed-v4:0 or us.cohere.embed-v4:0` |
+| `us.cohere.embed-v4:0`, or an omitted model, with a Region outside us-east-1, us-east-2, us-west-1 and us-west-2 | `us.cohere.embed-v4:0, the default when model is omitted, is invoked only from us-east-1, us-east-2, us-west-1 or us-west-2; choose one of those Regions or pin model cohere.embed-v4:0` |
 | A Region that is not an AWS Region name | `region must be an AWS Region name such as us-east-1` |
 | A dimension outside the model's options | `dim must be one of 256, 512, 1024 or 1536` |
 | A non-boolean `published_corpus`, or an empty string field | `must be true or false` / `must be a non-empty string` |
@@ -66,7 +67,10 @@ A composed refusal reads, for example, `palace settings /path/site.yaml:3:10: pa
 
 ## The `bedrock` provider
 
-- **Model and Region.** The model id is the direct regional id `cohere.embed-v4:0`, invoked on the selector Region's standard `bedrock-runtime` endpoint. Inference profiles are refused because a profile may process a request in another Region than the one the store's identity names. As of 2026-11-07 the Embed v4 model card lists direct in-Region access only in `us-east-1`, `eu-west-1` and `ap-northeast-1` (AWS Bedrock user guide, `model-card-cohere-embed-v4.html`, retrieved 2026-11-07). Palace does not hard-code that list; an unavailable Region surfaces as the service's own refusal before any row is written.
+- **Model and Region.** Exactly two model ids are accepted, and the selector's `region` is always the source Region: the Region whose standard `bedrock-runtime` endpoint receives every `InvokeModel` request, with `modelId` set to the selected id.
+  - `us.cohere.embed-v4:0`, the US geographic inference profile and the default when `model` is omitted. AWS may process a request in another US Region. As of 2026-11-24 the Embed v4 model card documents these source and destination Regions (AWS Bedrock user guide, `model-card-cohere-embed-v4.html`, retrieved 2026-11-24): from `us-east-1`, `us-east-2` or `us-west-2`, processing in `us-east-1`, `us-east-2` or `us-west-2`; from `us-west-1`, processing in `us-east-1`, `us-east-2`, `us-west-1` or `us-west-2`. Palace admits the profile only from those four source Regions and refuses any other before a request is made; a Region AWS adds later is refused until Palace's list is updated.
+  - `cohere.embed-v4:0`, the direct regional model, processed in the source Region only. As of 2026-11-07 its model card listed direct in-Region access only in `us-east-1`, `eu-west-1` and `ap-northeast-1`; Palace does not hard-code that list, and an unavailable Region surfaces as the service's own refusal before any row is written.
+  - Every other model id, including the `eu.`, `apac.` and `global.` profiles and profile ARNs, is refused. A selector always records its model when saved, so a store created with the default keeps the US route even if the default changes.
 - **Endpoints.** The runtime client ignores SDK endpoint-URL overrides (`AWS_ENDPOINT_URL`, `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` and a profile's endpoint setting), so every request goes to the Region the identity names. The provider sends only `InvokeModel` requests; it makes no Bedrock control-plane request.
 - **Credentials.** What the AWS SDK resolves, nothing else: SigV4 credentials from its chain (an instance role, the named `profile` or the environment), or a Bedrock API key in the SDK's `AWS_BEARER_TOKEN_BEDROCK` environment variable. The selector never carries a secret. With neither, the provider refuses before any request: `bedrock credentials unavailable: configure the AWS SDK credential chain (profile, environment or instance role) or a Bedrock API key in AWS_BEARER_TOKEN_BEDROCK`. A set-but-blank token variable, or a token outside the RFC 6750 bearer-token syntax (letters, digits, `-._~+/`, trailing `=`; no whitespace or newline), also refuses before any request, without showing the value. Expired or denied credentials surface as the service's error code alone: Bedrock failure messages are Palace's own text naming the operation, Region and a declared service error code, never the service's message, so neither a token nor any other service-supplied text appears in an error or the audit.
 - **Bedrock API keys.** When the token variable is set, the SDK signs every `InvokeModel` request with `Authorization: Bearer`, and it prefers the token over SigV4 credentials when both are present; to use SigV4, unset the variable. Signing with a token is not authorization: the service decides whether that key may invoke the model. As of 2026-11-11 AWS documents Bedrock API keys as limited to Bedrock and Bedrock Runtime actions, excluding bidirectional streaming, Agents and Data Automation (AWS Bedrock user guide, `api-keys-use.html`, retrieved 2026-11-11). Short-term keys inherit their issuing principal's permissions; long-term keys carry their IAM user's policies. Palace's proofs of this path are offline: real SDK signing with synthetic values, not a live key.
@@ -81,6 +85,8 @@ A composed refusal reads, for example, `palace settings /path/site.yaml:3:10: pa
 
 ## Identity and vector width
 
-A Bedrock store's identity stamp is provider `bedrock:<region>`, model `cohere.embed-v4:0`, the selector's dimension and the shared text convention. The Region is part of the provider string because Palace has not measured whether the same model returns identical vectors across Regions. Equal dimensions never make vectors from different identities interchangeable.
+A Bedrock store's identity stamp is provider `bedrock:<source region>`, the selected model id (`cohere.embed-v4:0` or `us.cohere.embed-v4:0`), the selector's dimension and the shared text convention. The Region is part of the provider string because Palace has not measured whether the same model returns identical vectors across Regions or routes. A direct store and a US-profile store therefore never share an identity, nor do two US-profile stores with different source Regions, and Palace never reuses one route's vectors for the other. Equal dimensions never make vectors from different identities interchangeable.
+
+An existing store keeps the route its saved selector records: a composed configuration that omits the model, applied to a store initialized with `cohere.embed-v4:0`, is refused as a different embedding and leaves the selector unchanged. To move a store to the US profile (or back), re-embed it: move its chunks database and `meta/embedder.toml` aside, initialize with the new selector, then run `palace index build --full`.
 
 Each store's vector table is declared at its selected dimension. If the selector's `dim` differs from the width an existing table was declared at, `palace index build` refuses before any request with the remedy of moving the chunks database aside and rebuilding from an empty one with `palace index build --full`. Default local stores keep their 4096-wide table unchanged.

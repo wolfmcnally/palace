@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The `bedrock` embedding selector accepts exactly two model ids: the US geographic inference profile `us.cohere.embed-v4:0` and the direct regional model `cohere.embed-v4:0`. `model` is now optional for Bedrock on both configuration routes and defaults to `us.cohere.embed-v4:0`; a saved selector always records its model, so an existing explicit direct store and its configuration are unchanged. The US profile is admitted only from its documented US source Regions (`us-east-1`, `us-east-2`, `us-west-1`, `us-west-2`), and the profile or an omitted model with any other Region refuses with a message naming those Regions and the direct-model remedy. `eu.`, `apac.` and `global.` profiles, profile ARNs and other models are refused. `InvokeModel` goes to the source Region's runtime endpoint with the selected model id. The identity records `bedrock:<source region>` and the selected model id, so the routes never share an identity or vectors; moving a store between routes is a re-embedding (`palace index build --full` after moving the chunks database and selector aside). See `docs/bedrock.md`.
+
 ## 0.8.1 — 2026-11-23
 
 - The `bedrock` embedding provider no longer calls `GetAccountDataRetention` or refuses inference based on the account's retention mode. It makes no Bedrock control-plane request, so the `bedrock:GetAccountDataRetention` permission is no longer needed and no `bedrock_retention_check` audit record is written; `probe()` resolves credentials and opens the runtime client without sending a request. Palace does not verify or enforce zero data retention: configuring retention, and any assurance about what the service retains, rests with AWS and the account's administrator. Model and Region pinning, inference-profile refusal, endpoint binding, credential handling and redaction, the published-corpus boundary, bounds, timeouts, retries and the per-attempt `cloud_embed_call` audit are unchanged.
